@@ -3,14 +3,14 @@
   "scripts": {
     "start": "ts-node src/server.ts",
     "start:dev": "nodemon src/server.ts",
-    "tsc": "tsc",
+    "build": "tsc",
     "eslint": "eslint ./",
     "eslint-fix": "eslint ./ --fix",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed"
   },
-  "name": "nodeapi",
+  "name": "myfin-api",
   "version": "5.0.0",
   "description": "NODE.js API for Myfin",
   "main": "src/server.js",
