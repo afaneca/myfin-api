@@ -2,7 +2,7 @@ name: CI Deployment to AFaneca Server
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   job_one:
