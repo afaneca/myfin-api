@@ -247,10 +247,10 @@ const accountService = {
      * Loop through all the months that are being recalculated to clean up the data
      * Very important in case there are months with no transactions at all
      */
-    const month1 = DateTimeUtils.getMonthNumberFromTimestamp(fromDate);
-    const year1 = DateTimeUtils.getYearFromTimestamp(fromDate);
-    const month2 = DateTimeUtils.getMonthNumberFromTimestamp(toDate);
-    const year2 = DateTimeUtils.getYearFromTimestamp(toDate);
+    const month1 = DateTimeUtils.getMonthNumberFromTimestamp(Number(fromDate));
+    const year1 = DateTimeUtils.getYearFromTimestamp(Number(fromDate));
+    const month2 = DateTimeUtils.getMonthNumberFromTimestamp(Number(toDate));
+    const year2 = DateTimeUtils.getYearFromTimestamp(Number(toDate));
 
     await accountService.removeBalanceSnapshotsForAccountBetweenMonths(
       accountId,
