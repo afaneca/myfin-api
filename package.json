@@ -6,13 +6,14 @@
     "build": "tsc",
     "eslint": "eslint ./",
     "eslint-fix": "eslint ./ --fix",
+    "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed"
   },
   "name": "myfin-api",
   "version": "5.0.0",
-  "description": "NODE.js API for Myfin",
+  "description": "NodeJS API for Myfin",
   "main": "src/server.js",
   "devDependencies": {
     "@types/cors": "^2.8.13",
