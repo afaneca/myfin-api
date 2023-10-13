@@ -369,14 +369,14 @@ const getCategoryDataForNewBudget = async (userId: bigint) => {
       (category as any).avg_previous_month_credit = Math.abs(
         Number(
           ConvertUtils.convertBigIntegerToFloat(
-            BigInt(previousMonthAmounts.category_balance_credit)
+            BigInt(previousMonthAmounts.category_balance_credit ?? 0)
           )
         )
       );
 
       (category as any).avg_previous_month_debit = Math.abs(
         Number(
-          ConvertUtils.convertBigIntegerToFloat(BigInt(previousMonthAmounts.category_balance_debit))
+          ConvertUtils.convertBigIntegerToFloat(BigInt(previousMonthAmounts.category_balance_debit ?? 0))
         )
       );
     }
@@ -392,14 +392,14 @@ const getCategoryDataForNewBudget = async (userId: bigint) => {
       (category as any).avg_same_month_previous_year_credit = Math.abs(
         Number(
           ConvertUtils.convertBigIntegerToFloat(
-            BigInt(sameMonthPreviousYearAmounts.category_balance_credit)
+            BigInt(sameMonthPreviousYearAmounts.category_balance_credit ?? 0)
           )
         )
       );
       (category as any).avg_same_month_previous_year_debit = Math.abs(
         Number(
           ConvertUtils.convertBigIntegerToFloat(
-            BigInt(sameMonthPreviousYearAmounts.category_balance_debit)
+            BigInt(sameMonthPreviousYearAmounts.category_balance_debit ?? 0)
           )
         )
       );
