@@ -856,8 +856,8 @@ const updateBudgetCategoryPlannedValues = async (
             userId,
             budgetId,
             categoryId,
-            plannedIncome ?? currentAmounts.planned_amount_credit,
-            plannedExpense ?? currentAmounts.planned_amount_debit,
+            ConvertUtils.convertFloatToBigInteger(plannedIncome) ?? currentAmounts.planned_amount_credit,
+            ConvertUtils.convertFloatToBigInteger(plannedExpense) ?? currentAmounts.planned_amount_debit,
             prismaTx
         );
     }, dbClient);

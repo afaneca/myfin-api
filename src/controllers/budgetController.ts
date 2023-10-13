@@ -162,7 +162,7 @@ const updateBudgetCategoryPlannedValues = async (req, res, next) => {
     await BudgetService.updateBudgetCategoryPlannedValues(
       sessionData.userId,
       budgetId,
-      input.categoryId,
+      input.category_id,
       input.planned_expense,
       input.planned_income
     );
