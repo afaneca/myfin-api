@@ -6,6 +6,9 @@ import {Prisma} from '@prisma/client';
 import CategoryService from './categoryService.js';
 import EntityService from './entityService.js';
 import DemoDataManager from '../utils/demoDataManager.js';
+import AccountService from "./accountService.js";
+import Logger from "../utils/Logger.js";
+import ConvertUtils from "../utils/convertUtils.js";
 
 const User = prisma.users;
 
@@ -44,11 +47,8 @@ const userService = {
                         data.trustlimit = newSessionData.trustlimit;
                     }
 
-                    userAccounts = await dbClient.accounts.findMany({
-                        where: {
-                            users_user_id: data.user_id,
-                        },
-                    });
+                    userAccounts = await AccountService.getAccountsForUser(data.user_id, undefined, dbClient)
+                    Logger.addStringifiedLog(userAccounts)
                 } else {
                     throw APIError.notAuthorized('Wrong Credentials');
                 }
@@ -64,7 +64,7 @@ const userService = {
                 sessionkey_mobile: data.sessionkey_mobile,
                 last_update_timestamp: data.last_update_timestamp,
                 accounts: userAccounts.map((account) => {
-                    return {...account, balance: account.current_balance}
+                    return {...account, balance: ConvertUtils.convertBigIntegerToFloat(account.current_balance ?? 0)}
                 }),
             };
         },
