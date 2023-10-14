@@ -25,18 +25,18 @@ MyFin is my <u>attempt</u> to solve all of these issues. It has helped me manage
 it can be useful for you as well.
 
 <p align="center">
-  <img src="/screenshots/1.PNG" alt="MyFin" width="400">
-  <img src="/screenshots/2.PNG" alt="MyFin" width="400">
-  <img src="/screenshots/3.PNG" alt="MyFin" width="400">
-  <img src="/screenshots/4.PNG" alt="MyFin" width="400">
-  <img src="/screenshots/13.PNG" alt="MyFin" width="400">
-  <img src="/screenshots/14.PNG" alt="MyFin" width="400">
-  <img src="/screenshots/16.PNG" alt="MyFin" width="400">
-  <img src="/screenshots/17.PNG" alt="MyFin" width="400">
-  <img src="/screenshots/18.PNG" alt="MyFin" width="400">
-  <img src="/screenshots/19.PNG" alt="MyFin" width="400">
-  <img src="/screenshots/20.PNG" alt="MyFin" width="400">
-  <img src="/screenshots/15.PNG" alt="MyFin" width="400">
+  <img src="https://raw.githubusercontent.com/afaneca/myfin/master/screenshots/1.PNG" alt="MyFin" width="400">
+  <img src="https://raw.githubusercontent.com/afaneca/myfin/master/screenshots/2.PNG" alt="MyFin" width="400">
+  <img src="https://raw.githubusercontent.com/afaneca/myfin/master/screenshots/3.PNG" alt="MyFin" width="400">
+  <img src="https://raw.githubusercontent.com/afaneca/myfin/master/screenshots/4.PNG" alt="MyFin" width="400">
+  <img src="https://raw.githubusercontent.com/afaneca/myfin/master/screenshots/13.PNG" alt="MyFin" width="400">
+  <img src="https://raw.githubusercontent.com/afaneca/myfin/master/screenshots/14.PNG" alt="MyFin" width="400">
+  <img src="https://raw.githubusercontent.com/afaneca/myfin/master/screenshots/16.PNG" alt="MyFin" width="400">
+  <img src="https://raw.githubusercontent.com/afaneca/myfin/master/screenshots/17.PNG" alt="MyFin" width="400">
+  <img src="https://raw.githubusercontent.com/afaneca/myfin/master/screenshots/18.PNG" alt="MyFin" width="400">
+  <img src="https://raw.githubusercontent.com/afaneca/myfin/master/screenshots/19.PNG" alt="MyFin" width="400">
+  <img src="https://raw.githubusercontent.com/afaneca/myfin/master/screenshots/20.PNG" alt="MyFin" width="400">
+  <img src="https://raw.githubusercontent.com/afaneca/myfin/master/screenshots/15.PNG" alt="MyFin" width="400">
 </p>
 
 ## ✨ Features
