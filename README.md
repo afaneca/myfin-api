@@ -70,10 +70,10 @@ Here's some of the features currently in development or planned for the near fut
 
 # 🔰 Getting Started
 
-This project relies on PHP's Slim framework for its backend and there's where most of the initial setup will take place
+This project relies on NodeJS's Express framework for its backend and there's where most of the initial setup will take place
 if you want to deploy this solution to your own server.
 
-[Here](https://github.com/aFaneca/myfin/wiki/Project-Setup#initial-setup) you can find the full documentation on the
+[Here](https://github.com/afaneca/myfin-api/wiki/Getting-started) you can find the full documentation on the
 first steps to get started.
 
 # 🙋‍♂️ Contributing
