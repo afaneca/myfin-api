@@ -5,6 +5,7 @@ import DateTimeUtils from '../utils/DateTimeUtils.js';
 import ConvertUtils from '../utils/convertUtils.js';
 import { invest_transactions_type } from '@prisma/client';
 import Logger from '../utils/Logger.js';
+import {date} from "joi";
 
 const getAllTransactionsForUser = async (userId: bigint, dbClient = prisma) =>
   dbClient.$queryRaw`SELECT transaction_id, date_timestamp, invest_transactions.type as 'trx_type', invest_assets.type as 'asset_type', note, (total_price/100) as 'total_price', invest_transactions.units, invest_assets_asset_id, name, ticker, broker, invest_assets.asset_id, (fees_taxes / 100) as 'fees_taxes' 
@@ -83,6 +84,8 @@ const createTransaction = async (
   units: number,
   fees: number,
   type: invest_transactions_type,
+  isSplit: boolean,
+  splitData?: {totalPrice?: number, units?: number, type?: invest_transactions_type, note?: string},
   dbClient = undefined
 ) => {
   await performDatabaseRequest(async (prismaTx) => {
@@ -112,7 +115,7 @@ const createTransaction = async (
     DateTimeUtils.getCurrentUnixTimestamp() + 1,
     prisma
   );
-  Logger.addLog(`Latest snapshot: ${JSON.stringify(latestSnapshot)}`);
+  //Logger.addLog(`Latest snapshot: ${JSON.stringify(latestSnapshot)}`);
   await prisma.invest_assets.update({
     where: {
       asset_id: assetId,
@@ -121,6 +124,11 @@ const createTransaction = async (
       units: latestSnapshot.units,
     },
   });
+
+  // SPLIT HANDLING
+  if(isSplit){
+    await createTransaction(userId, assetId, dateTimestamp, splitData.note, splitData.totalPrice, splitData.units, 0, splitData.type, false, null);
+  }
 };
 
 const deleteTransaction = async (userId: bigint, trxId: bigint, dbClient = undefined) => {
