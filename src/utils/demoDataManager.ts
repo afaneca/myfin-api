@@ -969,6 +969,8 @@ const createMockAssetTransactions = async (userId: bigint, dbClient = undefined)
         1500,
         0,
         invest_transactions_type.B,
+        false,
+        null,
         prismaTx
       )
     );
@@ -983,6 +985,8 @@ const createMockAssetTransactions = async (userId: bigint, dbClient = undefined)
         800,
         0,
         invest_transactions_type.B,
+        false,
+        null,
         prismaTx
       )
     );
@@ -997,6 +1001,8 @@ const createMockAssetTransactions = async (userId: bigint, dbClient = undefined)
         0.5,
         0,
         invest_transactions_type.B,
+        false,
+        null,
         prismaTx
       )
     );
@@ -1011,6 +1017,8 @@ const createMockAssetTransactions = async (userId: bigint, dbClient = undefined)
         2.3,
         0,
         invest_transactions_type.B,
+        false,
+        null,
         prismaTx
       )
     );
