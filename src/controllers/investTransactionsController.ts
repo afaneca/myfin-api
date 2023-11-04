@@ -64,6 +64,29 @@ const getAllTransactionsForUser = async (req: Request, res: Response, next: Next
     }
 };
 
+const getFilteredTrxByPageSchema = joi.object({
+    page_size: joi.number().default(MYFIN.DEFAULT_TRANSACTIONS_FETCH_LIMIT).min(1).max(300),
+    query: joi.string().empty('').default(''),
+}).unknown(true)
+
+const getFilteredTrxByPage = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const sessionData = await CommonsController.checkAuthSessionValidity(req);
+        const input = await getFilteredTrxByPageSchema.validateAsync(req.query);
+        const data = await InvestTransactionsService.getFilteredTrxByPage(
+            sessionData.userId,
+            parseInt(req.params.page),
+            input.page_size,
+            input.query,
+            );
+        res.json(data);
+    } catch (err) {
+        Logger.addLog(err);
+        next(err || APIError.internalServerError());
+    }
+};
+
+
 // UPDATE
 const updateTransactionSchema = joi.object({
     date_timestamp: joi.number().required(),
@@ -113,6 +136,7 @@ const deleteTransaction = async (req: Request, res: Response, next: NextFunction
 
 export default {
     getAllTransactionsForUser,
+    getFilteredTrxByPage,
     updateTransaction,
     createTransaction,
     deleteTransaction,
