@@ -52,9 +52,9 @@ const updateCategory = async (userId: bigint, categoryId, category: Prisma.categ
 
 const buildSqlForExcludedAccountsList = (excludedAccs) => {
     if (!excludedAccs || excludedAccs.length === 0) {
-        return ' 1 == 1';
+        return ' -1 ';
     }
-    let sql = ' (';
+    let sql = '';
     for (let cnt = 0; cnt < excludedAccs.length; cnt++) {
         const acc = excludedAccs[cnt].account_id;
         sql += ` '${acc}' `;
@@ -63,7 +63,7 @@ const buildSqlForExcludedAccountsList = (excludedAccs) => {
             sql += ', ';
         }
     }
-    sql += ') ';
+    sql += '';
     return sql;
 };
 
@@ -125,30 +125,21 @@ const getAmountForCategoryInPeriod = async (
     const listOfAccountsToExclude = await prismaTx.accounts.findMany({
         where: {exclude_from_budgets: true},
     });
-    if (!listOfAccountsToExclude || listOfAccountsToExclude.length < 1) {
-        accsExclusionSqlExcerptAccountsTo = ' 1 = 1 ';
-        accsExclusionSqlExcerptAccountsFrom = ' 1 = 1 ';
-    } else {
-        accountsToExcludeListInSQL = buildSqlForExcludedAccountsList(listOfAccountsToExclude);
-        accsExclusionSqlExcerptAccountsTo = `accounts_account_to_id NOT IN ${accountsToExcludeListInSQL} `;
-        accsExclusionSqlExcerptAccountsFrom = `accounts_account_from_id NOT IN ${accountsToExcludeListInSQL} `;
-    }
-
+    accountsToExcludeListInSQL = buildSqlForExcludedAccountsList(listOfAccountsToExclude);
     if (includeTransfers) {
         return prismaTx.$queryRaw`SELECT sum(if(type = 'I' OR
-                                            (type = 'T' AND ${accsExclusionSqlExcerptAccountsTo}),
+                                            (type = 'T' AND accounts_account_to_id NOT IN (${accountsToExcludeListInSQL})),
                                             amount,
                                             0)) as 'category_balance_credit',
                                      sum(if(type = 'E' OR
-                                            (type = 'T' AND ${accsExclusionSqlExcerptAccountsFrom}),
+                                            (type = 'T' AND accounts_account_from_id NOT IN (${accountsToExcludeListInSQL})),
                                             amount,
                                             0)) as 'category_balance_debit'
                               FROM transactions
                               WHERE date_timestamp between ${fromDate} AND ${toDate}
                                 AND categories_category_id = ${categoryId} `;
     }
-
-    return dbClient.$queryRaw`SELECT sum(if(type = 'I', amount, 0)) as 'category_balance_credit',
+    return prismaTx.$queryRaw`SELECT sum(if(type = 'I', amount, 0)) as 'category_balance_credit',
                                    sum(if(type = 'E', amount, 0)) as 'category_balance_debit'
                             FROM transactions
                             WHERE date_timestamp between ${fromDate} AND ${toDate}

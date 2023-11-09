@@ -589,7 +589,7 @@ const getBudget = async (userId: bigint, budgetId: number | bigint, dbclient = p
         await getTotalEssentialDebitTransactionsAmountForBudget(userId, budget, dbclient);
 
     for (const category of (budget as any).categories) {
-        Logger.addLog(`_------_\nCategory: ${category.category_id}`);
+        /*Logger.addLog(`_------_\nCategory: ${category.category_id}`);*/
         const monthToUse = (budget as any).month;
         const yearToUse = (budget as any).year;
         const calculatedAmounts = await CategoryService.getAmountForCategoryInMonth(
@@ -599,8 +599,8 @@ const getBudget = async (userId: bigint, budgetId: number | bigint, dbclient = p
             true,
             dbclient
         );
-        Logger.addLog(`------\nCATEGORY ${category.category_id}`);
-        Logger.addStringifiedLog(calculatedAmounts);
+        /*Logger.addLog(`------\nCATEGORY ${category.category_id}`);
+        Logger.addStringifiedLog(calculatedAmounts);*/
         const calculatedAmountsFromInvestmentAccounts =
             await AccountService.getAmountForInvestmentAccountsInMonth(
                 category.category_id,
@@ -626,7 +626,7 @@ const getBudget = async (userId: bigint, budgetId: number | bigint, dbclient = p
         const currentAmountCredit =
             (calculatedAmounts ? calculatedAmounts.category_balance_credit : 0) -
             creditFromInvestmentAccounts;
-        Logger.addLog(`Current amount credit: ${currentAmountCredit}`);
+        /*Logger.addLog(`Current amount credit: ${currentAmountCredit}`);*/
         // remove unrealized losses from budget calcs
         const currentAmountDebit =
             (calculatedAmounts ? calculatedAmounts.category_balance_debit : 0) -
