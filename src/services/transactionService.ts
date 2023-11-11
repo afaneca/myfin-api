@@ -737,9 +737,9 @@ const getYearOfFirstTransactionForUser = async (
 ): Promise<number> => {
     const result = await dbClient.$queryRaw`SELECT YEAR(FROM_UNIXTIME(date_timestamp)) as 'year'
                                           FROM transactions
-                                                 INNER JOIN accounts account_from
+                                                 LEFT JOIN accounts account_from
                                                             ON account_from.account_id = transactions.accounts_account_from_id
-                                                 INNER JOIN accounts account_to
+                                                 LEFT JOIN accounts account_to
                                                             ON account_to.account_id = transactions.accounts_account_to_id
                                           WHERE account_from.users_user_id = ${userId}
                                              OR account_to.users_user_id = ${userId}
@@ -747,6 +747,23 @@ const getYearOfFirstTransactionForUser = async (
                                           LIMIT 1`;
 
     return result[0].year;
+};
+
+const getDateTimestampOfFirstTransactionForUser = async (
+    userId: bigint,
+    dbClient = prisma
+): Promise<number> => {
+    const result = await dbClient.$queryRaw`SELECT date_timestamp
+                                          FROM transactions
+                                                 LEFT JOIN accounts account_from
+                                                            ON account_from.account_id = transactions.accounts_account_from_id
+                                                 LEFT JOIN accounts account_to
+                                                            ON account_to.account_id = transactions.accounts_account_to_id
+                                          WHERE account_from.users_user_id = ${userId}
+                                             OR account_to.users_user_id = ${userId}
+                                          ORDER BY date_timestamp ASC
+                                          LIMIT 1`;
+    return result[0].date_timestamp;
 };
 
 const deleteAllTransactionsFromUser = async (userId: bigint, dbClient = prisma) => {
@@ -769,5 +786,6 @@ export default {
     autoCategorizeTransactionList,
     createTransactionsInBulk,
     getYearOfFirstTransactionForUser,
+    getDateTimestampOfFirstTransactionForUser,
     deleteAllTransactionsFromUser,
 };
