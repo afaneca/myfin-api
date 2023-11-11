@@ -12,7 +12,7 @@
     "db:seed": "prisma db seed"
   },
   "name": "myfin-api",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "NodeJS API for Myfin",
   "main": "src/server.js",
   "devDependencies": {
