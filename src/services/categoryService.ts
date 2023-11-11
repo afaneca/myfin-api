@@ -2,6 +2,9 @@ import {performDatabaseRequest, prisma} from '../config/prisma.js';
 import {MYFIN} from '../consts.js';
 import {Prisma} from '@prisma/client';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
+import TransactionService from "./transactionService.js";
+import Logger from "../utils/Logger.js";
+import ConvertUtils from "../utils/convertUtils.js";
 
 const BudgetHasCategories = prisma.budgets_has_categories;
 
@@ -68,42 +71,21 @@ const buildSqlForExcludedAccountsList = (excludedAccs) => {
 };
 
 const getAverageAmountForCategoryInLast12Months = async (
+    userId: number | bigint,
     categoryId: number | bigint,
     dbClient = prisma
 ) => {
-    let accsExclusionSqlExcerptAccountsTo = '';
-    let accsExclusionSqlExcerptAccountsFrom = '';
-    let accountsToExcludeListInSQL = '';
+    const firstTimestamp = await TransactionService.getDateTimestampOfFirstTransactionForUser(userId as bigint, dbClient);
+    const nrOfTotalMonthsFromFirstTrx = DateTimeUtils.getFullMonthsBetweenDates(new Date(Number(firstTimestamp) * 1000), new Date())
+    const monthYearFrom12MonthsAgo = DateTimeUtils.decrementMonthByX(DateTimeUtils.getMonthNumberFromTimestamp(), DateTimeUtils.getYearFromTimestamp(), 12)
+    const beginDate = new Date(monthYearFrom12MonthsAgo.year, monthYearFrom12MonthsAgo.month - 1, 1)
+    const sumAmounts = (await getAmountForCategoryInPeriod(categoryId, beginDate.getTime() / 1000, DateTimeUtils.getCurrentUnixTimestamp(), true, dbClient))[0];
 
-    const listOfAccountsToExclude = await dbClient.accounts.findMany({
-        where: {exclude_from_budgets: true},
-    });
-    if (!listOfAccountsToExclude || listOfAccountsToExclude.length < 1) {
-        accsExclusionSqlExcerptAccountsTo = ' 1 == 1 ';
-        accsExclusionSqlExcerptAccountsFrom = ' 1 == 1 ';
-    } else {
-        accountsToExcludeListInSQL = buildSqlForExcludedAccountsList(listOfAccountsToExclude);
-        accsExclusionSqlExcerptAccountsTo = `accounts_account_to_id NOT IN ${accountsToExcludeListInSQL} `;
-        accsExclusionSqlExcerptAccountsFrom = `accounts_account_from_id NOT IN ${accountsToExcludeListInSQL} `;
+    const divisor = (nrOfTotalMonthsFromFirstTrx > 12) ? 12 : nrOfTotalMonthsFromFirstTrx;
+    return {
+        category_balance_credit: ConvertUtils.convertBigIntegerToFloat(BigInt(sumAmounts.category_balance_credit ?? 0)) / divisor,
+        category_balance_debit: ConvertUtils.convertBigIntegerToFloat(BigInt(sumAmounts.category_balance_debit ?? 0)) / divisor
     }
-
-    return dbClient.$queryRaw`SELECT avg(category_balance_credit) as 'category_balance_credit',
-                                   avg(category_balance_debit)  as 'category_balance_debit'
-                            FROM (SELECT sum(if(type = 'I' OR
-                                                (type = 'T' AND ${accsExclusionSqlExcerptAccountsTo}),
-                                                amount,
-                                                0))                           as 'category_balance_credit',
-                                         sum(if(type = 'E' OR
-                                                (type = 'T' AND ${accsExclusionSqlExcerptAccountsFrom}),
-                                                amount,
-                                                0))                           as 'category_balance_debit',
-                                         MONTH(FROM_UNIXTIME(date_timestamp)) as 'month',
-                                         YEAR(FROM_UNIXTIME(date_timestamp))  as 'year'
-                                  FROM transactions
-                                  WHERE categories_category_id = ${categoryId}
-                                    AND date_timestamp >
-                                        UNIX_TIMESTAMP(DATE_SUB(DATE_FORMAT(NOW(), '%Y-%m-01'), INTERVAL 12 month))
-                                  GROUP BY month, year) a`;
 };
 
 const getAmountForCategoryInPeriod = async (
@@ -118,8 +100,6 @@ const getAmountForCategoryInPeriod = async (
 }> => performDatabaseRequest(async (prismaTx) => {
     /*  Logger.addLog(
          `Category: ${categoryId} | fromDate: ${fromDate} | toDate: ${toDate} | includeTransfers: ${includeTransfers}`); */
-    let accsExclusionSqlExcerptAccountsTo = '';
-    let accsExclusionSqlExcerptAccountsFrom = '';
     let accountsToExcludeListInSQL = '';
 
     const listOfAccountsToExclude = await prismaTx.accounts.findMany({
@@ -197,40 +177,18 @@ const getAmountForCategoryInYear = async (
 };
 
 const getAverageAmountForCategoryInLifetime = async (
+    userId: number | bigint,
     categoryId: number | bigint,
     dbClient = prisma
 ) => {
-    let accsExclusionSqlExcerptAccountsTo = '';
-    let accsExclusionSqlExcerptAccountsFrom = '';
-    let accountsToExcludeListInSQL = '';
+    const firstTimestamp = await TransactionService.getDateTimestampOfFirstTransactionForUser(userId as bigint, dbClient);
+    const nrOfTotalMonthsFromFirstTrx = DateTimeUtils.getFullMonthsBetweenDates(new Date(Number(firstTimestamp) * 1000), new Date())
+    const sumAmounts = (await getAmountForCategoryInPeriod(categoryId, 0, DateTimeUtils.getCurrentUnixTimestamp(), true, dbClient))[0];
 
-    const listOfAccountsToExclude = await dbClient.accounts.findMany({
-        where: {exclude_from_budgets: true},
-    });
-    if (!listOfAccountsToExclude || listOfAccountsToExclude.length < 1) {
-        accsExclusionSqlExcerptAccountsTo = ' 1 == 1 ';
-        accsExclusionSqlExcerptAccountsFrom = ' 1 == 1 ';
-    } else {
-        accountsToExcludeListInSQL = buildSqlForExcludedAccountsList(listOfAccountsToExclude);
-        accsExclusionSqlExcerptAccountsTo = `accounts_account_to_id NOT IN ${accountsToExcludeListInSQL} `;
-        accsExclusionSqlExcerptAccountsFrom = `accounts_account_from_id NOT IN ${accountsToExcludeListInSQL} `;
+    return {
+        category_balance_credit: ConvertUtils.convertBigIntegerToFloat(BigInt(sumAmounts.category_balance_credit ?? 0)) / nrOfTotalMonthsFromFirstTrx,
+        category_balance_debit: ConvertUtils.convertBigIntegerToFloat(BigInt(sumAmounts.category_balance_debit ?? 0)) / nrOfTotalMonthsFromFirstTrx
     }
-
-    return dbClient.$queryRaw`SELECT avg(category_balance_credit) as 'category_balance_credit',
-                                   avg(category_balance_debit)  as 'category_balance_debit'
-                            FROM (SELECT sum(if(type = 'I' OR
-                                                (type = 'T' AND ${accsExclusionSqlExcerptAccountsTo}),
-                                                amount,
-                                                0))                           as 'category_balance_credit',
-                                         sum(if(type = 'E' OR
-                                                (type = 'T' AND ${accsExclusionSqlExcerptAccountsFrom}),
-                                                amount,
-                                                0))                           as 'category_balance_debit',
-                                         MONTH(FROM_UNIXTIME(date_timestamp)) as 'month',
-                                         YEAR(FROM_UNIXTIME(date_timestamp))  as 'year'
-                                  FROM transactions
-                                  WHERE categories_category_id = ${categoryId}
-                                  GROUP BY month, year) a`;
 };
 
 /**

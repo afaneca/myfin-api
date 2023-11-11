@@ -287,9 +287,9 @@ const getBudgetsForUserByPage = async (
                 break;
         }
     }
-    Logger.addLog(
+    /*Logger.addLog(
         `userId: ${userId} | query: ${query} | offsetValue: ${offsetValue} | page: ${page} | pageSize: ${pageSize}} | isOpenValue: ${isOpenValue}`
-    );
+    );*/
 
     // main query for list of results (limited by $pageSize and $offsetValue)
     const results: any =
@@ -419,34 +419,30 @@ const getCategoryDataForNewBudget = async (userId: bigint) => {
         }
 
         const last12MonthsAverageAmounts =
-            await CategoryService.getAverageAmountForCategoryInLast12Months(
+            (await CategoryService.getAverageAmountForCategoryInLast12Months(
+                userId,
                 category.category_id as bigint
-            )[0];
+            ));
 
         if (last12MonthsAverageAmounts) {
             (category as any).avg_12_months_credit = Math.abs(
-                Number(
-                    ConvertUtils.convertBigIntegerToFloat(last12MonthsAverageAmounts.category_balance_credit)
-                )
+                Number(last12MonthsAverageAmounts.category_balance_credit)
             );
             (category as any).avg_12_months_debit = Math.abs(
-                Number(
-                    ConvertUtils.convertBigIntegerToFloat(last12MonthsAverageAmounts.category_balance_debit)
-                )
+                Number(last12MonthsAverageAmounts.category_balance_debit)
             );
         }
 
-        const lifetimeAverageAmounts = await CategoryService.getAverageAmountForCategoryInLifetime(
+        const lifetimeAverageAmounts = (await CategoryService.getAverageAmountForCategoryInLifetime(
+            userId,
             category.category_id as bigint
-        )[0];
+        ));
         if (lifetimeAverageAmounts) {
             (category as any).avg_lifetime_credit = Math.abs(
-                Number(
-                    ConvertUtils.convertBigIntegerToFloat(lifetimeAverageAmounts.category_balance_credit)
-                )
+                Number(lifetimeAverageAmounts.category_balance_credit)
             );
             (category as any).avg_lifetime_debit = Math.abs(
-                Number(ConvertUtils.convertBigIntegerToFloat(lifetimeAverageAmounts.category_balance_debit))
+                Number(lifetimeAverageAmounts.category_balance_debit)
             );
         }
     }
@@ -464,9 +460,9 @@ const addOrUpdateCategoryValueInBudget = async (
     plannedValueDebit,
     dbClient = prisma
 ) => {
-    Logger.addLog(
+    /*Logger.addLog(
         `budgetId: ${budgetId} | catId: ${catId} | plannedValueCredit: ${plannedValueCredit} | plannedValueDebit: ${plannedValueDebit}`
-    );
+    );*/
     await dbClient.$executeRaw`INSERT INTO budgets_has_categories (budgets_budget_id,
                                                                  budgets_users_user_id,
                                                                  categories_category_id,
@@ -686,42 +682,30 @@ const getBudget = async (userId: bigint, budgetId: number | bigint, dbclient = p
         );
 
         const last12MonthsAverageAmounts =
-            await CategoryService.getAverageAmountForCategoryInLast12Months(
+            (await CategoryService.getAverageAmountForCategoryInLast12Months(
+                userId,
                 category.category_id,
                 dbclient
-            )[0];
+            ));
+
         category.avg_12_months_credit = Math.abs(
-            Number(
-                ConvertUtils.convertBigIntegerToFloat(
-                    BigInt(last12MonthsAverageAmounts?.category_balance_credit ?? 0)
-                )
-            )
+            Number(last12MonthsAverageAmounts?.category_balance_credit ?? 0)
         );
         category.avg_12_months_debit = Math.abs(
-            Number(
-                ConvertUtils.convertBigIntegerToFloat(
-                    BigInt(last12MonthsAverageAmounts?.category_balance_debit ?? 0)
-                )
-            )
+            Number(last12MonthsAverageAmounts?.category_balance_debit ?? 0)
         );
 
-        const lifetimeAverageAmounts = await CategoryService.getAverageAmountForCategoryInLifetime(
+        const lifetimeAverageAmounts = (await CategoryService.getAverageAmountForCategoryInLifetime(
+            userId,
             category.category_id,
             dbclient
-        )[0];
+        ));
+
         category.avg_lifetime_credit = Math.abs(
-            Number(
-                ConvertUtils.convertBigIntegerToFloat(
-                    BigInt(lifetimeAverageAmounts?.category_balance_credit ?? 0)
-                )
-            )
+            Number(lifetimeAverageAmounts?.category_balance_credit ?? 0)
         );
         category.avg_lifetime_debit = Math.abs(
-            Number(
-                ConvertUtils.convertBigIntegerToFloat(
-                    BigInt(lifetimeAverageAmounts?.category_balance_debit ?? 0)
-                )
-            )
+            Number(lifetimeAverageAmounts?.category_balance_debit ?? 0)
         );
     }
     return budget;
