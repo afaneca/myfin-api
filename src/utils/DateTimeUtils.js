@@ -27,6 +27,10 @@ const DateTimeUtils = {
       year: futureDate.getFullYear(),
     }
   },
+  getFullMonthsBetweenDates: (date1, date2) => {
+    return (date2.getFullYear() - date1.getFullYear()) * 12
+        + (date2.getMonth() - date1.getMonth());
+  }
 };
 
 export default DateTimeUtils;
