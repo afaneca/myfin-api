@@ -195,8 +195,8 @@ const autoCategorizeTransaction = async (req: Request, res: Response, next: Next
       input.description,
       input.amount,
       input.type,
-      input.accounts_account_from_id,
-      input.accounts_account_to_id
+      input.account_from_id,
+      input.account_to_id
     );
     res.json(data);
   } catch (err) {
