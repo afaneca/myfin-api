@@ -1,5 +1,5 @@
-import { Prisma, PrismaClient } from "@prisma/client";
-import { DefaultArgs } from "@prisma/client/runtime/library.js";
+import { Prisma, PrismaClient } from '@prisma/client';
+import { DefaultArgs } from '@prisma/client/runtime/library.js';
 
 // Fix for BigInt not being serializable
 // eslint-disable-next-line no-extend-native
@@ -26,7 +26,7 @@ export const performDatabaseRequest = async (
       transactionConfig
     );
   }
-  return transactionBody(prisma);
+  return transactionBody(prismaClient);
 };
 
 export default {

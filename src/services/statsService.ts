@@ -9,6 +9,7 @@ import AccountService from './accountService.js';
 import BudgetService, { BudgetListOrder } from './budgetService.js';
 import RuleService from './ruleService.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
+import TagService from "./tagService.js";
 
 const getExpensesIncomeDistributionForMonth = async (
   userId: bigint,
@@ -86,13 +87,14 @@ export interface UserCounterStats {
   nr_of_accounts: number;
   nr_of_budgets: number;
   nr_of_rules: number;
+  nr_of_tags: number;
 }
 
 const getUserCounterStats = async (
   userId: bigint,
   dbClient = prisma
 ): Promise<UserCounterStats> => {
-  const [trxCount, entityCount, categoryCount, accountCount, budgetCount, ruleCount] =
+  const [trxCount, entityCount, categoryCount, accountCount, budgetCount, ruleCount, tagCount] =
     await Promise.all([
       TransactionService.getCountOfUserTransactions(userId),
       CategoryService.getCountOfUserCategories(userId, dbClient),
@@ -100,6 +102,7 @@ const getUserCounterStats = async (
       AccountService.getCountOfUserAccounts(userId, dbClient),
       BudgetService.getCountOfUserBudgets(userId, dbClient),
       RuleService.getCountOfUserRules(userId, dbClient),
+      TagService.getCountOfUserTags(userId, dbClient),
     ]);
 
   return {
@@ -109,6 +112,7 @@ const getUserCounterStats = async (
     nr_of_accounts: accountCount as number,
     nr_of_budgets: budgetCount as number,
     nr_of_rules: ruleCount as number,
+    nr_of_tags: tagCount as number,
   };
 };
 

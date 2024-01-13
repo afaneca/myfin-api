@@ -8,19 +8,21 @@ datasource db {
 }
 
 model accounts {
-  account_id           BigInt              @id @unique(map: "account_id_UNIQUE") @default(autoincrement())
-  name                 String              @db.VarChar(255)
-  type                 String              @db.VarChar(45)
-  description          String?             @db.LongText
-  exclude_from_budgets Boolean
-  status               String              @db.VarChar(45)
-  users_user_id        BigInt
-  current_balance      BigInt?             @default(0)
-  created_timestamp    BigInt?
-  updated_timestamp    BigInt?
-  color_gradient       String?             @db.VarChar(45)
-  users                users               @relation(fields: [users_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "accounts_users_user_id_fk")
-  balances_snapshot    balances_snapshot[]
+  account_id                                                   BigInt              @id @unique(map: "account_id_UNIQUE") @default(autoincrement())
+  name                                                         String              @db.VarChar(255)
+  type                                                         String              @db.VarChar(45)
+  description                                                  String?             @db.LongText
+  exclude_from_budgets                                         Boolean
+  status                                                       String              @db.VarChar(45)
+  users_user_id                                                BigInt
+  current_balance                                              BigInt?             @default(0)
+  created_timestamp                                            BigInt?
+  updated_timestamp                                            BigInt?
+  color_gradient                                               String?             @db.VarChar(45)
+  users                                                        users               @relation(fields: [users_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "accounts_users_user_id_fk")
+  balances_snapshot                                            balances_snapshot[]
+  transactions_transactions_accounts_account_to_idToaccounts   transactions[]      @relation("transactions_accounts_account_to_idToaccounts")
+  transactions_transactions_accounts_account_from_idToaccounts transactions[]      @relation("transactions_accounts_account_from_idToaccounts")
 
   @@unique([name, users_user_id], map: "name_UNIQUE")
   @@index([users_user_id], map: "fk_accounts_users1_idx")
@@ -188,23 +190,26 @@ model rules {
 }
 
 model transactions {
-  transaction_id           BigInt                 @id @unique(map: "transaction_id_UNIQUE") @default(autoincrement())
-  date_timestamp           BigInt
-  amount                   BigInt
-  type                     String                 @db.Char(1)
-  description              String?                @db.LongText
-  entities_entity_id       BigInt?
-  accounts_account_from_id BigInt?
-  accounts_account_to_id   BigInt?
-  categories_category_id   BigInt?
-  is_essential             Boolean                @default(false)
-  transaction_has_tags     transaction_has_tags[]
-  entities                 entities?              @relation(fields: [entities_entity_id], references: [entity_id], onUpdate: NoAction, map: "transactions_ibfk_1")
-  categories               categories?            @relation(fields: [categories_category_id], references: [category_id], onUpdate: NoAction, map: "transactions_ibfk_2")
+  transaction_id                                           BigInt                 @id @unique(map: "transaction_id_UNIQUE") @default(autoincrement())
+  date_timestamp                                           BigInt
+  amount                                                   BigInt
+  type                                                     String                 @db.Char(1)
+  description                                              String?                @db.LongText
+  entities_entity_id                                       BigInt?
+  accounts_account_from_id                                 BigInt?
+  accounts_account_to_id                                   BigInt?
+  categories_category_id                                   BigInt?
+  is_essential                                             Boolean                @default(false)
+  transaction_has_tags                                     transaction_has_tags[]
+  accounts_transactions_accounts_account_to_idToaccounts   accounts?              @relation("transactions_accounts_account_to_idToaccounts", fields: [accounts_account_to_id], references: [account_id], onDelete: NoAction, onUpdate: NoAction, map: "transactions_accounts_account_id_fk")
+  accounts_transactions_accounts_account_from_idToaccounts accounts?              @relation("transactions_accounts_account_from_idToaccounts", fields: [accounts_account_from_id], references: [account_id], onDelete: NoAction, onUpdate: NoAction, map: "transactions_accounts_account_id_fk2")
+  entities                                                 entities?              @relation(fields: [entities_entity_id], references: [entity_id], onUpdate: NoAction, map: "transactions_ibfk_1")
+  categories                                               categories?            @relation(fields: [categories_category_id], references: [category_id], onUpdate: NoAction, map: "transactions_ibfk_2")
 
-  @@index([accounts_account_from_id], map: "fk_transactions_accounts1_idx")
+  @@index([accounts_account_from_id, accounts_account_to_id], map: "fk_transactions_accounts1_idx")
   @@index([categories_category_id], map: "fk_transactions_categories1_idx")
   @@index([entities_entity_id], map: "fk_transactions_entities2_idx")
+  @@index([accounts_account_to_id], map: "transactions_accounts_account_to_id_index")
 }
 
 model users {
@@ -230,11 +235,12 @@ model users {
 model tags {
   tag_id               BigInt                 @id @default(autoincrement())
   description          String?                @db.LongText
-  name                 String                 @unique(map: "uq_name") @db.VarChar(255)
+  name                 String                 @db.VarChar(255)
   users_user_id        BigInt
   users                users                  @relation(fields: [users_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_user_id")
   transaction_has_tags transaction_has_tags[]
 
+  @@unique([name, users_user_id], map: "uq_name")
   @@index([users_user_id], map: "fk_users_user_id")
 }
 

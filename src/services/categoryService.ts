@@ -8,6 +8,17 @@ import ConvertUtils from "../utils/convertUtils.js";
 
 const BudgetHasCategories = prisma.budgets_has_categories;
 
+interface Category {
+    category_id?: bigint;
+    name?: string;
+    description?: string;
+    color_gradient?: string;
+    status?: string;
+    type?: string;
+    exclude_from_budgets?: number;
+    users_user_id?: bigint;
+}
+
 /**
  * Fetches all categories associated with ***userId***.
  * @param userId - user id
@@ -23,8 +34,18 @@ const getAllCategoriesForUser = async (
         where: {users_user_id: userId},
         select: selectAttributes,
     });
-const createCategory = async (category: Prisma.categoriesCreateInput, dbClient = prisma) => {
-    return dbClient.categories.create({data: category});
+const createCategory = async (category: Category, dbClient = prisma) => {
+    return dbClient.categories.create({
+        data: {
+            name: category.name,
+            description: category.description,
+            color_gradient: category.color_gradient,
+            status: category.status,
+            exclude_from_budgets: category.exclude_from_budgets,
+            type: category.type,
+            users_user_id: category.users_user_id,
+        }
+    });
 };
 
 const deleteCategory = async (userId: bigint, categoryId: number, dbClient = prisma) => {
