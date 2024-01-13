@@ -8,51 +8,47 @@ datasource db {
 }
 
 model accounts {
-  account_id           BigInt  @id @unique(map: "account_id_UNIQUE") @default(autoincrement())
-  name                 String  @db.VarChar(255)
-  type                 String  @db.VarChar(45)
-  description          String? @db.LongText
+  account_id           BigInt              @id @unique(map: "account_id_UNIQUE") @default(autoincrement())
+  name                 String              @db.VarChar(255)
+  type                 String              @db.VarChar(45)
+  description          String?             @db.LongText
   exclude_from_budgets Boolean
-  status               String  @db.VarChar(45)
+  status               String              @db.VarChar(45)
   users_user_id        BigInt
-  current_balance      BigInt? @default(0)
+  current_balance      BigInt?             @default(0)
   created_timestamp    BigInt?
   updated_timestamp    BigInt?
-  color_gradient       String? @db.VarChar(45)
+  color_gradient       String?             @db.VarChar(45)
+  users                users               @relation(fields: [users_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "accounts_users_user_id_fk")
+  balances_snapshot    balances_snapshot[]
 
   @@unique([name, users_user_id], map: "name_UNIQUE")
   @@index([users_user_id], map: "fk_accounts_users1_idx")
-}
-
-model balances {
-  balance_id          BigInt @id @default(autoincrement())
-  date_timestamp      BigInt
-  amount              Float
-  accounts_account_id BigInt
-
-  @@index([accounts_account_id], map: "fk_balances_accounts1_idx")
 }
 
 model balances_snapshot {
   accounts_account_id BigInt
   month               Int
   year                Int
-  balance             BigInt  @default(0)
+  balance             BigInt   @default(0)
   created_timestamp   BigInt
   updated_timestamp   BigInt?
+  accounts            accounts @relation(fields: [accounts_account_id], references: [account_id], onDelete: NoAction, onUpdate: NoAction, map: "balances_snapshot_accounts_account_id_fk")
 
   @@id([accounts_account_id, month, year])
   @@index([accounts_account_id], map: "fk_balances_snapshot_accounts1_idx")
 }
 
 model budgets {
-  budget_id       BigInt  @unique(map: "budget_id_UNIQUE") @default(autoincrement())
-  month           Int
-  year            Int
-  observations    String? @db.LongText
-  is_open         Boolean
-  initial_balance BigInt?
-  users_user_id   BigInt
+  budget_id              BigInt                   @unique(map: "budget_id_UNIQUE") @default(autoincrement())
+  month                  Int
+  year                   Int
+  observations           String?                  @db.LongText
+  is_open                Boolean
+  initial_balance        BigInt?
+  users_user_id          BigInt
+  users                  users                    @relation(fields: [users_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "budgets_users_user_id_fk")
+  budgets_has_categories budgets_has_categories[]
 
   @@id([budget_id, users_user_id])
   @@unique([month, year, users_user_id], map: "uq_month_year_user")
@@ -63,25 +59,31 @@ model budgets_has_categories {
   budgets_budget_id      BigInt
   budgets_users_user_id  BigInt
   categories_category_id BigInt
-  planned_amount_credit  BigInt @default(0)
-  current_amount         BigInt @default(0)
-  planned_amount_debit   BigInt @default(0)
+  planned_amount_credit  BigInt     @default(0)
+  current_amount         BigInt     @default(0)
+  planned_amount_debit   BigInt     @default(0)
+  budgets                budgets    @relation(fields: [budgets_budget_id], references: [budget_id], onDelete: NoAction, onUpdate: NoAction, map: "budgets_has_categories_budgets_budget_id_fk")
+  categories             categories @relation(fields: [categories_category_id], references: [category_id], onDelete: NoAction, onUpdate: NoAction, map: "budgets_has_categories_categories_category_id_fk")
+  users                  users      @relation(fields: [budgets_users_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "budgets_has_categories_users_user_id_fk")
 
   @@id([budgets_budget_id, budgets_users_user_id, categories_category_id])
   @@index([budgets_budget_id, budgets_users_user_id], map: "fk_budgets_has_categories_budgets1_idx")
   @@index([categories_category_id], map: "fk_budgets_has_categories_categories1_idx")
+  @@index([budgets_users_user_id], map: "budgets_has_categories_users_user_id_fk")
 }
 
 model categories {
-  category_id          BigInt         @id @default(autoincrement())
-  name                 String         @db.VarChar(255)
-  type                 String         @db.Char(1)
-  users_user_id        BigInt
-  description          String?        @db.LongText
-  color_gradient       String?        @db.VarChar(45)
-  status               String         @default("Ativa") @db.VarChar(45)
-  exclude_from_budgets Int            @default(0) @db.TinyInt
-  transactions         transactions[]
+  category_id            BigInt                   @id @default(autoincrement())
+  name                   String                   @db.VarChar(255)
+  type                   String                   @db.Char(1)
+  users_user_id          BigInt
+  description            String?                  @db.LongText
+  color_gradient         String?                  @db.VarChar(45)
+  status                 String                   @default("Ativa") @db.VarChar(45)
+  exclude_from_budgets   Int                      @default(0) @db.TinyInt
+  budgets_has_categories budgets_has_categories[]
+  users                  users                    @relation(fields: [users_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "categories_users_user_id_fk")
+  transactions           transactions[]
 
   @@unique([users_user_id, type, name], map: "uq_name_type_user_id")
   @@index([users_user_id], map: "fk_category_users_idx")
@@ -91,6 +93,7 @@ model entities {
   entity_id     BigInt         @id @unique(map: "entity_id_UNIQUE") @default(autoincrement())
   name          String         @db.VarChar(255)
   users_user_id BigInt
+  users         users          @relation(fields: [users_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "entities_users_user_id_fk")
   transactions  transactions[]
 
   @@unique([name, users_user_id], map: "name_UNIQUE")
@@ -101,13 +104,14 @@ model entities {
 model invest_asset_evo_snapshot {
   month                  Int
   year                   Int
-  units                  Decimal @db.Decimal(16, 6)
+  units                  Decimal       @db.Decimal(16, 6)
   invested_amount        BigInt
   current_value          BigInt
   invest_assets_asset_id BigInt
   created_at             BigInt
   updated_at             BigInt
   withdrawn_amount       BigInt
+  invest_assets          invest_assets @relation(fields: [invest_assets_asset_id], references: [asset_id], onDelete: NoAction, onUpdate: NoAction, map: "invest_asset_evo_snapshot_invest_assets_asset_id_fk")
 
   @@id([month, year, invest_assets_asset_id])
   @@unique([month, year, invest_assets_asset_id], map: "uq_month_year_invest_assets_asset_id")
@@ -115,15 +119,17 @@ model invest_asset_evo_snapshot {
 }
 
 model invest_assets {
-  asset_id      BigInt  @id @unique(map: "asset_id_UNIQUE") @default(autoincrement())
-  name          String  @db.VarChar(75)
-  ticker        String? @db.VarChar(45)
-  units         Decimal @db.Decimal(16, 6)
-  type          String  @db.VarChar(75)
-  broker        String? @db.VarChar(45)
-  created_at    BigInt
-  updated_at    BigInt?
-  users_user_id BigInt
+  asset_id                  BigInt                      @id @unique(map: "asset_id_UNIQUE") @default(autoincrement())
+  name                      String                      @db.VarChar(75)
+  ticker                    String?                     @db.VarChar(45)
+  units                     Decimal                     @db.Decimal(16, 6)
+  type                      String                      @db.VarChar(75)
+  broker                    String?                     @db.VarChar(45)
+  created_at                BigInt
+  updated_at                BigInt?
+  users_user_id             BigInt
+  invest_asset_evo_snapshot invest_asset_evo_snapshot[]
+  invest_transactions       invest_transactions[]
 
   @@unique([name, type, users_user_id], map: "users_user_id_type_name_unique")
   @@index([users_user_id], map: "fk_invest_assets_users1_idx")
@@ -134,6 +140,7 @@ model invest_desired_allocations {
   type                   String @unique(map: "type_UNIQUE") @db.VarChar(75)
   alloc_percentage       Float? @db.Float
   users_user_id          BigInt
+  users                  users  @relation(fields: [users_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "invest_desired_allocations_users_user_id_fk")
 
   @@id([desired_allocations_id, type])
   @@index([users_user_id], map: "fk_invest_desired_allocations_users1_idx")
@@ -150,6 +157,7 @@ model invest_transactions {
   invest_assets_asset_id BigInt
   created_at             BigInt
   updated_at             BigInt
+  invest_assets          invest_assets            @relation(fields: [invest_assets_asset_id], references: [asset_id], onDelete: NoAction, onUpdate: NoAction, map: "invest_transactions_invest_assets_asset_id_fk")
 
   @@index([invest_assets_asset_id], map: "fk_invest_transactions_invest_assets1_idx")
 }
@@ -173,24 +181,26 @@ model rules {
   assign_type                      String? @db.VarChar(45)
   users_user_id                    BigInt
   assign_is_essential              Boolean @default(false)
+  users                            users   @relation(fields: [users_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "rules_users_user_id_fk")
 
   @@id([rule_id, users_user_id])
   @@index([users_user_id], map: "fk_rules_users1_idx")
 }
 
 model transactions {
-  transaction_id           BigInt      @id @unique(map: "transaction_id_UNIQUE") @default(autoincrement())
+  transaction_id           BigInt                 @id @unique(map: "transaction_id_UNIQUE") @default(autoincrement())
   date_timestamp           BigInt
   amount                   BigInt
-  type                     String      @db.Char(1)
-  description              String?     @db.LongText
+  type                     String                 @db.Char(1)
+  description              String?                @db.LongText
   entities_entity_id       BigInt?
   accounts_account_from_id BigInt?
   accounts_account_to_id   BigInt?
   categories_category_id   BigInt?
-  is_essential             Boolean     @default(false)
-  entities                 entities?   @relation(fields: [entities_entity_id], references: [entity_id], onUpdate: NoAction, map: "transactions_ibfk_1")
-  categories               categories? @relation(fields: [categories_category_id], references: [category_id], onUpdate: NoAction, map: "transactions_ibfk_2")
+  is_essential             Boolean                @default(false)
+  transaction_has_tags     transaction_has_tags[]
+  entities                 entities?              @relation(fields: [entities_entity_id], references: [entity_id], onUpdate: NoAction, map: "transactions_ibfk_1")
+  categories               categories?            @relation(fields: [categories_category_id], references: [category_id], onUpdate: NoAction, map: "transactions_ibfk_2")
 
   @@index([accounts_account_from_id], map: "fk_transactions_accounts1_idx")
   @@index([categories_category_id], map: "fk_transactions_categories1_idx")
@@ -198,15 +208,44 @@ model transactions {
 }
 
 model users {
-  user_id               BigInt  @id @default(autoincrement())
-  username              String  @unique(map: "username_UNIQUE") @db.VarChar(45)
-  password              String  @db.MediumText
-  email                 String  @unique(map: "email_UNIQUE") @db.VarChar(45)
-  sessionkey            String? @db.MediumText
-  sessionkey_mobile     String? @db.MediumText
-  trustlimit            Int?
-  trustlimit_mobile     Int?
-  last_update_timestamp BigInt  @default(0)
+  user_id                    BigInt                       @id @default(autoincrement())
+  username                   String                       @unique(map: "username_UNIQUE") @db.VarChar(45)
+  password                   String                       @db.MediumText
+  email                      String                       @unique(map: "email_UNIQUE") @db.VarChar(45)
+  sessionkey                 String?                      @db.MediumText
+  sessionkey_mobile          String?                      @db.MediumText
+  trustlimit                 Int?
+  trustlimit_mobile          Int?
+  last_update_timestamp      BigInt                       @default(0)
+  accounts                   accounts[]
+  budgets                    budgets[]
+  budgets_has_categories     budgets_has_categories[]
+  categories                 categories[]
+  entities                   entities[]
+  invest_desired_allocations invest_desired_allocations[]
+  rules                      rules[]
+  tags                       tags[]
+}
+
+model tags {
+  tag_id               BigInt                 @id @default(autoincrement())
+  description          String?                @db.LongText
+  name                 String                 @unique(map: "uq_name") @db.VarChar(255)
+  users_user_id        BigInt
+  users                users                  @relation(fields: [users_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_user_id")
+  transaction_has_tags transaction_has_tags[]
+
+  @@index([users_user_id], map: "fk_users_user_id")
+}
+
+model transaction_has_tags {
+  transactions_transaction_id BigInt
+  tags_tag_id                 BigInt
+  tags                        tags         @relation(fields: [tags_tag_id], references: [tag_id], onDelete: NoAction, onUpdate: NoAction, map: "transaction_has_tags_tags_tag_id_fk")
+  transactions                transactions @relation(fields: [transactions_transaction_id], references: [transaction_id], onDelete: NoAction, onUpdate: NoAction, map: "transaction_has_tags_transactions_transaction_id_fk")
+
+  @@id([tags_tag_id, transactions_transaction_id])
+  @@index([transactions_transaction_id], map: "transaction_has_tags_transactions_transaction_id_fk")
 }
 
 enum invest_transactions_type {
