@@ -7,10 +7,29 @@ import CategoryService from './categoryService.js';
 import {Prisma} from '@prisma/client';
 import {MYFIN} from '../consts.js';
 
-const Rule = prisma.rules;
+interface Rule {
+    rule_id?: bigint | number;
+    matcher_description_operator?: string | null;
+    matcher_description_value?: string | null;
+    matcher_amount_operator?: string | null;
+    matcher_amount_value?: bigint | number | null;
+    matcher_type_operator?: string | null;
+    matcher_type_value?: string | null;
+    matcher_account_to_id_operator?: string | null;
+    matcher_account_to_id_value?: bigint | number | null;
+    matcher_account_from_id_operator?: string | null;
+    matcher_account_from_id_value?: bigint | number | null;
+    assign_category_id?: bigint | number | null;
+    assign_entity_id?: bigint | number | null;
+    assign_account_to_id?: bigint | number | null;
+    assign_account_from_id?: bigint | number | null;
+    assign_type?: string | null;
+    assign_is_essential?: boolean;
+    users_user_id?: bigint;
+}
 
 const getAllRulesForUser = async (userId: bigint) => {
-    const rules = await Rule.findMany({
+    const rules = await prisma.rules.findMany({
         where: {users_user_id: userId}
     });
 
@@ -34,7 +53,7 @@ const getAllRulesForUser = async (userId: bigint) => {
     };
 };
 
-const createRule = async (userId: bigint, rule: Prisma.rulesCreateInput, dbClient = prisma) =>
+const createRule = async (userId: bigint, rule: Rule, dbClient = prisma) =>
     dbClient.rules.create({
         data: {
             users_user_id: userId,
@@ -64,7 +83,7 @@ const updatedRule = async (rule: Prisma.rulesUpdateInput, dbClient = prisma) => 
         where: {
             rule_id_users_user_id: {
                 rule_id: Number(rule.rule_id),
-                users_user_id: Number(rule.users_user_id)
+                users_user_id: Number(rule.users.connect.user_id)
             }
         },
         data: {
@@ -90,7 +109,7 @@ const updatedRule = async (rule: Prisma.rulesUpdateInput, dbClient = prisma) => 
 };
 
 const deleteRule = async (userId: bigint, ruleId: bigint) =>
-    Rule.delete({
+    prisma.rules.delete({
         where: {
             rule_id_users_user_id: {
                 rule_id: ruleId,
@@ -102,8 +121,6 @@ const deleteRule = async (userId: bigint, ruleId: bigint) =>
 const getCountOfUserRules = async (userId, dbClient = prisma) => dbClient.rules.count({
     where: {users_user_id: userId}
 });
-
-type Rule = Prisma.rulesUpdateInput
 
 enum RuleMatcherResult {
     MATCHED = 0,

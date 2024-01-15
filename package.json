@@ -9,10 +9,11 @@
     "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:migrate-from-db": "prisma db pull && prisma migrate dev",
     "db:seed": "prisma db seed"
   },
   "name": "myfin-api",
-  "version": "1.2.4",
+  "version": "2.0.0",
   "description": "NodeJS API for Myfin",
   "main": "src/server.js",
   "devDependencies": {
@@ -36,7 +37,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "nodemon": "^3.0.1",
     "prettier": "^3.0.1",
-    "prisma": "^5.2.0",
+    "prisma": "^5.8.0",
     "ts-node": "^10.9.1",
     "typescript": "^5.1.6"
   },
@@ -51,7 +52,7 @@
   },
   "homepage": "https://github.com/aFaneca/myfin#readme",
   "dependencies": {
-    "@prisma/client": "^5.2.0",
+    "@prisma/client": "^5.8.0",
     "bcrypt": "^5.0.0",
     "cors": "^2.8.5",
     "dayjs": "^1.10.6",

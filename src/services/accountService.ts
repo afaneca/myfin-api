@@ -3,6 +3,7 @@ import ConvertUtils from '../utils/convertUtils.js';
 import {MYFIN} from '../consts.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
 import UserService from './userService.js';
+import {Prisma} from "@prisma/client";
 
 const Account = prisma.accounts;
 const Transaction = prisma.transactions;
@@ -66,7 +67,7 @@ const accountService = {
             data: accountObj,
         });
     },
-    getAccountsForUser: async (userId: bigint, selectConfig = undefined, dbClient = prisma) =>
+    getAccountsForUser: async (userId: bigint, selectConfig: Prisma.accountsSelect = undefined, dbClient = prisma) =>
         dbClient.accounts.findMany({
             where: {
                 users_user_id: userId,

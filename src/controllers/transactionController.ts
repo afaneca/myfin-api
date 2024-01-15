@@ -1,9 +1,9 @@
-import {NextFunction, Request, Response} from 'express';
+import { NextFunction, Request, Response } from 'express';
 import APIError from '../errorHandling/apiError.js';
 import Logger from '../utils/Logger.js';
 import CommonsController from './commonsController.js';
 import TransactionService from '../services/transactionService.js';
-import {MYFIN} from '../consts.js';
+import { MYFIN } from '../consts.js';
 import joi from 'joi';
 import AccountService from '../services/accountService.js';
 import CategoryService from '../services/categoryService.js';
@@ -78,13 +78,17 @@ const createTransactionSchema = joi.object({
   category_id: joi.number().empty(''),
   date_timestamp: joi.number().required(),
   is_essential: joi.boolean().required(),
+  tags: joi.any().optional(), // ex: ["tag 1","tag 2",<_new_or_existing_tag_name>]
 });
 
 const createTransaction = async (req, res, next) => {
   try {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
     const trx = await createTransactionSchema.validateAsync(req.body);
-    await TransactionService.createTransaction(sessionData.userId, trx);
+    await TransactionService.createTransaction(sessionData.userId, {
+      ...trx,
+      tags: JSON.parse(trx.tags),
+    });
     res.json(`Transaction successfully created`);
   } catch (err) {
     Logger.addLog(err);
@@ -104,6 +108,7 @@ const updateTransactionSchema = joi.object({
   new_date_timestamp: joi.number().required(),
   new_is_essential: joi.boolean().required(),
   transaction_id: joi.number().required(),
+  tags: joi.any().optional(), // ex: ["tag 1","tag 2",<_new_or_existing_tag_name>]
   /* SPLIT TRX */
   is_split: joi.boolean().default(false),
   split_amount: joi.number().empty('').optional(),
@@ -114,13 +119,18 @@ const updateTransactionSchema = joi.object({
   split_account_to: joi.number().empty('').optional(),
   split_description: joi.string().empty('').trim().optional(),
   split_is_essential: joi.boolean().empty('').default(false).optional(),
+  split_tags: joi.any().optional(), // ex: ["tag 1","tag 2",<_new_or_existing_tag_name>]
 });
 
 const updateTransaction = async (req, res, next) => {
   try {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
     const trx = await updateTransactionSchema.validateAsync(req.body);
-    await TransactionService.updateTransaction(sessionData.userId, trx);
+    await TransactionService.updateTransaction(sessionData.userId, {
+      ...trx,
+      tags: JSON.parse(trx.tags),
+      split_tags: JSON.parse(trx.tags),
+    });
     res.json(`Transaction successfully updated`);
   } catch (err) {
     Logger.addLog(err);

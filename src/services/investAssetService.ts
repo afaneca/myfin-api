@@ -39,12 +39,24 @@ interface CalculatedAssetStats extends CalculatedAssetAmounts {
   combined_roi_by_year?: number;
 }
 
+interface InvestAssetEvoSnapshot {
+    month: number;
+    year: number;
+    units: number | string;
+    invested_amount: bigint | number;
+    current_value: bigint | number;
+    invest_assets_asset_id: bigint | number;
+    created_at: bigint | number;
+    updated_at: bigint | number;
+    withdrawn_amount: bigint | number;
+}
+
 const getLatestSnapshotForAsset = async (
   assetId: bigint,
   maxMonth = DateTimeUtils.getMonthNumberFromTimestamp(),
   maxYear = DateTimeUtils.getYearFromTimestamp(),
   dbClient = prisma
-): Promise<Prisma.invest_asset_evo_snapshotCreateInput> => {
+): Promise<InvestAssetEvoSnapshot> => {
   const result = await dbClient.$queryRaw`SELECT *
                                             FROM invest_asset_evo_snapshot
                                             WHERE invest_assets_asset_id = ${assetId}
