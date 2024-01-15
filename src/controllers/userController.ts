@@ -84,10 +84,10 @@ const changeUserPassword = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-const getUserCategoriesAndEntities = async (req: Request, res: Response, next: NextFunction) => {
+const getUserCategoriesEntitiesTags = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
-    const data = await UserService.getUserCategoriesAndEntities(sessionData.userId);
+    const data = await UserService.getUserCategoriesEntitiesTags(sessionData.userId);
     res.json(data);
   } catch (err) {
     Logger.addLog(err);
@@ -111,6 +111,6 @@ export default {
   attemptLogin,
   checkSessionValidity,
   changeUserPassword,
-  getUserCategoriesAndEntities,
+  getUserCategoriesAndEntities: getUserCategoriesEntitiesTags,
   autoPopulateDemoData,
 };

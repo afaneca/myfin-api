@@ -10,25 +10,28 @@ import StatsController from '../controllers/statsController.js';
 import InvestAssetsController from '../controllers/investAssetsController.js';
 import InvestTransactionsController from '../controllers/investTransactionsController.js';
 import { Express } from 'express-serve-static-core';
+import TagController from "../controllers/tagController.js";
 
 const router = (app: Express) => {
-  // USERS ROUTES
+  //region USERS ROUTES
   const userRouter = express.Router();
-  userRouter.get('/categoriesAndEntities', UserController.getUserCategoriesAndEntities);
+  userRouter.get('/categoriesEntitiesTags', UserController.getUserCategoriesAndEntities);
 
   const usersRouter = express.Router();
   usersRouter.post('/', UserController.createOne);
   usersRouter.put('/changePW/', UserController.changeUserPassword);
   usersRouter.post('/demo/', UserController.autoPopulateDemoData);
+  //endregion
 
-  // AUTH ROUTES
+  //region AUTH ROUTES
   const authRoutes = express.Router();
   authRoutes.post('/', UserController.attemptLogin);
 
   const validityRoutes = express.Router();
   validityRoutes.post('/', UserController.checkSessionValidity);
+  //endregion
 
-  // ACCOUNTS ROUTES
+  //region ACCOUNTS ROUTES
   const accountsRoutes = express.Router();
   accountsRoutes.post('/', AccountController.createAccount);
   accountsRoutes.get('/', AccountController.getAllAccountsForUser);
@@ -39,8 +42,9 @@ const router = (app: Express) => {
     '/recalculate-balance/all',
     AccountController.recalculateAllUserAccountsBalances
   );
+  //endregion
 
-  // BUDGETS ROUTES
+  //region BUDGETS ROUTES
   const budgetRoutes = express.Router();
   budgetRoutes.get('/', BudgetController.getAllBudgetsForUser);
   budgetRoutes.get('/filteredByPage/:page', BudgetController.getFilteredBudgetsForUserByPage);
@@ -52,29 +56,33 @@ const router = (app: Express) => {
   budgetRoutes.delete('/', BudgetController.removeBudget);
   budgetRoutes.get('/list/summary', BudgetController.getBudgetsListForUser);
   budgetRoutes.put('/:id', BudgetController.updateBudgetCategoryPlannedValues);
+  //endregion
 
-  // CATEGORIES ROUTES
+  //region CATEGORIES ROUTES
   const catRoutes = express.Router();
   catRoutes.get('/', CategoryController.getAllCategoriesForUser);
   catRoutes.post('/', CategoryController.createCategory);
   catRoutes.delete('/', CategoryController.deleteCategory);
   catRoutes.put('/', CategoryController.updateCategory);
+  //endregion
 
-  // ENTITIES ROUTES
+  //region ENTITIES ROUTES
   const entityRoutes = express.Router();
   entityRoutes.get('/', EntityController.getAllEntitiesForUser);
   entityRoutes.post('/', EntityController.createEntity);
   entityRoutes.delete('/', EntityController.deleteEntity);
   entityRoutes.put('/', EntityController.updateEntity);
+  //endregion
 
-  // RULES ROUTES
+  //region RULES ROUTES
   const ruleRoutes = express.Router();
   ruleRoutes.get('/', RuleController.getAllRulesForUser);
   ruleRoutes.post('/', RuleController.createRule);
   ruleRoutes.delete('/', RuleController.deleteRule);
   ruleRoutes.put('/', RuleController.updateRule);
+  //endregion
 
-  // STATS ROUTES
+  //region STATS ROUTES
   const statRoutes = express.Router();
   statRoutes.get(
     '/dashboard/month-expenses-income-distribution',
@@ -87,15 +95,16 @@ const router = (app: Express) => {
   statRoutes.get('/userStats', StatsController.getUserCounterStats);
   statRoutes.get(
     '/category-expenses-evolution',
-    StatsController.getCategoryEntityExpensesEvolution
+    StatsController.getCategoryEntityTagExpensesEvolution
   );
-  statRoutes.get('/category-income-evolution', StatsController.getCategoryEntityIncomeEvolution);
+  statRoutes.get('/category-income-evolution', StatsController.getCategoryEntityTagIncomeEvolution);
   statRoutes.get(
     '/year-by-year-income-expense-distribution',
     StatsController.getYearByYearIncomeExpenseDistribution
   );
+  //endregion
 
-  // TRANSACTIONS ROUTES
+  //region TRANSACTIONS ROUTES
   const trxRoutes = express.Router();
   trxRoutes.get('/', TransactionController.getTransactionsForUser);
   trxRoutes.get('/filteredByPage/:page', TransactionController.getFilteredTrxByPage);
@@ -111,8 +120,9 @@ const router = (app: Express) => {
   trxRoutes.post('/import/step0', TransactionController.importTransactionsStep0);
   trxRoutes.post('/import/step1', TransactionController.importTransactionsStep1);
   trxRoutes.post('/import/step2', TransactionController.importTransactionsStep2);
+  //endregion
 
-  // INVEST ASSET ROUTES
+  //region INVEST ASSET ROUTES
   const investAssetRoutes = express.Router();
   investAssetRoutes.get('/', InvestAssetsController.getAllAssetsForUser);
   investAssetRoutes.post('/', InvestAssetsController.createAsset);
@@ -122,14 +132,24 @@ const router = (app: Express) => {
   investAssetRoutes.get('/summary', InvestAssetsController.getAllAssetsSummaryForUser);
   investAssetRoutes.get('/stats', InvestAssetsController.getAssetStatsForUser);
   investAssetRoutes.get('/:id', InvestAssetsController.getAssetDetailsForUser);
+  //endregion
 
-  // INVEST TRANSACTION ROUTES
+  //region INVEST TRANSACTION ROUTES
   const investTrxRoutes = express.Router();
   investTrxRoutes.get('/', InvestTransactionsController.getAllTransactionsForUser);
   investTrxRoutes.get('/filteredByPage/:page', InvestTransactionsController.getFilteredTrxByPage);
   investTrxRoutes.post('/', InvestTransactionsController.createTransaction);
   investTrxRoutes.delete('/:id', InvestTransactionsController.deleteTransaction);
   investTrxRoutes.put('/:id', InvestTransactionsController.updateTransaction);
+  //endregion
+
+  //region TAG ROUTES
+  const tagRoutes = express.Router();
+  tagRoutes.get('/filteredByPage/:page', TagController.getAllTagsForUser);
+  tagRoutes.post('/', TagController.createTag);
+  tagRoutes.delete('/:id', TagController.deleteTag);
+  tagRoutes.put('/:id', TagController.updateTag);
+  //endregion
 
   app.use('/users', usersRouter);
   app.use('/user', userRouter);
@@ -144,6 +164,7 @@ const router = (app: Express) => {
   app.use('/stats', statRoutes);
   app.use('/invest/assets', investAssetRoutes);
   app.use('/invest/trx', investTrxRoutes);
+  app.use('/tags', tagRoutes);
 };
 
 export default router;

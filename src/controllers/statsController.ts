@@ -57,11 +57,12 @@ const getCategoryExpensesEvoSchema = joi
   .object({
     cat_id: joi.number(),
     ent_id: joi.number(),
+    tag_id: joi.number(),
   })
-  .xor('cat_id', 'ent_id')
+  .xor('cat_id', 'ent_id', 'tag_id')
   .unknown(true);
 
-const getCategoryEntityExpensesEvolution = async (
+const getCategoryEntityTagExpensesEvolution = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -72,8 +73,10 @@ const getCategoryEntityExpensesEvolution = async (
     let data = undefined;
     if (input.cat_id) {
       data = await StatsService.getCategoryExpensesEvolution(sessionData.userId, input.cat_id);
-    } else {
+    } else if(input.ent_id) {
       data = await StatsService.getEntityExpensesEvolution(sessionData.userId, input.ent_id);
+    } else {
+      data = await StatsService.getTagExpensesEvolution(sessionData.userId, input.tag_id);
     }
     res.json(data);
   } catch (err) {
@@ -86,11 +89,12 @@ const getCategoryIncomeEvoSchema = joi
   .object({
     cat_id: joi.number(),
     ent_id: joi.number(),
+    tag_id: joi.number(),
   })
-  .xor('cat_id', 'ent_id')
+  .xor('cat_id', 'ent_id', 'tag_id')
   .unknown(true);
 
-const getCategoryEntityIncomeEvolution = async (
+const getCategoryEntityTagIncomeEvolution = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -101,8 +105,10 @@ const getCategoryEntityIncomeEvolution = async (
     let data;
     if (input.cat_id) {
       data = await StatsService.getCategoryIncomeEvolution(sessionData.userId, input.cat_id);
-    } else {
+    } else if(input.ent_id) {
       data = await StatsService.getEntityIncomeEvolution(sessionData.userId, input.ent_id);
+    } else {
+      data = await StatsService.getTagIncomeEvolution(sessionData.userId, input.tag_id);
     }
     res.json(data);
   } catch (err) {
@@ -140,7 +146,7 @@ export default {
   getExpensesIncomeDistributionForMonth,
   getUserCounterStats,
   getMonthlyPatrimonyProjections,
-  getCategoryEntityExpensesEvolution,
-  getCategoryEntityIncomeEvolution,
+  getCategoryEntityTagExpensesEvolution,
+  getCategoryEntityTagIncomeEvolution,
   getYearByYearIncomeExpenseDistribution,
 };
