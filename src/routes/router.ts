@@ -15,7 +15,7 @@ import TagController from "../controllers/tagController.js";
 const router = (app: Express) => {
   //region USERS ROUTES
   const userRouter = express.Router();
-  userRouter.get('/categoriesAndEntities', UserController.getUserCategoriesAndEntities);
+  userRouter.get('/categoriesEntitiesTags', UserController.getUserCategoriesAndEntities);
 
   const usersRouter = express.Router();
   usersRouter.post('/', UserController.createOne);
@@ -95,9 +95,9 @@ const router = (app: Express) => {
   statRoutes.get('/userStats', StatsController.getUserCounterStats);
   statRoutes.get(
     '/category-expenses-evolution',
-    StatsController.getCategoryEntityExpensesEvolution
+    StatsController.getCategoryEntityTagExpensesEvolution
   );
-  statRoutes.get('/category-income-evolution', StatsController.getCategoryEntityIncomeEvolution);
+  statRoutes.get('/category-income-evolution', StatsController.getCategoryEntityTagIncomeEvolution);
   statRoutes.get(
     '/year-by-year-income-expense-distribution',
     StatsController.getYearByYearIncomeExpenseDistribution

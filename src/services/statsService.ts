@@ -9,7 +9,7 @@ import AccountService from './accountService.js';
 import BudgetService, { BudgetListOrder } from './budgetService.js';
 import RuleService from './ruleService.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
-import TagService from "./tagService.js";
+import TagService, { CalculatedTagAmounts } from "./tagService.js";
 
 const getExpensesIncomeDistributionForMonth = async (
   userId: bigint,
@@ -267,6 +267,66 @@ const getEntityExpensesEvolution = async (userId: bigint, entityId: bigint, dbCl
     }));
   }, dbClient);
 
+const getTagExpensesEvolution = async (userId: bigint, tagId: bigint, dbClient = undefined) =>
+  performDatabaseRequest(async (prismaTx) => {
+    const currentMonth = DateTimeUtils.getMonthNumberFromTimestamp();
+    const currentYear = DateTimeUtils.getYearFromTimestamp();
+    const budgetsList = await BudgetService.getBudgetsUntilCertainMonth(
+      userId,
+      currentMonth,
+      currentYear,
+      BudgetListOrder.DESCENDING,
+      prismaTx
+    );
+
+    const calculatedAmountPromises = [];
+    for (const budget of budgetsList) {
+      calculatedAmountPromises.push(
+        TagService.getAmountForTagInMonth(tagId, budget.month, budget.year, true, prismaTx)
+      );
+    }
+    const calculatedAmounts: Array<CalculatedTagAmounts> = await Promise.all(
+      calculatedAmountPromises
+    );
+    return calculatedAmounts.map((calculatedAmount, index) => ({
+      value: ConvertUtils.convertBigIntegerToFloat(
+        BigInt(calculatedAmount.tag_balance_debit ?? 0)
+      ),
+      month: budgetsList[index].month,
+      year: budgetsList[index].year,
+    }));
+  }, dbClient);
+
+const getTagIncomeEvolution = async (userId: bigint, tagId: bigint, dbClient = undefined) =>
+  performDatabaseRequest(async (prismaTx) => {
+    const currentMonth = DateTimeUtils.getMonthNumberFromTimestamp();
+    const currentYear = DateTimeUtils.getYearFromTimestamp();
+    const budgetsList = await BudgetService.getBudgetsUntilCertainMonth(
+      userId,
+      currentMonth,
+      currentYear,
+      BudgetListOrder.DESCENDING,
+      prismaTx
+    );
+
+    const calculatedAmountPromises = [];
+    for (const budget of budgetsList) {
+      calculatedAmountPromises.push(
+        TagService.getAmountForTagInMonth(tagId, budget.month, budget.year, true, prismaTx)
+      );
+    }
+    const calculatedAmounts: Array<CalculatedTagAmounts> = await Promise.all(
+      calculatedAmountPromises
+    );
+    return calculatedAmounts.map((calculatedAmount, index) => ({
+      value: ConvertUtils.convertBigIntegerToFloat(
+        BigInt(calculatedAmount.tag_balance_credit ?? 0)
+      ),
+      month: budgetsList[index].month,
+      year: budgetsList[index].year,
+    }));
+  }, dbClient);
+
 const getCategoryIncomeEvolution = async (
   userId: bigint,
   categoryId: bigint,
@@ -406,4 +466,6 @@ export default {
   getCategoryIncomeEvolution,
   getEntityIncomeEvolution,
   getYearByYearIncomeExpenseDistribution,
+  getTagIncomeEvolution,
+  getTagExpensesEvolution,
 };

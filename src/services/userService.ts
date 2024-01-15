@@ -1,20 +1,22 @@
-import {prisma} from '../config/prisma.js';
+import { prisma } from '../config/prisma.js';
 import APIError from '../errorHandling/apiError.js';
 import * as cryptoUtils from '../utils/CryptoUtils.js';
 import SessionManager from '../utils/sessionManager.js';
-import {Prisma} from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import CategoryService from './categoryService.js';
 import EntityService from './entityService.js';
 import DemoDataManager from '../utils/demoDataManager.js';
-import AccountService from "./accountService.js";
-import Logger from "../utils/Logger.js";
-import ConvertUtils from "../utils/convertUtils.js";
+import AccountService from './accountService.js';
+import Logger from '../utils/Logger.js';
+import ConvertUtils from '../utils/convertUtils.js';
+import TagService from './tagService.js';
 
 const User = prisma.users;
 
-interface CategoriesEntitiesOutput {
-    categories?: Array<{ category_id: bigint; name: string; type: string }>;
-    entities?: Array<{ entity_id: bigint; name: string }>;
+interface CategoriesEntitiesTagsOutput {
+  categories?: Array<{ category_id: bigint; name: string; type: string }>;
+  entities?: Array<{ entity_id: bigint; name: string }>;
+  tags?: Array<{ tag_id: bigint; name: string; description?: string }>;
 }
 
 const userService = {
@@ -144,10 +146,10 @@ const userService = {
       return data[0];
     } else return undefined;
   },
-  getUserCategoriesAndEntities: async (
+  getUserCategoriesEntitiesTags: async (
     userId: bigint,
     dbClient = prisma
-  ): Promise<CategoriesEntitiesOutput> => {
+  ): Promise<CategoriesEntitiesTagsOutput> => {
     const categories = await CategoryService.getAllCategoriesForUser(
       userId,
       {
@@ -167,6 +169,16 @@ const userService = {
       dbClient
     );
 
+    const tags = await TagService.getAllTagsForUser(
+      userId,
+      {
+        tag_id: true,
+        name: true,
+        description: true,
+      },
+      dbClient
+    );
+
     return {
       categories: categories.map((cat) => {
         return {
@@ -178,11 +190,16 @@ const userService = {
       entities: entities.map((ent) => {
         return { entity_id: ent.entity_id as bigint, name: ent.name as string };
       }),
+      tags: tags.map((tag) => {
+        return {
+          tag_id: tag.tag_id as bigint,
+          name: tag.name as string,
+          description: tag.description as string,
+        };
+      }),
     };
   },
   autoPopulateDemoData: async (userId: bigint, dbClient = undefined) =>
     DemoDataManager.createMockData(userId, dbClient),
 };
-;
-
 export default userService;
