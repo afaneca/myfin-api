@@ -123,7 +123,8 @@ const getFilteredTransactionsByForUser = async (
                                             accounts_account_from_id,
                                             acc_to.name                 as account_to_name,
                                             accounts_account_to_id,
-                                            acc_from.name               as account_from_name
+                                            acc_from.name               as account_from_name,
+                                            GROUP_CONCAT(tags.name) as tag_names
                                      FROM transactions
                                             LEFT JOIN accounts ON accounts.account_id = transactions.accounts_account_from_id
                                             LEFT JOIN categories
@@ -133,14 +134,17 @@ const getFilteredTransactionsByForUser = async (
                                                       ON acc_to.account_id = transactions.accounts_account_to_id
                                             LEFT JOIN accounts acc_from
                                                       ON acc_from.account_id = transactions.accounts_account_from_id
+                                            LEFT JOIN transaction_has_tags ON transaction_has_tags.transactions_transaction_id = transactions.transaction_id
+                                            LEFT JOIN tags ON tags.tag_id = transaction_has_tags.tags_tag_id
                                      WHERE (acc_to.users_user_id = ${userId} OR acc_from.users_user_id = ${userId})
                                        AND (transactions.description LIKE
                                             ${query} OR
                                             acc_from.name LIKE ${query}
                                        OR acc_to.name LIKE ${query}
-                                       OR amount LIKE ${query}
+                                       OR (amount / 100) LIKE ${query}
                                        OR entities.name LIKE ${query}
-                                       OR categories.name LIKE ${query})
+                                       OR categories.name LIKE ${query}
+                                       OR tags.name LIKE ${query})
                                      GROUP BY transaction_id
                                      ORDER BY transactions.date_timestamp
                                          DESC
@@ -148,7 +152,7 @@ const getFilteredTransactionsByForUser = async (
 
   // count of total of filtered results
   const countQuery = prisma.$queryRaw`SELECT count(*) as 'count'
-                                      FROM (SELECT transactions.date_timestamp
+                                      FROM (SELECT transactions.date_timestamp, GROUP_CONCAT(tags.name) as tag_names
                                             from transactions
                                                    LEFT JOIN accounts ON accounts.account_id = transactions.accounts_account_from_id
                                                    LEFT JOIN categories
@@ -158,15 +162,18 @@ const getFilteredTransactionsByForUser = async (
                                                              ON acc_to.account_id = transactions.accounts_account_to_id
                                                    LEFT JOIN accounts acc_from
                                                              ON acc_from.account_id = transactions.accounts_account_from_id
+                                                   LEFT JOIN transaction_has_tags ON transaction_has_tags.transactions_transaction_id = transactions.transaction_id
+                                                   LEFT JOIN tags ON tags.tag_id = transaction_has_tags.tags_tag_id          
                                             WHERE (acc_to.users_user_id = ${userId} OR acc_from.users_user_id = ${userId})
                                               AND (transactions.description LIKE
                                                    ${query} OR
                                                    acc_from.name LIKE ${query}
                                               OR acc_to.name LIKE ${query}
-                                              OR amount LIKE ${query}
+                                              OR (amount / 100) LIKE ${query}
                                               OR entities.name LIKE ${query}
                                               OR categories.name LIKE
-                                                 ${query})
+                                                 ${query}
+                                              OR tags.name LIKE ${query})
                                             GROUP BY transaction_id) trx`;
 
   const totalCountQuery = prisma.$queryRaw`SELECT count(*) as 'count'
