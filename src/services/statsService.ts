@@ -398,10 +398,25 @@ interface ExpandedCategoryWithYearlyAmounts {
   category_yearly_income: number;
   category_yearly_expense: number;
 }
+interface ExpandedEntityWithYearlyAmounts {
+  entity_id: bigint;
+  name: string;
+  entity_yearly_income: number;
+  entity_yearly_expense: number;
+}
+interface ExpandedTagWithYearlyAmounts {
+  tag_id: bigint;
+  name: string;
+  description?: string;
+  tag_yearly_income: number;
+  tag_yearly_expense: number;
+}
 
 export interface YearByYearIncomeDistributionOutput {
   year_of_first_trx?: number;
   categories?: Array<ExpandedCategoryWithYearlyAmounts>;
+  entities?: Array<ExpandedEntityWithYearlyAmounts>;
+  tags?: Array<ExpandedTagWithYearlyAmounts>;
 }
 
 const getYearByYearIncomeExpenseDistribution = async (
@@ -416,6 +431,7 @@ const getYearByYearIncomeExpenseDistribution = async (
       prismaTx
     );
 
+    // Categories
     const categories = await CategoryService.getAllCategoriesForUser(
       userId,
       {
@@ -426,9 +442,9 @@ const getYearByYearIncomeExpenseDistribution = async (
       prismaTx
     );
 
-    const calculatedAmountPromises = [];
+    const calculatedCategoryAmountPromises = [];
     for (const category of categories) {
-      calculatedAmountPromises.push(
+      calculatedCategoryAmountPromises.push(
         CategoryService.getAmountForCategoryInYear(
           category.category_id as bigint,
           year,
@@ -438,7 +454,7 @@ const getYearByYearIncomeExpenseDistribution = async (
       );
     }
 
-    const calculatedAmounts = await Promise.all(calculatedAmountPromises);
+    const calculatedCategoryAmounts = await Promise.all(calculatedCategoryAmountPromises);
 
     output.categories = categories.map((category, index) => {
       return {
@@ -446,10 +462,86 @@ const getYearByYearIncomeExpenseDistribution = async (
         name: category.name as string,
         type: category.type as string,
         category_yearly_income: ConvertUtils.convertBigIntegerToFloat(
-          calculatedAmounts[index].category_balance_credit
+          calculatedCategoryAmounts[index].category_balance_credit
         ) as number,
         category_yearly_expense: ConvertUtils.convertBigIntegerToFloat(
-          calculatedAmounts[index].category_balance_debit
+          calculatedCategoryAmounts[index].category_balance_debit
+        ) as number,
+      };
+    });
+
+    // Entities
+    const entities = await EntityService.getAllEntitiesForUser(
+      userId,
+      {
+        entity_id: true,
+        name: true,
+      },
+      prismaTx
+    );
+
+    const calculatedEntityAmountPromises = [];
+    for (const entity of entities) {
+      calculatedEntityAmountPromises.push(
+        EntityService.getAmountForEntityInYear(
+          entity.entity_id as bigint,
+          year,
+          true,
+          prismaTx
+        )
+      );
+    }
+
+    const calculatedEntityAmounts = await Promise.all(calculatedEntityAmountPromises);
+
+    output.entities = entities.map((entity, index) => {
+      return {
+        entity_id: entity.entity_id as bigint,
+        name: entity.name as string,
+        entity_yearly_income: ConvertUtils.convertBigIntegerToFloat(
+          calculatedEntityAmounts[index].entity_balance_credit
+        ) as number,
+        entity_yearly_expense: ConvertUtils.convertBigIntegerToFloat(
+          calculatedEntityAmounts[index].entity_balance_debit
+        ) as number,
+      };
+    });
+
+    // Tags
+    const tags = await TagService.getAllTagsForUser(
+      userId,
+      {
+        tag_id: true,
+        name: true,
+        description: true,
+      },
+      prismaTx
+    );
+
+    const calculatedTagAmountPromises = [];
+    for (const tag of tags) {
+      calculatedTagAmountPromises.push(
+        TagService.getAmountForTagInYear(
+          tag.tag_id as bigint,
+          year,
+          true,
+          prismaTx
+        )
+      );
+    }
+
+    const calculatedTagAmounts = await Promise.all(calculatedTagAmountPromises);
+
+    output.tags = tags.map((tag, index) => {
+      return {
+        tag_id: tag.tag_id as bigint,
+        name: tag.name as string,
+        description: tag.description as string,
+        tag_yearly_income: ConvertUtils.convertBigIntegerToFloat(
+          calculatedTagAmounts[index].tag_balance_credit
+        ) as number,
+        tag_yearly_expense: ConvertUtils.convertBigIntegerToFloat(
+          calculatedTagAmounts[index].tag_balance_debit
         ) as number,
       };
     });

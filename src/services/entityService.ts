@@ -145,6 +145,26 @@ const getAmountForEntityInMonth = async (
     return amounts[0];
 };
 
+const getAmountForEntityInYear = async (
+    entityId: bigint,
+    year: number,
+    includeTransfers = true,
+    dbClient = prisma
+): Promise<CalculatedEntityAmounts> => {
+    const maxDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, 11, 31));
+    const minDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, 0, 1));
+
+    /* Logger.addLog(`cat id: ${categoryId} | month: ${month} | year: ${year} | minDate: ${minDate} | maxDate: ${maxDate}`); */
+    const amounts = await getAmountForEntityInPeriod(
+        entityId,
+        minDate,
+        maxDate,
+        includeTransfers,
+        dbClient
+    );
+    return amounts[0];
+};
+
 export default {
     getAllEntitiesForUser,
     createEntity,
@@ -152,4 +172,5 @@ export default {
     updateEntity,
     getCountOfUserEntities,
     getAmountForEntityInMonth,
+    getAmountForEntityInYear,
 };
