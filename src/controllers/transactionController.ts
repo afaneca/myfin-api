@@ -78,7 +78,7 @@ const createTransactionSchema = joi.object({
   category_id: joi.number().empty(''),
   date_timestamp: joi.number().required(),
   is_essential: joi.boolean().required(),
-  tags: joi.any().optional(), // ex: ["tag 1","tag 2",<_new_or_existing_tag_name>]
+  tags: joi.any().default('[]').optional(), // ex: ["tag 1","tag 2",<_new_or_existing_tag_name>]
 });
 
 const createTransaction = async (req, res, next) => {
@@ -108,7 +108,7 @@ const updateTransactionSchema = joi.object({
   new_date_timestamp: joi.number().required(),
   new_is_essential: joi.boolean().required(),
   transaction_id: joi.number().required(),
-  tags: joi.any().optional(), // ex: ["tag 1","tag 2",<_new_or_existing_tag_name>]
+  tags: joi.any().default('[]').optional(), // ex: ["tag 1","tag 2",<_new_or_existing_tag_name>]
   /* SPLIT TRX */
   is_split: joi.boolean().default(false),
   split_amount: joi.number().empty('').optional(),
@@ -119,7 +119,7 @@ const updateTransactionSchema = joi.object({
   split_account_to: joi.number().empty('').optional(),
   split_description: joi.string().empty('').trim().optional(),
   split_is_essential: joi.boolean().empty('').default(false).optional(),
-  split_tags: joi.any().optional(), // ex: ["tag 1","tag 2",<_new_or_existing_tag_name>]
+  split_tags: joi.any().default('[]').optional(), // ex: ["tag 1","tag 2",<_new_or_existing_tag_name>]
 });
 
 const updateTransaction = async (req, res, next) => {
