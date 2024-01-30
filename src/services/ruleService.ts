@@ -77,13 +77,13 @@ const createRule = async (userId: bigint, rule: Rule, dbClient = prisma) =>
         }
     });
 
-const updatedRule = async (rule: Prisma.rulesUpdateInput, dbClient = prisma) => {
+const updatedRule = async (rule: Rule, dbClient = prisma) => {
     Logger.addStringifiedLog(rule);
     return dbClient.rules.update({
         where: {
             rule_id_users_user_id: {
                 rule_id: Number(rule.rule_id),
-                users_user_id: Number(rule.users.connect.user_id)
+                users_user_id: Number(rule.users_user_id)
             }
         },
         data: {
