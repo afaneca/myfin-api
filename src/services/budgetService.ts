@@ -329,7 +329,7 @@ const getFilteredBudgetsForUserByPage = async (
     pageSize: number,
     query: string,
     status: string,
-    dbClient = undefined
+    dbClient = prisma
 ) =>
     performDatabaseRequest(async (prismaTx) => {
         const budgetsArr = await getBudgetsForUserByPage(
@@ -341,24 +341,18 @@ const getFilteredBudgetsForUserByPage = async (
             prismaTx
         );
 
-        for await (const budget of budgetsArr.results) {
-            budget.balance_value = await calculateBudgetBalance(userId, budget, prismaTx);
-            budget.balance_change_percentage = await calculateBudgetBalanceChangePercentage(
-                userId,
-                budget,
-                budget.balance_value,
-                prismaTx
-            );
+        const balancePromises = budgetsArr.results.map(async budget => {
+            const balanceValue = await calculateBudgetBalance(userId, budget, prismaTx);
+            budget.balance_value = balanceValue;
+            const balanceChangePercentage = await calculateBudgetBalanceChangePercentage(userId, budget, balanceValue, prismaTx);
+            budget.balance_change_percentage = balanceChangePercentage;
             const budgetSums = await getSumAmountsForBudget(userId, budget, prismaTx);
             budget.credit_amount = budgetSums.balance_credit;
             budget.debit_amount = budgetSums.balance_debit;
-            if (parseFloat(budget.credit_amount) === 0) {
-                budget.savings_rate_percentage = 0;
-            } else {
-                budget.savings_rate_percentage =
-                    (parseFloat(budget.balance_value) / parseFloat(budget.credit_amount)) * 100;
-            }
-        }
+            budget.savings_rate_percentage = parseFloat(budget.credit_amount) === 0 ? 0 : (parseFloat(budget.balance_value) / parseFloat(budget.credit_amount)) * 100;
+        });
+
+        await Promise.all(balancePromises);
         return budgetsArr;
     }, dbClient);
 
