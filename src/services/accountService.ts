@@ -453,22 +453,25 @@ const accountService = {
             },
         });
 
-        let balance = 0;
-        for (const account of accounts) {
-            let balanceSnapshotAtMonth = 0;
+        let balancePromises = []
+        for(const account of accounts){
             if (includeInvestmentAccounts || account.type !== MYFIN.ACCOUNT_TYPES.INVESTING) {
-                const snapshotAtMonth = (await accountService.getBalanceSnapshotAtMonth(
-                    account.account_id,
-                    month,
-                    year,
-                    prismaTx
-                )) ?? {balance: 0};
-                balanceSnapshotAtMonth = parseFloat(String(snapshotAtMonth.balance || 0));
-            }
-            if (balanceSnapshotAtMonth) {
-                balance += balanceSnapshotAtMonth;
+                balancePromises.push(accountService.getBalanceSnapshotAtMonth(
+                  account.account_id,
+                  month,
+                  year,
+                  prismaTx
+                ))
             }
         }
+
+        const balances = await Promise.all(balancePromises)
+        let balance = balances.reduce((result, current) => {
+            const balanceSnapshotAtMonth = parseFloat(String(current.balance || 0));
+            if(balanceSnapshotAtMonth){
+                return result + balanceSnapshotAtMonth
+            } else return result
+        }, 0);
 
         return balance;
     }, dbClient),
