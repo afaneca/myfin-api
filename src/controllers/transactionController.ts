@@ -83,6 +83,7 @@ const createTransactionSchema = joi.object({
 
 const createTransaction = async (req, res, next) => {
   try {
+    await new Promise(resolve => setTimeout(resolve, 5000));
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
     const trx = await createTransactionSchema.validateAsync(req.body);
     await TransactionService.createTransaction(sessionData.userId, {
