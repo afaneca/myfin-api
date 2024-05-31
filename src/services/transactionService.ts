@@ -406,6 +406,13 @@ const deleteTransaction = async (userId: bigint, transactionId: number, dbClient
       throw APIError.notFound(`Account could not be found.`);
     }
 
+    // Delete trx references from transaction_has_tags
+    await prismaTx.transaction_has_tags.deleteMany({
+      where: {
+        transactions_transaction_id: transactionId,
+      }
+    });
+
     // Delete transaction
     await prismaTx.transactions.delete({
       where: {
@@ -743,11 +750,11 @@ const getAllTransactionsForUserInCategoryAndInMonth = async (
                               AND (transactions.type = ${type}
                               OR transactions.type = 'T')
                               AND transactions.date_timestamp >= ${DateTimeUtils.getUnixTimestampFromDate(
-                                minDate
-                              )}
+    minDate
+  )}
                               AND transactions.date_timestamp <= ${DateTimeUtils.getUnixTimestampFromDate(
-                                maxDate
-                              )}
+    maxDate
+  )}
                             GROUP BY transaction_id
                             ORDER BY transactions.date_timestamp
                                 DESC`;
