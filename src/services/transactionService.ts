@@ -547,6 +547,8 @@ const updateTransaction = async (
       );
     }
 
+    Logger.addStringifiedLog(trx)
+
     await prismaTx.transactions.update({
       where: { transaction_id: trx.transaction_id },
       data: {
@@ -554,10 +556,10 @@ const updateTransaction = async (
         amount: trx.new_amount,
         type: trx.new_type,
         description: trx.new_description,
-        entities_entity_id: trx.new_entity_id,
-        accounts_account_from_id: trx.new_account_from_id,
-        accounts_account_to_id: trx.new_account_to_id,
-        categories_category_id: trx.new_category_id,
+        entities_entity_id: trx.new_entity_id ?? null,
+        accounts_account_from_id: trx.new_account_from_id ?? null,
+        accounts_account_to_id: trx.new_account_to_id ?? null,
+        categories_category_id: trx.new_category_id ?? null,
         is_essential: trx.new_is_essential,
       },
     });
