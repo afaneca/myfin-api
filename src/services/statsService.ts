@@ -10,6 +10,7 @@ import BudgetService, { BudgetListOrder } from './budgetService.js';
 import RuleService from './ruleService.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
 import TagService, { CalculatedTagAmounts } from "./tagService.js";
+import Logger from '../utils/Logger.js';
 
 const getExpensesIncomeDistributionForMonth = async (
   userId: bigint,
@@ -549,6 +550,67 @@ const getYearByYearIncomeExpenseDistribution = async (
     return output;
   }, dbClient);
 
+export interface MonthByMonthDataItem {
+  month: number;
+  year: number;
+  balance_value: number;
+}
+
+
+const getCalculatedAmountsForUserInMonth = async (
+  userId: bigint,
+  month: number,
+  year: number,
+  userCategories: { category_id: bigint, name: string }[] | null = null,
+  dbClient = prisma
+): Promise<MonthByMonthDataItem> => {
+  const categories = userCategories ?? await CategoryService.getAllCategoriesForUser(userId, {
+    category_id: true,
+    name: true,
+  }, dbClient);
+
+  const promises = [];
+  for (const category of categories) {
+    promises.push(
+      CategoryService.getAmountForCategoryInMonth(category.category_id as bigint, month, year, true, dbClient)
+    )
+  }
+
+  const calculatedCategories = await Promise.all(promises);
+
+  const balance = calculatedCategories.reduce(
+    (accumulator, currentValue) => accumulator + Number(currentValue.category_balance_credit) - Number(currentValue.category_balance_debit),
+    0)
+
+  return { month, year, balance_value: ConvertUtils.convertBigIntegerToFloat(balance) };
+}
+
+const getMonthByMonthData = async (
+  userId: bigint,
+  limit: number,
+  dbClient = undefined
+): Promise<MonthByMonthDataItem[]> => performDatabaseRequest(async (prismaTx) => {
+
+  // Get balance for current month & [limit - 1] previous ones
+  const currentMonth = DateTimeUtils.getMonthNumberFromTimestamp();
+  const currentYear = DateTimeUtils.getYearFromTimestamp();
+
+  const categories = (await CategoryService.getAllCategoriesForUser(userId, {
+    category_id: true,
+    name: true,
+    exclude_from_budgets: true,
+  }, dbClient)).filter((cat) => cat.exclude_from_budgets == 0);
+
+  const promises = []
+  for (let i = 0; i < limit; i++) {
+    const { month, year } = DateTimeUtils.decrementMonthByX(currentMonth, currentYear, i)
+    promises.push(getCalculatedAmountsForUserInMonth(userId, month, year, categories as { category_id: bigint, name: string }[], prismaTx));
+  }
+
+  return Promise.all(promises);
+
+}, dbClient);
+
 export default {
   getExpensesIncomeDistributionForMonth,
   getUserCounterStats,
@@ -560,4 +622,5 @@ export default {
   getYearByYearIncomeExpenseDistribution,
   getTagIncomeEvolution,
   getTagExpensesEvolution,
+  getMonthByMonthData,
 };
