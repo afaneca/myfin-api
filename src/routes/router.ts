@@ -102,6 +102,9 @@ const router = (app: Express) => {
     '/year-by-year-income-expense-distribution',
     StatsController.getYearByYearIncomeExpenseDistribution
   );
+  statRoutes.get('/dashboard/month-by-month',
+    StatsController.getMonthByMonthData
+  );
   //endregion
 
   //region TRANSACTIONS ROUTES
