@@ -142,6 +142,31 @@ const getYearByYearIncomeExpenseDistribution = async (
   }
 };
 
+const getMonthByMonthDataSchema = joi
+  .object({
+    limit: joi.number().required(),
+  })
+  .unknown(true);
+
+const getMonthByMonthData = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const sessionData = await CommonsController.checkAuthSessionValidity(req);
+    const input = await getMonthByMonthDataSchema.validateAsync(req.query);
+    const data = await StatsService.getMonthByMonthData(
+      sessionData.userId,
+      input.limit
+    );
+    res.json(data);
+  } catch (err) {
+    Logger.addLog(err);
+    next(err || APIError.internalServerError());
+  }
+};
+
 export default {
   getExpensesIncomeDistributionForMonth,
   getUserCounterStats,
@@ -149,4 +174,5 @@ export default {
   getCategoryEntityTagExpensesEvolution,
   getCategoryEntityTagIncomeEvolution,
   getYearByYearIncomeExpenseDistribution,
+  getMonthByMonthData,
 };
