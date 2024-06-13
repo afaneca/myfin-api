@@ -129,7 +129,7 @@ const updateTransaction = async (req, res, next) => {
     await TransactionService.updateTransaction(sessionData.userId, {
       ...trx,
       tags: JSON.parse(trx.tags),
-      split_tags: JSON.parse(trx.tags),
+      split_tags: JSON.parse(trx.split_tags),
     });
     res.json(`Transaction successfully updated`);
   } catch (err) {
