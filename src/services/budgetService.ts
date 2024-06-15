@@ -557,6 +557,7 @@ const getBudget = async (userId: bigint, budgetId: number | bigint, dbclient = p
             observations: true,
             month: true,
             year: true,
+            is_open: true,
         },
     });
 
@@ -702,6 +703,7 @@ const getBudget = async (userId: bigint, budgetId: number | bigint, dbclient = p
             Number(lifetimeAverageAmounts?.category_balance_debit ?? 0)
         );
     }
+   
     return budget;
 };
 
