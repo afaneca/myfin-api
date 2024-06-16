@@ -630,6 +630,9 @@ const getBudget = async (userId: bigint, budgetId: number | bigint, dbclient = p
             Number(ConvertUtils.convertBigIntegerToFloat(BigInt(currentAmountDebit)))
         );
 
+        category.planned_amount_credit = Number(category.planned_amount_credit)
+        category.planned_amount_debit = Number(category.planned_amount_debit)
+
         const previousMonth = monthToUse > 1 ? monthToUse - 1 : 12;
         const previousMonthsYear = monthToUse > 1 ? yearToUse : yearToUse - 1;
         const previousMonthAmounts = await CategoryService.getAmountForCategoryInMonth(
