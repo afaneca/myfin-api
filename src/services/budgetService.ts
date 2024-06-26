@@ -531,20 +531,18 @@ const getTotalEssentialDebitTransactionsAmountForBudget = async (
 ) => {
     const month = parseInt(budget.month, 10);
     const year = parseInt(budget.year, 10);
-
     const result: any = await dbClient.$queryRaw`SELECT sum(amount) as 'amount'
                                                FROM transactions
                                                       inner join accounts on transactions.accounts_account_from_id = accounts.account_id
                                                where users_user_id = ${userId}
                                                  and date_timestamp between ${
-                                                   new Date(year, month, 1).getTime() / 1000
+                                                   new Date(year, month - 1, 1).getTime() / 1000
                                                  } AND ${new Date(year, month, 0).getTime() / 1000}
                                                  and transactions.is_essential IS TRUE
-                                                 and transactions.type = ${
+                                                 and (transactions.type = ${
                                                    MYFIN.TRX_TYPES.EXPENSE
-                                                 }`;
-
-    return result.amount ? ConvertUtils.convertBigIntegerToFloat(result.amount) : 0;
+                                                 } or transactions.type = ${MYFIN.TRX_TYPES.TRANSFER})`;
+    return result[0].amount ? ConvertUtils.convertBigIntegerToFloat(result[0].amount) : 0;
 };
 
 const getBudget = async (userId: bigint, budgetId: number | bigint, dbclient = prisma) => {
