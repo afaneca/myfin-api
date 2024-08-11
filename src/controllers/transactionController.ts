@@ -8,6 +8,7 @@ import joi from 'joi';
 import AccountService from '../services/accountService.js';
 import CategoryService from '../services/categoryService.js';
 import EntityService from '../services/entityService.js';
+import ConvertUtils from '../utils/convertUtils.js';
 
 // READ
 const getAllTrxForUserSchema = joi
@@ -251,14 +252,14 @@ const importTransactionsStep1 = async (req: Request, res: Response, next: NextFu
         name: true,
       }),
       EntityService.getAllEntitiesForUser(sessionData.userId, { entity_id: true, name: true }),
-      AccountService.getAccountsForUser(sessionData.userId, { account_id: true, name: true }),
+      AccountService.getAccountsForUser(sessionData.userId, { account_id: true, name: true, current_balance: true }),
     ]);
 
     res.json({
       fillData,
       categories,
       entities,
-      accounts,
+      accounts: accounts.map((acc) => ({ account_id: acc.account_id, name: acc.name, balance: ConvertUtils.convertBigIntegerToFloat(acc.current_balance) })),
     });
   } catch (err) {
     Logger.addLog(err);
