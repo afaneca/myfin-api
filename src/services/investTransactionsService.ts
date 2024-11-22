@@ -156,36 +156,34 @@ const createTransaction = async (
     isSplit: boolean,
     splitData?: { totalPrice?: number, units?: number, type?: invest_transactions_type, note?: string },
     dbClient = undefined
-) => {
-    await performDatabaseRequest(async (prismaTx) => {
-        if (!(await InvestAssetService.doesAssetBelongToUser(userId, assetId, prismaTx))) {
-            throw APIError.notAuthorized();
-        }
+) => performDatabaseRequest(async (prismaTx) => {
+    if (!(await InvestAssetService.doesAssetBelongToUser(userId, assetId, prismaTx))) {
+        throw APIError.notAuthorized();
+    }
 
-        await prismaTx.invest_transactions.create({
-            data: {
-                date_timestamp: dateTimestamp,
-                units,
-                fees_taxes: ConvertUtils.convertFloatToBigInteger(fees),
-                total_price: ConvertUtils.convertFloatToBigInteger(totalPrice),
-                note,
-                type,
-                invest_assets_asset_id: assetId,
-                created_at: DateTimeUtils.getCurrentUnixTimestamp(),
-                updated_at: DateTimeUtils.getCurrentUnixTimestamp(),
-            },
-        });
-    }, dbClient);
+    await prismaTx.invest_transactions.create({
+        data: {
+            date_timestamp: dateTimestamp,
+            units,
+            fees_taxes: ConvertUtils.convertFloatToBigInteger(fees),
+            total_price: ConvertUtils.convertFloatToBigInteger(totalPrice),
+            note,
+            type,
+            invest_assets_asset_id: assetId,
+            created_at: DateTimeUtils.getCurrentUnixTimestamp(),
+            updated_at: DateTimeUtils.getCurrentUnixTimestamp(),
+        },
+    });
 
     // Recalculate snapshot - create separate transaction, since it depends on the execution of the previous operations
     const latestSnapshot = await InvestAssetService.recalculateSnapshotForAssetsIncrementally(
-        assetId,
-        Number(dateTimestamp) - 1,
-        DateTimeUtils.getCurrentUnixTimestamp() + 1,
-        prisma
+      assetId,
+      Number(dateTimestamp) - 1,
+      DateTimeUtils.getCurrentUnixTimestamp() + 1,
+      prismaTx
     );
     //Logger.addLog(`Latest snapshot: ${JSON.stringify(latestSnapshot)}`);
-    await prisma.invest_assets.update({
+    await prismaTx.invest_assets.update({
         where: {
             asset_id: assetId,
         },
@@ -196,9 +194,10 @@ const createTransaction = async (
 
     // SPLIT HANDLING
     if (isSplit) {
-        await createTransaction(userId, assetId, dateTimestamp, splitData.note, splitData.totalPrice, splitData.units, 0, splitData.type, false, null);
+        await createTransaction(userId, assetId, dateTimestamp, splitData.note, splitData.totalPrice, splitData.units, 0, splitData.type, false, null, prismaTx);
     }
-};
+}, dbClient);
+
 
 const deleteTransaction = async (userId: bigint, trxId: bigint, dbClient = undefined) => {
     const transaction = await performDatabaseRequest(async (prismaTx) => {

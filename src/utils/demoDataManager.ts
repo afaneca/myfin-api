@@ -1459,7 +1459,7 @@ const createMockData = async (userId: bigint, dbClient = undefined) =>
     // Create mock investment transactions
     await createMockAssetTransactions(userId, prismaTx);
 
-    const userAccounts = await AccountService.getAccountsForUser(userId, { account_id: true });
+    const userAccounts = await AccountService.getAccountsForUser(userId, { account_id: true }, prismaTx);
     for (const account of userAccounts) {
       const newBalance = await AccountService.recalculateBalanceForAccountIncrementally(
         account.account_id,
