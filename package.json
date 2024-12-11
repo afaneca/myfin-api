@@ -53,14 +53,17 @@
   "homepage": "https://github.com/aFaneca/myfin#readme",
   "dependencies": {
     "@prisma/client": "^5.8.0",
+    "@types/nodemailer": "^6.4.17",
     "bcrypt": "^5.0.0",
     "cors": "^2.8.5",
     "dayjs": "^1.10.6",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
+    "express-rate-limit": "^7.4.1",
     "helmet": "^4.6.0",
     "joi": "^17.3.0",
-    "mysql2": "^2.3.3"
+    "mysql2": "^3.11.5",
+    "nodemailer": "^6.9.16"
   },
   "engines": {
     "node": ">10.0.0"
