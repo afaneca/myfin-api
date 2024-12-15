@@ -19,6 +19,7 @@
   "devDependencies": {
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17",
+    "@types/i18next": "^13.0.0",
     "@types/node": "^20.4.10",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
@@ -61,6 +62,8 @@
     "express": "^4.17.1",
     "express-rate-limit": "^7.4.1",
     "helmet": "^4.6.0",
+    "i18next": "^24.1.0",
+    "i18next-http-middleware": "^3.7.0",
     "joi": "^17.3.0",
     "mysql2": "^3.11.5",
     "nodemailer": "^6.9.16"

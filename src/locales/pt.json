@@ -1,0 +1,16 @@
+{
+  "common": {
+    "myfin": "MyFin",
+    "hi": "Olá",
+    "bestRegards": "Melhores cumprimentos"
+  },
+  "passwordRecovery": {
+    "resetYourPassword": "Repor password",
+    "otpRecoveryContextualization": "Recebemos um pedido para repôr a password para a sua conta <strong>MyFin</strong>.",
+    "otpPrefix": "Utilize o código de utilização único (OTP) abaixo para proceder à reposição da sua password.",
+    "yourOtp": "O seu OTP",
+    "otpExpirationTimeText": "Este OTP é válido por <strong>15 minutes</strong>.",
+    "otpIfRequestNotMadeText": "Se não realizou este pedido, pode simplesmente ignorar este email.",
+    "otpDoNotShareText": "Para sua segurança, não partilhe este código com ninguém."
+  }
+}
