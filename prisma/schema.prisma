@@ -228,6 +228,7 @@ model users {
   categories                 categories[]
   entities                   entities[]
   invest_desired_allocations invest_desired_allocations[]
+  otp_codes                  otp_codes[]
   rules                      rules[]
   tags                       tags[]
 }
@@ -252,6 +253,18 @@ model transaction_has_tags {
 
   @@id([tags_tag_id, transactions_transaction_id])
   @@index([transactions_transaction_id], map: "transaction_has_tags_transactions_transaction_id_fk")
+}
+
+model otp_codes {
+  otp_id        BigInt  @id @default(autoincrement())
+  users_user_id BigInt
+  code          String  @unique(map: "otp_codes_pk_2") @db.VarChar(200)
+  used          Boolean
+  created_at    BigInt
+  expires_at    BigInt
+  users         users   @relation(fields: [users_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "otp_codes_users_user_id_fk")
+
+  @@index([users_user_id], map: "otp_codes_users_user_id_fk")
 }
 
 enum invest_transactions_type {

@@ -26,6 +26,8 @@ const router = (app: Express) => {
   //region AUTH ROUTES
   const authRoutes = express.Router();
   authRoutes.post('/', UserController.attemptLogin);
+  authRoutes.post('/recovery/sendOtp', UserController.sendOtpForRecovery);
+  authRoutes.post('/recovery/setNewPassword', UserController.setNewPassword);
 
   const validityRoutes = express.Router();
   validityRoutes.post('/', UserController.checkSessionValidity);

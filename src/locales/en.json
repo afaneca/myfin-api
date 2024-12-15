@@ -1,0 +1,16 @@
+{
+  "common": {
+    "myfin": "MyFin",
+    "hi": "Hi",
+    "bestRegards": "Best regards"
+  },
+  "passwordRecovery": {
+    "resetYourPassword": "Reset your password",
+    "otpRecoveryContextualization": "We received a request to reset the password for your <strong>MyFin</strong> account.",
+    "otpPrefix": "Use the One-Time Password (OTP) below to proceed with the password recovery.",
+    "yourOtp": "Your OTP",
+    "otpExpirationTimeText": "This OTP is valid for <strong>15 minutes</strong> only.",
+    "otpIfRequestNotMadeText": "If you did not request a password reset, you can safely ignore this email.",
+    "otpDoNotShareText": "For your security, please do not share this OTP with anyone."
+  }
+}
