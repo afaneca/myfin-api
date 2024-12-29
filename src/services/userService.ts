@@ -12,8 +12,6 @@ import ConvertUtils from "../utils/convertUtils.js";
 import TagService from "./tagService.js";
 import EmailService from "./emailService.js";
 import DateTimeUtils from "../utils/DateTimeUtils.js";
-import { i18n } from "../middlewares/index.js";
-import i18next from "i18next";
 import { Translator } from "../middlewares/i18n.js";
 
 const User = prisma.users;
@@ -25,10 +23,17 @@ interface CategoriesEntitiesTagsOutput {
 }
 
 const userService = {
-  createUser: async (user: Prisma.usersCreateInput) => {
-    // eslint-disable-next-line no-param-reassign
-    user.password = cryptoUtils.hashPassword(user.password);
-    return User.create({ data: user });
+  getUserCount: async (dbClient = prisma) => {
+    return performDatabaseRequest(async (prismaTx) => {
+      return prismaTx.users.count();
+    }, dbClient);
+  },
+  createUser: async (user: Prisma.usersCreateInput, dbClient = prisma) => {
+    return performDatabaseRequest(async (prismaTx) => {
+      // eslint-disable-next-line no-param-reassign
+      user.password = cryptoUtils.hashPassword(user.password);
+      return prismaTx.users.create({ data: user });
+    }, dbClient);
   },
   attemptLogin: async (username: string, password: string, mobile: boolean, dbClient = prisma) => {
     const whereCondition = { username };
@@ -244,16 +249,16 @@ const userService = {
 
     // Send email
     const emailMessage = `
-      <p>${translator('common.hi')} <b>${username}</b>,</p>
-      <p>${translator('passwordRecovery.otpRecoveryContextualization')} ${translator('passwordRecovery.otpPrefix')}</p>
-      <p>${translator('passwordRecovery.yourOtp')}: <span style="font-size: 1.2em;font-weight: bold;">${otp}</span></p>
-      <p>${translator('passwordRecovery.otpExpirationTimeText')} ${translator('passwordRecovery.otpIfRequestNotMadeText')}</p>
-      <p>${translator('passwordRecovery.otpDoNotShareText')}</p>
+      <p>${translator("common.hi")} <b>${username}</b>,</p>
+      <p>${translator("passwordRecovery.otpRecoveryContextualization")} ${translator("passwordRecovery.otpPrefix")}</p>
+      <p>${translator("passwordRecovery.yourOtp")}: <span style="font-size: 1.2em;font-weight: bold;">${otp}</span></p>
+      <p>${translator("passwordRecovery.otpExpirationTimeText")} ${translator("passwordRecovery.otpIfRequestNotMadeText")}</p>
+      <p>${translator("passwordRecovery.otpDoNotShareText")}</p>
       <br>
-      <p><em>${translator('common.bestRegards')},</em></p>
-      <p><b><em>${translator('common.myfin')}</em></b></p>
-    `
-    await EmailService.sendEmail(data.email, translator('passwordRecovery.resetYourPassword'), emailMessage, emailMessage);
+      <p><em>${translator("common.bestRegards")},</em></p>
+      <p><b><em>${translator("common.myfin")}</em></b></p>
+    `;
+    await EmailService.sendEmail(data.email, translator("passwordRecovery.resetYourPassword"), emailMessage, emailMessage);
   }, dbClient),
   setNewPassword: async (username: string, otp: string, newPassword: string, dbClient = undefined) => performDatabaseRequest(async (prismaTx) => {
     // Get user
@@ -274,9 +279,9 @@ const userService = {
       }
     }).catch(() => {
       throw APIError.notAuthorized("OTP Not Valid");
-    })
+    });
 
-    if(!cryptoUtils.verifyPassword(otp, code.code)) {
+    if (!cryptoUtils.verifyPassword(otp, code.code)) {
       throw APIError.notAuthorized("OTP Not Valid");
     }
 
@@ -286,6 +291,6 @@ const userService = {
       where: { user_id: data.user_id },
       data: { password: hashedPassword }
     });
-  }, dbClient),
+  }, dbClient)
 };
 export default userService;
