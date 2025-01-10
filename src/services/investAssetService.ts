@@ -271,14 +271,13 @@ const updateAssetValue = async (
   const bufferPromises = [];
   if (createBuffer) {
     // Snapshot next 6 months also, to create a buffer (in case no more snapshots are added till then)
-    let nextMonth, nextMonthsYear;
+    let nextMonth;
     for (let i = 0; i < 6; i++) {
-      nextMonth = month + 1 > 12 ? 1 : month + 1;
-      nextMonthsYear = nextMonth > 12 ? year + 1 : year;
+      nextMonth = DateTimeUtils.incrementMonthByX(month, year, i + 1);
       bufferPromises.push(
         performUpdateAssetValue(
-          nextMonth,
-          nextMonthsYear,
+          nextMonth.month,
+          nextMonth.year,
           assetId,
           units,
           withdrawnAmount as number,
@@ -493,9 +492,15 @@ const getAssetStatsForUser = async (
       DateTimeUtils.getCurrentUnixTimestamp(),
       prismaTx
     );
+    const feesAndTaxes = await getCombinedFeesAndTaxesBetweenDates(
+      userId,
+      yearStart,
+      DateTimeUtils.getCurrentUnixTimestamp(),
+      prismaTx
+    );
     // If the user had a 0% profit, this would be the current portfolio value
     const expectedBreakEvenValue =
-      ConvertUtils.convertBigIntegerToFloat(BigInt(lastYearsValue)) + currentYearInvestedBalance;
+      ConvertUtils.convertBigIntegerToFloat(BigInt(lastYearsValue)) + currentYearInvestedBalance + feesAndTaxes;
     const currentYearRoiValue = fullCurrentValue - expectedBreakEvenValue;
     const currentYearRoiPercentage =
       expectedBreakEvenValue != 0
