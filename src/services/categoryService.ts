@@ -19,112 +19,123 @@ interface Category {
     users_user_id?: bigint;
 }
 
-/**
- * Fetches all categories associated with ***userId***.
- * @param userId - user id
- * @param selectAttributes - category attributes to be returned. *Undefined* will return them all.
- * @param dbClient - the db client
- */
-const getAllCategoriesForUser = async (
+export interface CalculatedCategoryAmounts {
+  category_balance_credit: number;
+  category_balance_debit: number;
+}
+
+class CategoryService {
+  /**
+   * Fetches all categories associated with ***userId***.
+   * @param userId - user id
+   * @param selectAttributes - category attributes to be returned. *Undefined* will return them all.
+   * @param dbClient - the db client
+   */
+  static async getAllCategoriesForUser (
     userId: bigint,
     selectAttributes = undefined,
     dbClient = prisma
-): Promise<Array<Prisma.categoriesWhereInput>> =>
-    dbClient.categories.findMany({
-        where: {users_user_id: userId},
-        select: selectAttributes,
+  ): Promise<Array<Prisma.categoriesWhereInput>> {
+    return dbClient.categories.findMany({
+      where: {users_user_id: userId},
+      select: selectAttributes,
     });
-const createCategory = async (category: Category, dbClient = prisma) => {
-    return dbClient.categories.create({
-        data: {
-            name: category.name,
-            description: category.description,
-            color_gradient: category.color_gradient,
-            status: category.status,
-            exclude_from_budgets: category.exclude_from_budgets,
-            type: category.type,
-            users_user_id: category.users_user_id,
-        }
-    });
-};
+  }
 
-const deleteCategory = async (userId: bigint, categoryId: number, dbClient = prisma) => {
+  static async createCategory(category: Category, dbClient = prisma){
+    return dbClient.categories.create({
+      data: {
+        name: category.name,
+        description: category.description,
+        color_gradient: category.color_gradient,
+        status: category.status,
+        exclude_from_budgets: category.exclude_from_budgets,
+        type: category.type,
+        users_user_id: category.users_user_id,
+      }
+    });
+  };
+
+  static async deleteCategory (userId: bigint, categoryId: number, dbClient = prisma){
     const deleteBudgetHasCategoriesRefs = BudgetHasCategories.deleteMany({
-        where: {
-            categories_category_id: categoryId,
-            budgets_users_user_id: userId,
-        },
+      where: {
+        categories_category_id: categoryId,
+        budgets_users_user_id: userId,
+      },
     });
     const deleteCat = dbClient.categories.delete({
-        where: {
-            users_user_id: userId,
-            category_id: categoryId,
-        },
+      where: {
+        users_user_id: userId,
+        category_id: categoryId,
+      },
     });
 
     return prisma.$transaction([deleteBudgetHasCategoriesRefs, deleteCat]);
-};
+  };
 
-const updateCategory = async (userId: bigint, categoryId, category: Prisma.categoriesUpdateInput, dbClient = prisma) =>
-    dbClient.categories.update({
-        where: {
-            users_user_id: userId,
-            category_id: categoryId,
-        },
-        data: category,
+
+  static async updateCategory(userId: bigint, categoryId, category: Prisma.categoriesUpdateInput, dbClient = prisma){
+    return dbClient.categories.update({
+      where: {
+        users_user_id: userId,
+        category_id: categoryId,
+      },
+      data: category,
     });
+  }
 
-const buildSqlForExcludedAccountsList = (excludedAccs) => {
+  private static buildSqlForExcludedAccountsList (excludedAccs){
     if (!excludedAccs || excludedAccs.length === 0) {
-        return ' -1 ';
+      return ' -1 ';
     }
     let sql = '';
     for (let cnt = 0; cnt < excludedAccs.length; cnt++) {
-        const acc = excludedAccs[cnt].account_id;
-        sql += ` '${acc}' `;
+      const acc = excludedAccs[cnt].account_id;
+      sql += ` '${acc}' `;
 
-        if (cnt !== excludedAccs.length - 1) {
-            sql += ', ';
-        }
+      if (cnt !== excludedAccs.length - 1) {
+        sql += ', ';
+      }
     }
     sql += '';
     return sql;
-};
+  };
 
-const getAverageAmountForCategoryInLast12Months = async (
+  static async getAverageAmountForCategoryInLast12Months(
     userId: number | bigint,
     categoryId: number | bigint,
     dbClient = prisma
-) => {
+  ){
     const firstTimestamp = await TransactionService.getDateTimestampOfFirstTransactionForUser(userId as bigint, dbClient);
     const nrOfTotalMonthsFromFirstTrx = DateTimeUtils.getFullMonthsBetweenDates(new Date(Number(firstTimestamp) * 1000), new Date())
     const monthYearFrom12MonthsAgo = DateTimeUtils.decrementMonthByX(DateTimeUtils.getMonthNumberFromTimestamp(), DateTimeUtils.getYearFromTimestamp(), 12)
     const beginDate = new Date(monthYearFrom12MonthsAgo.year, monthYearFrom12MonthsAgo.month - 1, 1)
-    const sumAmounts = (await getAmountForCategoryInPeriod(categoryId, beginDate.getTime() / 1000, DateTimeUtils.getCurrentUnixTimestamp(), true, dbClient))[0];
+    const sumAmounts = (await this.getAmountForCategoryInPeriod(categoryId, beginDate.getTime() / 1000, DateTimeUtils.getCurrentUnixTimestamp(), true, dbClient))[0];
 
     const divisor = (nrOfTotalMonthsFromFirstTrx > 12) ? 12 : nrOfTotalMonthsFromFirstTrx;
     return {
-        category_balance_credit: ConvertUtils.convertBigIntegerToFloat(BigInt(sumAmounts.category_balance_credit ?? 0)) / divisor,
-        category_balance_debit: ConvertUtils.convertBigIntegerToFloat(BigInt(sumAmounts.category_balance_debit ?? 0)) / divisor
+      category_balance_credit: ConvertUtils.convertBigIntegerToFloat(BigInt(sumAmounts.category_balance_credit ?? 0)) / divisor,
+      category_balance_debit: ConvertUtils.convertBigIntegerToFloat(BigInt(sumAmounts.category_balance_debit ?? 0)) / divisor
     }
-};
+  };
 
-const getAmountForCategoryInPeriod = async (
+  static async getAmountForCategoryInPeriod(
     categoryId: number | bigint,
     fromDate: number,
     toDate: number,
     includeTransfers = true,
     dbClient = prisma
-): Promise<{
+  ): Promise<{
     category_balance_credit: number;
     category_balance_debit: number
-}> => performDatabaseRequest(async (prismaTx) => {
+  }> {
+    return performDatabaseRequest(async (prismaTx) => {
 
-    const listOfAccountsToExclude = await prismaTx.accounts.findMany({
+      const listOfAccountsToExclude = await prismaTx.accounts.findMany({
         where: { exclude_from_budgets: true },
-    });
+      });
 
-    const sqlQuery = includeTransfers ?
+      const sqlQuery = includeTransfers ?
         prismaTx.$queryRaw`SELECT sum(if(type = 'I', amount, 0)) as 'category_balance_credit',
                                      sum(if(type = 'E' OR
                                      
@@ -140,116 +151,107 @@ const getAmountForCategoryInPeriod = async (
                             WHERE date_timestamp between ${fromDate} AND ${toDate}
                               AND categories_category_id = ${categoryId} `;
 
-    return sqlQuery;
-}, dbClient);
+      return sqlQuery;
+    }, dbClient);
+  }
 
-export interface CalculatedCategoryAmounts {
-    category_balance_credit: number;
-    category_balance_debit: number;
-}
-
-const getAmountForCategoryInMonth = async (
+  static async getAmountForCategoryInMonth(
     categoryId: bigint,
     month: number,
     year: number,
     includeTransfers = true,
     dbClient = prisma
-): Promise<CalculatedCategoryAmounts> => performDatabaseRequest(async (prismaTx) => {
-    const nextMonth = month < 12 ? month + 1 : 1;
-    const nextMonthsYear = month < 12 ? year : year + 1;
-    const maxDate = DateTimeUtils.getUnixTimestampFromDate(
+  ): Promise<CalculatedCategoryAmounts>{
+    return performDatabaseRequest(async (prismaTx) => {
+      const nextMonth = month < 12 ? month + 1 : 1;
+      const nextMonthsYear = month < 12 ? year : year + 1;
+      const maxDate = DateTimeUtils.getUnixTimestampFromDate(
         new Date(nextMonthsYear, nextMonth - 1, 1)
-    );
-    const minDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 1));
-    /* Logger.addLog(`cat id: ${categoryId} | month: ${month} | year: ${year} | minDate: ${minDate} | maxDate: ${maxDate}`); */
-    const amounts = await getAmountForCategoryInPeriod(
+      );
+      const minDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 1));
+      /* Logger.addLog(`cat id: ${categoryId} | month: ${month} | year: ${year} | minDate: ${minDate} | maxDate: ${maxDate}`); */
+      const amounts = await this.getAmountForCategoryInPeriod(
         categoryId,
         minDate,
         maxDate,
         includeTransfers,
         prismaTx
-    );
+      );
 
-    return amounts[0]
-}, dbClient);
+      return amounts[0]
+    }, dbClient);
+  }
 
-const getAmountForCategoryInYear = async (
+  static async getAmountForCategoryInYear(
     categoryId: bigint,
     year: number,
     includeTransfers = true,
     dbClient = prisma
-): Promise<CalculatedCategoryAmounts> => {
+  ): Promise<CalculatedCategoryAmounts> {
     const maxDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, 11, 31));
     const minDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, 0, 1));
     /* Logger.addLog(`cat id: ${categoryId} | month: ${month} | year: ${year} | minDate: ${minDate} | maxDate: ${maxDate}`); */
-    const amounts = await getAmountForCategoryInPeriod(
-        categoryId,
-        minDate,
-        maxDate,
-        includeTransfers,
-        dbClient
+    const amounts = await this.getAmountForCategoryInPeriod(
+      categoryId,
+      minDate,
+      maxDate,
+      includeTransfers,
+      dbClient
     );
 
     return amounts[0];
-};
+  };
 
-const getAverageAmountForCategoryInLifetime = async (
+  static async getAverageAmountForCategoryInLifetime (
     userId: number | bigint,
     categoryId: number | bigint,
     dbClient = prisma
-) => {
+  ){
     const firstTimestamp = await TransactionService.getDateTimestampOfFirstTransactionForUser(userId as bigint, dbClient);
     const nrOfTotalMonthsFromFirstTrx = DateTimeUtils.getFullMonthsBetweenDates(new Date(Number(firstTimestamp) * 1000), new Date())
-    const sumAmounts = (await getAmountForCategoryInPeriod(categoryId, 0, DateTimeUtils.getCurrentUnixTimestamp(), true, dbClient))[0];
+    const sumAmounts = (await this.getAmountForCategoryInPeriod(categoryId, 0, DateTimeUtils.getCurrentUnixTimestamp(), true, dbClient))[0];
 
     return {
-        category_balance_credit: ConvertUtils.convertBigIntegerToFloat(BigInt(sumAmounts.category_balance_credit ?? 0)) / nrOfTotalMonthsFromFirstTrx,
-        category_balance_debit: ConvertUtils.convertBigIntegerToFloat(BigInt(sumAmounts.category_balance_debit ?? 0)) / nrOfTotalMonthsFromFirstTrx
+      category_balance_credit: ConvertUtils.convertBigIntegerToFloat(BigInt(sumAmounts.category_balance_credit ?? 0)) / nrOfTotalMonthsFromFirstTrx,
+      category_balance_debit: ConvertUtils.convertBigIntegerToFloat(BigInt(sumAmounts.category_balance_debit ?? 0)) / nrOfTotalMonthsFromFirstTrx
     }
-};
+  };
 
-/**
- * Gets all (active) categories for the user, with planned & current amounts
- * related to a specific budget
- */
-const getAllCategoriesForBudget = async (
+  /**
+   * Gets all (active) categories for the user, with planned & current amounts
+   * related to a specific budget
+   */
+  static async getAllCategoriesForBudget(
     userId: number | bigint,
     budgetId: number | bigint,
     dbClient = prisma
-): Promise<Array<Prisma.categoriesUpdateInput>> => dbClient.$queryRaw`SELECT users_user_id,
-                                                                             category_id,
-                                                                             name,
-                                                                             status,
-                                                                             type,
-                                                                             description,
-                                                                             color_gradient,
-                                                                             budgets_budget_id,
-                                                                             exclude_from_budgets,
-                                                                             truncate((coalesce(planned_amount_credit, 0) / 100), 2) as planned_amount_credit,
-                                                                             truncate((coalesce(planned_amount_debit, 0) / 100), 2)  as planned_amount_debit,
-                                                                             truncate((coalesce(current_amount, 0) / 100), 2)        as current_amount
-                                                                      FROM (SELECT *
-                                                                            FROM budgets_has_categories
-                                                                            WHERE budgets_users_user_id = ${userId}
-                                                                              AND (budgets_budget_id = ${budgetId})) b
-                                                                             RIGHT JOIN categories ON categories.category_id = b.categories_category_id
-                                                                      WHERE users_user_id = ${userId}
-                                                                        AND status = ${MYFIN.CATEGORY_STATUS.ACTIVE}`;
+  ): Promise<Array<Prisma.categoriesUpdateInput>> {
+    return dbClient.$queryRaw`SELECT users_user_id,
+                                     category_id,
+                                     name,
+                                     status,
+                                     type,
+                                     description,
+                                     color_gradient,
+                                     budgets_budget_id,
+                                     exclude_from_budgets,
+                                     truncate((coalesce(planned_amount_credit, 0) / 100), 2) as planned_amount_credit,
+                                     truncate((coalesce(planned_amount_debit, 0) / 100), 2)  as planned_amount_debit,
+                                     truncate((coalesce(current_amount, 0) / 100), 2)        as current_amount
+                              FROM (SELECT *
+                                    FROM budgets_has_categories
+                                    WHERE budgets_users_user_id = ${userId}
+                                      AND (budgets_budget_id = ${budgetId})) b
+                                     RIGHT JOIN categories ON categories.category_id = b.categories_category_id
+                              WHERE users_user_id = ${userId}
+                                AND status = ${MYFIN.CATEGORY_STATUS.ACTIVE}`;
+  }
 
-const getCountOfUserCategories = async (userId, dbClient = prisma) =>
-    dbClient.categories.count({
-        where: {users_user_id: userId},
+  static async getCountOfUserCategories(userId: bigint, dbClient = prisma){
+    return dbClient.categories.count({
+      where: {users_user_id: userId},
     });
+  }
+}
 
-export default {
-    getAllCategoriesForUser,
-    createCategory,
-    updateCategory,
-    deleteCategory,
-    getAmountForCategoryInMonth,
-    getAverageAmountForCategoryInLast12Months,
-    getAverageAmountForCategoryInLifetime,
-    getAllCategoriesForBudget,
-    getCountOfUserCategories,
-    getAmountForCategoryInYear,
-};
+export default CategoryService;
