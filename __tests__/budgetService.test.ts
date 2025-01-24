@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, test, vi } from "vitest";
 import { mockedPrisma } from "./prisma.mock";
 import BudgetService from "../src/services/budgetService.js";
 import CategoryService from "../src/services/categoryService.js";
-import accountService from "../src/services/accountService.js"; // Adjust path as needed
+import AccountService from "../src/services/accountService.js"; // Adjust path as needed
 
 describe("budgetService", () => {
   beforeEach(() => {
@@ -79,7 +79,7 @@ describe("budgetService", () => {
 
     vi.spyOn(BudgetService, "getAllCategoriesForUser").mockResolvedValue(mockCategories);
     vi.spyOn(CategoryService, "getAmountForCategoryInMonth").mockResolvedValue(mockCalculatedAmounts)
-    vi.spyOn(accountService, "getAmountForInvestmentAccountsInMonth").mockResolvedValue(mockInvestmentAmounts)
+    vi.spyOn(AccountService, "getAmountForInvestmentAccountsInMonth").mockResolvedValue(mockInvestmentAmounts)
     const balance = await BudgetService.calculateBudgetBalance(userId, budget, mockedPrisma);
 
     expect(balance).toBeCloseTo(15);
