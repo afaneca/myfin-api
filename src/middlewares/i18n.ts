@@ -1,5 +1,5 @@
 import i18next from "i18next";
-import middleware from "i18next-http-middleware";
+import * as middleware from "i18next-http-middleware";
 import en from "../locales/en.json" assert { type: "json" };
 import pt from "../locales/pt.json" assert { type: "json" };
 
