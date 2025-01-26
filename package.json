@@ -12,6 +12,7 @@
     "db:migrate-from-db": "prisma db pull && prisma migrate dev",
     "db:seed": "prisma db seed",
     "test:unit": "vitest -c ./vitest.config.unit.ts",
+    "test:unit:run": "vitest run -c ./vitest.config.unit.ts",
     "test:unit:ui": "vitest -c ./vitest.config.unit.ts --ui --coverage"
   },
   "name": "myfin-api",
