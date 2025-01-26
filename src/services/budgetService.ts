@@ -5,7 +5,7 @@ import CategoryService from "./categoryService.js";
 import AccountService from "./accountService.js";
 import DateTimeUtils from "../utils/DateTimeUtils.js";
 import Logger from "../utils/Logger.js";
-import { Prisma } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 export enum BudgetListOrder {
   DESCENDING = "DESC",

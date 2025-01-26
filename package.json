@@ -12,7 +12,7 @@
     "db:migrate-from-db": "prisma db pull && prisma migrate dev",
     "db:seed": "prisma db seed",
     "test:unit": "vitest -c ./vitest.config.unit.ts",
-    "test:unit:ui": "vitest -c ./vitest.config.unit.ts --ui"
+    "test:unit:ui": "vitest -c ./vitest.config.unit.ts --ui --coverage"
   },
   "name": "myfin-api",
   "version": "2.7.2",
@@ -25,6 +25,7 @@
     "@types/node": "^20.4.10",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
+    "@vitest/coverage-v8": "^3.0.4",
     "@vitest/ui": "^3.0.2",
     "eslint": "^8.47.0",
     "eslint-config-airbnb": "^19.0.4",
