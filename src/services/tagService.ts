@@ -1,7 +1,6 @@
 import { performDatabaseRequest, prisma } from '../config/prisma.js';
 import TransactionService from './transactionService.js';
 import APIError from '../errorHandling/apiError.js';
-import Logger from '../utils/Logger.js';
 import { CalculatedEntityAmounts } from "./entityService.js";
 import DateTimeUtils from "../utils/DateTimeUtils.js";
 
@@ -100,7 +99,7 @@ const deleteTag = async (userId: bigint, tagId: bigint, dbClient = prisma) => {
         tag_id: tagId,
       },
     });
-  });
+  }, dbClient);
 };
 
 const updateTag = async (userId: bigint, tagId: bigint, updatedTag: Tag, dbClient = prisma) =>
