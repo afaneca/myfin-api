@@ -3,7 +3,6 @@ import resetDb from "./resetDb.js";
 import { prisma } from "../../../src/config/prisma.js";
 
 afterEach(async () => {
-  console.log("-------------------- RESET DB")
   await resetDb();
 });
 

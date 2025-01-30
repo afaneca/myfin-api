@@ -613,7 +613,6 @@ const updateTransaction = async (
     }
 
     // Add the effect of updated amount
-    Logger.addLog(`New type: ${trx.new_type}`);
     switch (trx.new_type) {
       case MYFIN.TRX_TYPES.INCOME:
         newBalance = await AccountService.recalculateBalanceForAccountIncrementally(
