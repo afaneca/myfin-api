@@ -1,0 +1,31 @@
+name: myfin_backend
+
+services:
+  db:
+    image: mysql:9.2.0
+    container_name: myfin_db
+    restart: always
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    user: '1000'
+    volumes:
+      - ${DATABASE_LOCATION}:/var/lib/mysql/
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_PASSWORD=${DB_PW}
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_TCP_PORT=${DB_PORT}
+
+  backend:
+    container_name: myfin_backend
+    image: myfin_backend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    env_file:
+      - .env
+    restart: always
+    ports:
+      - 3001:3001
+    depends_on:
+      - db
