@@ -73,7 +73,8 @@
     "i18next-http-middleware": "^3.7.0",
     "joi": "^17.3.0",
     "mysql2": "^3.11.5",
-    "nodemailer": "^6.9.16"
+    "nodemailer": "^6.9.16",
+    "ts-node": "^10.9.2"
   },
   "engines": {
     "node": ">18.0.0"
