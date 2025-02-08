@@ -16,7 +16,7 @@
     "test:unit:ui": "vitest -c ./vitest.config.unit.ts --ui --coverage"
   },
   "name": "myfin-api",
-  "version": "2.7.2",
+  "version": "2.8.2",
   "description": "NodeJS API for Myfin",
   "main": "src/server.js",
   "devDependencies": {
@@ -73,7 +73,8 @@
     "i18next-http-middleware": "^3.7.0",
     "joi": "^17.3.0",
     "mysql2": "^3.11.5",
-    "nodemailer": "^6.9.16"
+    "nodemailer": "^6.9.16",
+    "ts-node": "^10.9.2"
   },
   "engines": {
     "node": ">18.0.0"
