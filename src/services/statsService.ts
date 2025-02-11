@@ -37,7 +37,7 @@ const getExpensesIncomeDistributionForMonth = async (
       },
     })
     .catch(() => {
-      throw APIError.notFound();
+      return {};
     });
 
   const budgetId = budget.budget_id as bigint;
