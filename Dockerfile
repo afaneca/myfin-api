@@ -69,7 +69,6 @@ ENV NODE_ENV=production \
     LOGGING="false" \
     BYPASS_SESSION_CHECK="false" \
     ENABLE_USER_SIGNUP="true" \
-    API_VERSION="v1"
 
 # Add healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
