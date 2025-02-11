@@ -2,7 +2,7 @@
   "type": "module",
   "scripts": {
     "start": "npx tsx src/server.ts",
-    "start:dev": "nodemon src/server.ts",
+    "start:dev": "npx tsx watch src/server.ts",
     "build": "tsc",
     "eslint": "eslint ./",
     "eslint-fix": "eslint ./ --fix",
@@ -16,7 +16,7 @@
     "test:unit:ui": "vitest -c ./vitest.config.unit.ts --ui --coverage"
   },
   "name": "myfin-api",
-  "version": "2.8.4",
+  "version": "2.9.0",
   "description": "NodeJS API for Myfin",
   "main": "src/server.js",
   "devDependencies": {

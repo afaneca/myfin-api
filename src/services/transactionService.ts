@@ -892,7 +892,7 @@ const getDateTimestampOfFirstTransactionForUser = async (
                                              OR account_to.users_user_id = ${userId}
                                           ORDER BY date_timestamp ASC
                                           LIMIT 1`;
-  return result[0].date_timestamp;
+  return result[0]?.date_timestamp ?? 0;
 };
 
 const deleteAllTransactionsFromUser = async (userId: bigint, dbClient = prisma) => {
