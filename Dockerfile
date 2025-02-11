@@ -24,10 +24,10 @@ FROM node:20-alpine
 # Add metadata
 LABEL maintainer="José Valdiviesso <me@zmiguel.me>"
 LABEL author="José Valdiviesso <me@zmiguel.me>"
-LABEL version="2.8.3"
+LABEL version="2.8.4"
 LABEL description="MyFin API Server"
 LABEL org.opencontainers.image.authors="José Valdiviesso <me@zmiguel.me>"
-LABEL org.opencontainers.image.version="2.8.3"
+LABEL org.opencontainers.image.version="2.8.4"
 LABEL org.opencontainers.image.title="MyFin API Server"
 LABEL org.opencontainers.image.description="Rest API for the personal finances platform that'll help you budget, keep track of your income/spending and forecast your financial future."
 LABEL org.opencontainers.image.source="https://github.com/afaneca/myfin-api"
@@ -68,7 +68,7 @@ ENV NODE_ENV=production \
     PORT="3001" \
     LOGGING="false" \
     BYPASS_SESSION_CHECK="false" \
-    ENABLE_USER_SIGNUP="true" \
+    ENABLE_USER_SIGNUP="true"
 
 # Add healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
