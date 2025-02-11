@@ -491,7 +491,7 @@ class AccountService {
 
       const balances = await Promise.all(balancePromises);
       let balance = balances.reduce((result, current) => {
-        const balanceSnapshotAtMonth = parseFloat(String(current.balance || 0));
+        const balanceSnapshotAtMonth = parseFloat(String(current?.balance || 0));
         if (balanceSnapshotAtMonth) {
           return result + balanceSnapshotAtMonth;
         } else return result;
