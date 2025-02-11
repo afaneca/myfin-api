@@ -127,33 +127,41 @@ class CategoryService {
     dbClient = prisma
   ): Promise<{
     category_balance_credit: number;
-    category_balance_debit: number
+    category_balance_debit: number;
   }> {
     return performDatabaseRequest(async (prismaTx) => {
-
       const listOfAccountsToExclude = await prismaTx.accounts.findMany({
         where: { exclude_from_budgets: true },
       });
 
-      const sqlQuery = includeTransfers ?
-        prismaTx.$queryRaw`SELECT sum(if(type = 'I', amount, 0)) as 'category_balance_credit',
-                                     sum(if(type = 'E' OR
-                                     
-                                            (type = 'T' AND accounts_account_to_id IN (${Prisma.join(listOfAccountsToExclude.map((a) => a.account_id))})),
-                                            amount,
-                                            0)) as 'category_balance_debit'
-                              FROM transactions
-                              WHERE date_timestamp between ${fromDate} AND ${toDate}
-                                AND categories_category_id = ${categoryId} ` :
-        prismaTx.$queryRaw`SELECT sum(if(type = 'I', amount, 0)) as 'category_balance_credit',
-                                   sum(if(type = 'E', amount, 0)) as 'category_balance_debit'
-                            FROM transactions
-                            WHERE date_timestamp between ${fromDate} AND ${toDate}
-                              AND categories_category_id = ${categoryId} `;
+      let sqlQuery;
+
+      if (includeTransfers && listOfAccountsToExclude.length > 0) {
+        sqlQuery = prismaTx.$queryRaw`
+        SELECT sum(if(type = 'I', amount, 0)) as 'category_balance_credit',
+               sum(if(type = 'E' OR
+                      (type = 'T' AND accounts_account_to_id IN (${Prisma.join(
+          listOfAccountsToExclude.map((a) => a.account_id)
+        )}))),
+                   amount,
+                   0)) as 'category_balance_debit'
+        FROM transactions
+        WHERE date_timestamp BETWEEN ${fromDate} AND ${toDate}
+          AND categories_category_id = ${categoryId}`;
+      } else {
+        // Exclude the IN (...) condition when the list is empty
+        sqlQuery = prismaTx.$queryRaw`
+        SELECT sum(if(type = 'I', amount, 0)) as 'category_balance_credit',
+               sum(if(type = 'E', amount, 0)) as 'category_balance_debit'
+        FROM transactions
+        WHERE date_timestamp BETWEEN ${fromDate} AND ${toDate}
+          AND categories_category_id = ${categoryId}`;
+      }
 
       return sqlQuery;
     }, dbClient);
   }
+
 
   static async getAmountForCategoryInMonth(
     categoryId: bigint,
