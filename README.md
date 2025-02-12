@@ -1,4 +1,6 @@
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[<img src="https://img.shields.io/github/license/afaneca/myfin-api?style=for-the-badge&color=blue" />](https://github.com/afaneca/myfin-api?tab=GPL-3.0-1-ov-file)
+[<img src="https://img.shields.io/github/v/release/afaneca/myfin-api?style=for-the-badge" />](https://github.com/afaneca/myfin-api/releases)
+[<img src="https://img.shields.io/badge/Docker-2CA5E0?style=for-the-badge&logo=docker&logoColor=white" />](https://github.com/afaneca/myfin-api/pkgs/container/myfin-api)
 
 🖥️ ***The WEB app project is available [here](https://github.com/aFaneca/myfin/).*** 🖥️
 
