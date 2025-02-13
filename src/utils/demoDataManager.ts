@@ -77,13 +77,12 @@ const deleteAllUserData = async (userId: bigint, dbClient = undefined) => {
     const promises = [];
 
     // Delete all current budgets
-    promises.push(
-      prismaTx.budgets_has_categories.deleteMany({
-        where: {
-          budgets_users_user_id: userId
-        }
-      })
-    );
+    await prismaTx.budgets_has_categories.deleteMany({
+      where: {
+        budgets_users_user_id: userId
+      }
+    });
+
     promises.push(
       prismaTx.budgets.deleteMany({
         where: { users_user_id: userId }

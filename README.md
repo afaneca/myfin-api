@@ -1,4 +1,6 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/afaneca/myfin-android?include_prereleases)](https://github.com/afaneca/myfin-api/releases)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=fff)](https://github.com/afaneca/myfin-api/pkgs/container/myfin-api)
 
 🖥️ ***The WEB app project is available [here](https://github.com/aFaneca/myfin/).*** 🖥️
 
