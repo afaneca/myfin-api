@@ -138,16 +138,15 @@ class CategoryService {
 
       if (includeTransfers && listOfAccountsToExclude.length > 0) {
         sqlQuery = prismaTx.$queryRaw`
-        SELECT sum(if(type = 'I', amount, 0)) as 'category_balance_credit',
-               sum(if(type = 'E' OR
-                      (type = 'T' AND accounts_account_to_id IN (${Prisma.join(
-          listOfAccountsToExclude.map((a) => a.account_id)
-        )}))),
-                   amount,
-                   0)) as 'category_balance_debit'
-        FROM transactions
-        WHERE date_timestamp BETWEEN ${fromDate} AND ${toDate}
-          AND categories_category_id = ${categoryId}`;
+          SELECT
+            SUM(IF(type = 'I', amount, 0)) AS category_balance_credit,
+            SUM(IF(type = 'E' OR (type = 'T' AND accounts_account_to_id IN (${Prisma.join(
+              listOfAccountsToExclude.map((a) => a.account_id)
+            )})), amount, 0)) AS category_balance_debit
+          FROM transactions
+          WHERE date_timestamp BETWEEN ${fromDate} AND ${toDate}
+            AND categories_category_id = ${categoryId}
+        `;
       } else {
         // Exclude the IN (...) condition when the list is empty
         sqlQuery = prismaTx.$queryRaw`
