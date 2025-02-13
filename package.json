@@ -16,7 +16,7 @@
     "test:unit:ui": "vitest -c ./vitest.config.unit.ts --ui --coverage"
   },
   "name": "myfin-api",
-  "version": "2.9.1",
+  "version": "2.9.2",
   "description": "NodeJS API for Myfin",
   "main": "src/server.js",
   "devDependencies": {
