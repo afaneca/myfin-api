@@ -1,8 +1,8 @@
 {
   "type": "module",
   "scripts": {
-    "start": "ts-node src/server.ts",
-    "start:dev": "nodemon src/server.ts",
+    "start": "npx tsx src/server.ts",
+    "start:dev": "npx tsx watch src/server.ts",
     "build": "tsc",
     "eslint": "eslint ./",
     "eslint-fix": "eslint ./ --fix",
@@ -17,7 +17,7 @@
     "test:integration": "dotenv -e .env.test -- docker compose -f docker-compose.tests.yml up -d && dotenv -e .env.test -- npm run db:deploy && dotenv -e .env.test -- vitest --run --config vitest.config.integration.ts && docker compose -f docker-compose.tests.yml down -v"
   },
   "name": "myfin-api",
-  "version": "2.7.2",
+  "version": "2.9.3",
   "description": "NodeJS API for Myfin",
   "main": "src/server.js",
   "devDependencies": {
@@ -45,7 +45,7 @@
     "nodemon": "^3.0.1",
     "prettier": "^3.0.1",
     "prisma": "^5.8.0",
-    "ts-node": "^10.9.1",
+    "tsx": "^4.19.2",
     "typescript": "^5.1.6",
     "vitest": "^3.0.2",
     "vitest-mock-extended": "^2.0.2"
@@ -66,17 +66,18 @@
     "bcrypt": "^5.0.0",
     "cors": "^2.8.5",
     "dayjs": "^1.10.6",
-    "dotenv": "^8.2.0",
+    "dotenv": "^16.4.7",
     "express": "^4.17.1",
     "express-rate-limit": "^7.4.1",
-    "helmet": "^4.6.0",
+    "helmet": "^8.0.0",
     "i18next": "^24.1.0",
     "i18next-http-middleware": "^3.7.0",
     "joi": "^17.3.0",
     "mysql2": "^3.11.5",
-    "nodemailer": "^6.9.16"
+    "nodemailer": "^6.9.16",
+    "ts-node": "^10.9.2"
   },
   "engines": {
-    "node": ">10.0.0"
+    "node": ">18.0.0"
   }
 }
