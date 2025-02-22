@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { mockedPrisma } from "./prisma.mock.js";
-import TagService from "../src/services/tagService.js";
+import TagService from "../../src/services/tagService.js";
 
 describe("tagService", () => {
   test("getAllTagsForUser should filter by username and select attributes", async () => {

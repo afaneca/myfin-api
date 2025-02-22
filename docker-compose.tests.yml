@@ -1,0 +1,25 @@
+services:
+  db:
+    image: mysql:8
+    restart: always
+    container_name: integration-tests-prisma
+    ports:
+      - '3307:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: prisma
+      MYSQL_USER: prisma
+      MYSQL_PASSWORD: prisma
+      MYSQL_DATABASE: myfin_tests
+    healthcheck:
+      test: [ "CMD-SHELL", 'mysqladmin ping' ]
+      interval: 10s
+      timeout: 2s
+      retries: 10
+
+  check-db-started:
+    image: jwilder/dockerize:0.6.1
+    depends_on:
+      db:
+        condition: service_healthy
+    command: 'dockerize -wait=tcp://mysql:3306 -timeout 30s'
+

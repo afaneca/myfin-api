@@ -250,7 +250,7 @@ const createTransaction = async (
 ) => {
   //Logger.addStringifiedLog(trx);
   trx.amount = ConvertUtils.convertFloatToBigInteger(trx.amount);
-  await performDatabaseRequest(async (prismaTx) => {
+  return performDatabaseRequest(async (prismaTx) => {
     // Add transaction
     const addedTrx = await prismaTx.transactions.create({
       data: {
@@ -335,6 +335,8 @@ const createTransaction = async (
         );
         break;
     }
+
+    return addedTrx;
   }, dbClient);
 };
 
@@ -611,7 +613,6 @@ const updateTransaction = async (
     }
 
     // Add the effect of updated amount
-    Logger.addLog(`New type: ${trx.new_type}`);
     switch (trx.new_type) {
       case MYFIN.TRX_TYPES.INCOME:
         newBalance = await AccountService.recalculateBalanceForAccountIncrementally(
