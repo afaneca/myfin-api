@@ -24,10 +24,10 @@ FROM node:20-alpine
 # Add metadata
 LABEL maintainer="José Valdiviesso <me@zmiguel.me>"
 LABEL author="José Valdiviesso <me@zmiguel.me>"
-LABEL version="2.9.2"
+LABEL version="2.9.3"
 LABEL description="MyFin API Server"
 LABEL org.opencontainers.image.authors="José Valdiviesso <me@zmiguel.me>"
-LABEL org.opencontainers.image.version="2.9.2"
+LABEL org.opencontainers.image.version="2.9.3"
 LABEL org.opencontainers.image.title="MyFin API Server"
 LABEL org.opencontainers.image.description="Rest API for the personal finances platform that'll help you budget, keep track of your income/spending and forecast your financial future."
 LABEL org.opencontainers.image.source="https://github.com/afaneca/myfin-api"

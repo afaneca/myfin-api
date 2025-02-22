@@ -1,0 +1,60 @@
+services:
+  db:
+    image: mysql:8.4
+    restart: always
+    container_name: db
+    environment:
+      MYSQL_ROOT_PASSWORD: myfinrootpassword
+      MYSQL_DATABASE: myfin
+      MYSQL_USER: myfin
+      MYSQL_PASSWORD: myfinpassword
+    ports:
+      - "3006:3006"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "--silent" ]
+
+  myfin-api:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8081:3001"
+    environment:
+      # Database Configuration
+      - DB_NAME=myfin
+      - DB_USER=myfin
+      - DB_PW=myfinpassword
+      - DB_PORT=3306
+      - DB_HOST=db
+      # Email Configuration
+      - SMTP_HOST=
+      - SMTP_PORT=
+      - SMTP_SECURE=
+      - SMTP_USER=
+      - SMTP_PASSWORD=
+      - SMTP_FROM=
+      # Application Configuration
+      - PORT=3001
+      - LOGGING=false
+      - BYPASS_SESSION_CHECK=false
+      - ENABLE_USER_SIGNUP=false
+    depends_on:
+      db:
+        condition: service_healthy
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    links:
+      - db
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+    ports:
+      - "8183:80"
+
+volumes:
+  db_data:
