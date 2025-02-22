@@ -14,7 +14,7 @@
     "test:unit": "vitest -c ./vitest.config.unit.ts",
     "test:unit:run": "vitest run -c ./vitest.config.unit.ts",
     "test:unit:ui": "vitest -c ./vitest.config.unit.ts --ui --coverage",
-    "test:integration": "dotenv -e .env.test -- docker compose up -d && dotenv -e .env.test -- npm run db:deploy && dotenv -e .env.test -- vitest --run --config vitest.config.integration.ts && docker compose down -v"
+    "test:integration": "dotenv -e .env.test -- docker compose -f docker-compose.tests.yml up -d && dotenv -e .env.test -- npm run db:deploy && dotenv -e .env.test -- vitest --run --config vitest.config.integration.ts && docker compose -f docker-compose.tests.yml down -v"
   },
   "name": "myfin-api",
   "version": "2.7.2",
