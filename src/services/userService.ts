@@ -13,6 +13,7 @@ import TagService from "./tagService.js";
 import EmailService from "./emailService.js";
 import DateTimeUtils from "../utils/DateTimeUtils.js";
 import { Translator } from "../middlewares/i18n.js";
+import { MYFIN } from "../consts.js";
 
 const User = prisma.users;
 
@@ -80,7 +81,8 @@ const userService = {
           ...account,
           balance: ConvertUtils.convertBigIntegerToFloat(account.current_balance ?? 0)
         };
-      })
+      }),
+      currency: data.currency,
     };
   },
   getUserIdFromUsername: async (username: string): Promise<bigint> => {
@@ -291,6 +293,18 @@ const userService = {
       where: { user_id: data.user_id },
       data: { password: hashedPassword }
     });
-  }, dbClient)
+  }, dbClient),
+  changeCurrency: async (userId: bigint, currency: string, dbClient = undefined) => {
+    const supportedCurrencyCodes = Object.values(MYFIN.CURRENCIES).map(currency => currency.code);
+    if (!supportedCurrencyCodes.includes(currency)) {
+      throw APIError.notAcceptable("Currency Not Supported");
+    }
+    return performDatabaseRequest(async (prismaTx) => {
+      await prismaTx.users.update({
+        where: { user_id: userId },
+        data: { currency: currency }
+      });
+    }, dbClient);
+  },
 };
 export default userService;
