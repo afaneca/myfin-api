@@ -4,8 +4,7 @@ import Logger from "../utils/Logger.js";
 import CommonsController from "./commonsController.js";
 import UserService from "../services/userService.js";
 import { NextFunction, Request, Response } from "express";
-import i18next from "i18next";
-import { i18n } from "../middlewares/index.js";
+import { MYFIN } from "../consts.js";
 
 // CREATE
 const createUserSchema = joi.object({
@@ -114,7 +113,7 @@ const sendOtpForRecoverySchema = joi.object({
 const sendOtpForRecovery = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userData = await sendOtpForRecoverySchema.validateAsync(req.body);
-    await UserService.sendOtpForRecovery(userData.username, req.i18n.t)
+    await UserService.sendOtpForRecovery(userData.username, req.i18n.t);
     res.json(`Check your email.`);
   } catch (err) {
     Logger.addLog(err);
@@ -131,11 +130,27 @@ const setNewPasswordSchema = joi.object({
 const setNewPassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userData = await setNewPasswordSchema.validateAsync(req.body);
-    if(userData.new_password1 !== userData.new_password2) {
+    if (userData.new_password1 !== userData.new_password2) {
       throw APIError.notAcceptable("Passwords do NOT match!");
     }
-    await UserService.setNewPassword(userData.username, userData.otp, userData.new_password1)
+    await UserService.setNewPassword(userData.username, userData.otp, userData.new_password1);
     res.json(`Password was successfully updated`);
+  } catch (err) {
+    Logger.addLog(err);
+    next(err || APIError.internalServerError());
+  }
+};
+
+const changeCurrencySchema = joi.object({
+  currency: joi.string().trim().valid(...Object.values(MYFIN.CURRENCIES).map(currency => currency.code)).required(),
+});
+const changeCurrency = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const sessionData = await CommonsController.checkAuthSessionValidity(req);
+    const userData = await changeCurrencySchema.validateAsync(req.body);
+
+    await UserService.changeCurrency(sessionData.userId, userData.currency);
+    res.json(`Currency was successfully updated`);
   } catch (err) {
     Logger.addLog(err);
     next(err || APIError.internalServerError());
@@ -151,4 +166,5 @@ export default {
   autoPopulateDemoData,
   sendOtpForRecovery,
   setNewPassword,
+  changeCurrency,
 };

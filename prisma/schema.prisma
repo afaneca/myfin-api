@@ -232,6 +232,7 @@ model users {
   otp_codes                  otp_codes[]
   rules                      rules[]
   tags                       tags[]
+  currency                   String                       @default("EUR")
 }
 
 model tags {
