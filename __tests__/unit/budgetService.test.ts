@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { mockedPrisma } from "./prisma.mock";
-import BudgetService from "../src/services/budgetService.js";
-import CategoryService from "../src/services/categoryService.js";
-import AccountService from "../src/services/accountService.js"; // Adjust path as needed
+import { mockedPrisma } from "./prisma.mock.js";
+import BudgetService from "../../src/services/budgetService.js";
+import CategoryService from "../../src/services/categoryService.js";
+import AccountService from "../../src/services/accountService.js"; // Adjust path as needed
 
 describe("budgetService", () => {
   beforeEach(() => {

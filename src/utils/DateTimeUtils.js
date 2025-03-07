@@ -30,7 +30,13 @@ const DateTimeUtils = {
   getFullMonthsBetweenDates: (date1, date2) => {
     return (date2.getFullYear() - date1.getFullYear()) * 12
         + (date2.getMonth() - date1.getMonth());
-  }
+  },
+  getCurrentYear: () => {
+    return new Date().getFullYear();
+  },
+  getCurrentMonth: () => {
+    return new Date().getMonth() + 1;
+  },
 };
 
 export default DateTimeUtils;
