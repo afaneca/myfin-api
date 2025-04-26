@@ -14,6 +14,7 @@ import EmailService from "./emailService.js";
 import DateTimeUtils from "../utils/DateTimeUtils.js";
 import { Translator } from "../middlewares/i18n.js";
 import { MYFIN } from "../consts.js";
+import BackupManager from "../utils/backupManager.js";
 
 const User = prisma.users;
 
@@ -305,6 +306,11 @@ const userService = {
         data: { currency: currency }
       });
     }, dbClient);
+  },
+  backupUser: async (userId: bigint, dbClient = undefined) => {
+    return performDatabaseRequest(async (prismaTx) => {
+      return BackupManager.createBackup(userId, prismaTx);
+    }, dbClient)
   },
 };
 export default userService;

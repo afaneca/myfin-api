@@ -23,6 +23,7 @@ const router = (app: Express) => {
   usersRouter.put("/changePW/", UserController.changeUserPassword);
   usersRouter.post("/demo/", UserController.autoPopulateDemoData);
   usersRouter.put("/changeCurrency", UserController.changeCurrency);
+  userRouter.get("/backup", UserController.backupUser);
   //endregion
 
   //region AUTH ROUTES

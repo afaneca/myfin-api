@@ -157,6 +157,17 @@ const changeCurrency = async (req: Request, res: Response, next: NextFunction) =
   }
 };
 
+const backupUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const sessionData = await CommonsController.checkAuthSessionValidity(req);
+    const backupData = await UserService.backupUser(sessionData.userId);
+    res.json(backupData);
+  } catch (err) {
+    Logger.addLog(err);
+    next(err || APIError.internalServerError());
+  }
+}
+
 export default {
   createOne,
   attemptLogin,
@@ -167,4 +178,5 @@ export default {
   sendOtpForRecovery,
   setNewPassword,
   changeCurrency,
+  backupUser,
 };
