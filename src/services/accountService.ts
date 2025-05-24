@@ -136,7 +136,6 @@ class AccountService {
     const accountObj = {
       ...account,
       users_user_id: userId,
-      current_balance: ConvertUtils.convertFloatToBigInteger(account.current_balance)
     };
 
     return Account.update({
@@ -147,7 +146,6 @@ class AccountService {
         description: accountObj.new_description,
         exclude_from_budgets: accountObj.exclude_from_budgets,
         status: accountObj.new_status,
-        current_balance: accountObj.current_balance,
         color_gradient: accountObj.color_gradient,
         updated_timestamp: DateTimeUtils.getCurrentUnixTimestamp()
       }
