@@ -1,6 +1,9 @@
 import { prisma } from "../config/prisma.js";
 import { Prisma } from "@prisma/client";
 import { version } from "../../package.json";
+import { isSameMajorVersion, isVersionOlder } from "./textUtils.js";
+import APIError from "../errorHandling/apiError.js";
+import { RestoreUserErrorCodes } from "../controllers/userController.js";
 
 
 export interface BackupData {
@@ -123,6 +126,14 @@ class BackupManager {
       rules,
       transactions,
     };
+  }
+
+  static restoreBackup(userId: bigint, data: BackupData, dbClient = prisma) {
+    if(!isSameMajorVersion(data.apiVersion, version)) {
+      throw APIError.notAcceptable("This backups is not compatible with your API version.", RestoreUserErrorCodes.IncompatibleVersions)
+    }
+
+    return Promise.resolve("ok");
   }
 }
 

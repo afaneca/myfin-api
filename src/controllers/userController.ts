@@ -5,6 +5,7 @@ import CommonsController from "./commonsController.js";
 import UserService from "../services/userService.js";
 import { NextFunction, Request, Response } from "express";
 import { MYFIN } from "../consts.js";
+import { BackupData } from "../utils/backupManager.js";
 
 // CREATE
 const createUserSchema = joi.object({
@@ -166,7 +167,42 @@ const backupUser = async (req: Request, res: Response, next: NextFunction) => {
     Logger.addLog(err);
     next(err || APIError.internalServerError());
   }
+};
+
+const restoreUserSchema = joi.object({
+/*  data: joi.object({*/
+    apiVersion: joi.string().required(),
+    accounts: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
+    balances_snapshot: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
+    budgets: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
+    budgets_has_categories: joi.array().items(joi.object().pattern(joi.string(), joi.any())).optional(),
+    categories: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
+    entities: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
+    invest_asset_evo_snapshot: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
+    invest_assets: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
+    invest_desired_allocations: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
+    invest_transactions: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
+    rules: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
+    transactions: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
+  /*}).required(),*/
+});
+
+export enum RestoreUserErrorCodes {
+  IncompatibleVersions = "INCOMPATIBLE_VERSIONS",
 }
+
+const restoreUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const sessionData = await CommonsController.checkAuthSessionValidity(req);
+    const data = await restoreUserSchema.validateAsync(req.body);
+
+    await UserService.restoreUser(sessionData.userId, data);
+    res.json(`Restoration was successful!`);
+  } catch (err) {
+    Logger.addLog(err);
+    next(err || APIError.internalServerError());
+  }
+};
 
 export default {
   createOne,
@@ -179,4 +215,5 @@ export default {
   setNewPassword,
   changeCurrency,
   backupUser,
+  restoreUser,
 };

@@ -14,7 +14,7 @@ import EmailService from "./emailService.js";
 import DateTimeUtils from "../utils/DateTimeUtils.js";
 import { Translator } from "../middlewares/i18n.js";
 import { MYFIN } from "../consts.js";
-import BackupManager from "../utils/backupManager.js";
+import BackupManager, { BackupData } from "../utils/backupManager.js";
 
 const User = prisma.users;
 
@@ -312,5 +312,10 @@ const userService = {
       return BackupManager.createBackup(userId, prismaTx);
     }, dbClient)
   },
+  restoreUser(userId: bigint, data: BackupData, dbClient = undefined) {
+    return performDatabaseRequest(async (prismaTx) => {
+      return BackupManager.restoreBackup(userId, data, prismaTx);
+    }, dbClient);
+  }
 };
 export default userService;
