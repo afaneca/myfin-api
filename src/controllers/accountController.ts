@@ -82,9 +82,8 @@ const updateAccountSchema = joi.object({
   new_description: joi.string().allow('').default(''),
   new_status: joi.string().valid('Ativa', 'Inativa').trim().required(),
   exclude_from_budgets: joi.boolean().required(),
-  current_balance: joi.number().required(),
   color_gradient: joi.string().trim().optional(),
-});
+}).unknown(true);
 
 const updateAccount = async (req, res, next) => {
   try {
