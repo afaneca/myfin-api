@@ -15,6 +15,9 @@ import DateTimeUtils from "../utils/DateTimeUtils.js";
 import { Translator } from "../middlewares/i18n.js";
 import { MYFIN } from "../consts.js";
 import BackupManager, { BackupData } from "../utils/backupManager.js";
+import TransactionService from "./transactionService.js";
+import InvestTransactionsService from "./investTransactionsService.js";
+import InvestAssetService from "./investAssetService.js";
 
 const User = prisma.users;
 
@@ -113,7 +116,7 @@ const userService = {
     mobile: boolean,
     dbClient = prisma
   ) => {
-    /* Check if current password is valid */
+    /* Check if the current password is valid */
     const whereCondition = { user_id: userId };
     const data: Prisma.usersUpdateInput = await User.findUniqueOrThrow({
       where: whereCondition
@@ -310,12 +313,89 @@ const userService = {
   backupUser: async (userId: bigint, dbClient = undefined) => {
     return performDatabaseRequest(async (prismaTx) => {
       return BackupManager.createBackup(userId, prismaTx);
-    }, dbClient)
+    }, dbClient, { timeout: 60_000 });
   },
   restoreUser(userId: bigint, data: BackupData, dbClient = undefined) {
     return performDatabaseRequest(async (prismaTx) => {
       return BackupManager.restoreBackup(userId, data, prismaTx);
-    }, dbClient);
-  }
+    }, dbClient, { timeout: 60_000 });
+  },
+  deleteAllUserData(userId: bigint, dbClient = undefined) {
+    return performDatabaseRequest(async (prismaTx) => {
+      const promises = [];
+
+      // Delete all current budgets
+      await prismaTx.budgets_has_categories.deleteMany({
+        where: {
+          budgets_users_user_id: userId
+        }
+      });
+
+      promises.push(
+        prismaTx.budgets.deleteMany({
+          where: { users_user_id: userId }
+        })
+      );
+
+      // Delete all current transactions
+      await prismaTx.transaction_has_tags.deleteMany({
+        where: {
+          tags: {
+            users_user_id: userId
+          }
+        }
+      });
+
+      promises.push(TransactionService.deleteAllTransactionsFromUser(userId, prismaTx));
+
+      // Delete all current categories
+      promises.push(
+        prismaTx.categories.deleteMany({
+          where: { users_user_id: userId }
+        })
+      );
+
+      // Delete all current entities
+      promises.push(
+        prismaTx.entities.deleteMany({
+          where: { users_user_id: userId }
+        })
+      );
+
+      // Delete all current tags
+      promises.push(prismaTx.tags.deleteMany({
+          where: { users_user_id: userId }
+        })
+      );
+
+      // Delete all current accounts
+      promises.push(AccountService.deleteBalanceSnapshotsForUser(userId, prismaTx));
+      promises.push(
+        prismaTx.accounts.deleteMany({
+          where: { users_user_id: userId }
+        })
+      );
+
+      // Delete all current rules
+      promises.push(
+        prismaTx.rules.deleteMany({
+          where: { users_user_id: userId }
+        })
+      );
+
+      // Delete all current investment transactions
+      promises.push(InvestTransactionsService.deleteAllTransactionsForUser(userId, prismaTx));
+
+      // Delete all current investment assets
+      promises.push(
+        prismaTx.invest_assets.deleteMany({
+          where: { users_user_id: userId }
+        })
+      );
+      promises.push(InvestAssetService.deleteAllAssetEvoSnapshotsForUser(userId, prismaTx));
+
+      await Promise.all(promises);
+    }, dbClient, { timeout: 60_000 });
+  },
 };
 export default userService;

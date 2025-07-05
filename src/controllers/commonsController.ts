@@ -16,7 +16,7 @@ const checkAuthSessionValidity = async (req: Request, renewTrustLimit = true) =>
   if(userCount == 0) throw APIError.notFound('No registered users were found.')
 
   const bypassSessionChecking = process.env.BYPASS_SESSION_CHECK === 'true';
-  Logger.addLog(`bypass: ${process.env.BYPASS_SESSION_CHECK}`);
+  /*Logger.addLog(`bypass: ${process.env.BYPASS_SESSION_CHECK}`);*/
 
   const sessionkey: string = req.get('sessionkey');
   const username: string = req.get('authusername');

@@ -170,7 +170,6 @@ const backupUser = async (req: Request, res: Response, next: NextFunction) => {
 };
 
 const restoreUserSchema = joi.object({
-/*  data: joi.object({*/
     apiVersion: joi.string().required(),
     accounts: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
     balances_snapshot: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
@@ -178,17 +177,18 @@ const restoreUserSchema = joi.object({
     budgets_has_categories: joi.array().items(joi.object().pattern(joi.string(), joi.any())).optional(),
     categories: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
     entities: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
+    tags: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
     invest_asset_evo_snapshot: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
     invest_assets: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
     invest_desired_allocations: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
     invest_transactions: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
     rules: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
     transactions: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
-  /*}).required(),*/
 });
 
 export enum RestoreUserErrorCodes {
   IncompatibleVersions = "INCOMPATIBLE_VERSIONS",
+  MalformedBackup = "MALFORMED_BACKUP"
 }
 
 const restoreUser = async (req: Request, res: Response, next: NextFunction) => {

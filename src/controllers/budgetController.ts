@@ -16,7 +16,6 @@ const getAllBudgetsForUser = async (req, res, next) => {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
     const input = await getAllBudgetsForUserSchema.validateAsync(req.query);
     const data = await BudgetService.getAllBudgetsForUser(sessionData.userId, input.status);
-    Logger.addStringifiedLog(data);
     res.json(data);
   } catch (err) {
     Logger.addLog(err);
