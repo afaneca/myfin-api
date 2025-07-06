@@ -58,7 +58,7 @@ export type UpdateAccountType = {
 class AccountService {
   static async createAccount(account: CreateAccountType, userId: bigint, dbClient = prisma) {
     const accountObj = {
-      ...account
+      ...account,
     };
     // eslint-disable-next-line no-param-reassign
     accountObj.users_user_id = userId;
