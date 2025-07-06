@@ -5,10 +5,11 @@ import TransactionService from "../services/transactionService.js";
 import InvestAssetService from "../services/investAssetService.js";
 import InvestTransactionsService from "../services/investTransactionsService.js";
 import CategoryService from "../services/categoryService.js";
-import { MYFIN } from "../consts.js";
+import { COLOR_GRADIENTS, MYFIN } from "../consts.js";
 import EntityService from "../services/entityService.js";
 import RuleService from "../services/ruleService.js";
 import { invest_transactions_type } from "@prisma/client";
+import UserService from "../services/userService.js";
 
 // ACCOUNTS
 let ACCOUNT_CURRENT1_ID = -1;
@@ -46,102 +47,9 @@ let ASSET_ETF1 = -1;
 let ASSET_CRYPTO1 = -1;
 
 const getRandomColorGradient = () => {
-  const colorGradients = [
-    "red-gradient",
-    "blue-gradient",
-    "green-gradient",
-    "orange-gradient",
-    "dark-gray-gradient",
-    "purple-gradient",
-    "pink-gradient",
-    "dark-blue-gradient",
-    "brown-gradient",
-    "light-green-gradient",
-    "dark-red-gradient",
-    "yellow-gradient",
-    "roseanna-gradient",
-    "mauve-gradient",
-    "lush-gradient",
-    "pale-wood-gradient",
-    "aubergine-gradient",
-    "orange-coral-gradient",
-    "decent-gradient",
-    "dusk-gradient",
-  ];
+  const colorGradients = COLOR_GRADIENTS;
 
   return colorGradients[Math.floor(Math.random() * colorGradients.length)];
-};
-
-const deleteAllUserData = async (userId: bigint, dbClient = undefined) => {
-  return performDatabaseRequest(async (prismaTx) => {
-    const promises = [];
-
-    // Delete all current budgets
-    await prismaTx.budgets_has_categories.deleteMany({
-      where: {
-        budgets_users_user_id: userId
-      }
-    });
-
-    promises.push(
-      prismaTx.budgets.deleteMany({
-        where: { users_user_id: userId }
-      })
-    );
-
-    // Delete all current transactions
-    await prismaTx.transaction_has_tags.deleteMany({
-      where: {
-        tags: {
-          users_user_id: userId
-        }
-      }
-    });
-
-    promises.push(TransactionService.deleteAllTransactionsFromUser(userId, prismaTx));
-
-    // Delete all current categories
-    promises.push(
-      prismaTx.categories.deleteMany({
-        where: { users_user_id: userId }
-      })
-    );
-
-    // Delete all current entities
-    promises.push(
-      prismaTx.entities.deleteMany({
-        where: { users_user_id: userId }
-      })
-    );
-
-    // Delete all current accounts
-    promises.push(AccountService.deleteBalanceSnapshotsForUser(userId, prismaTx));
-    promises.push(
-      prismaTx.accounts.deleteMany({
-        where: { users_user_id: userId }
-      })
-    );
-
-    // Delete all current rules
-    promises.push(
-      prismaTx.rules.deleteMany({
-        where: { users_user_id: userId }
-      })
-    );
-
-    // Delete all current investment transactions
-    promises.push(InvestTransactionsService.deleteAllTransactionsForUser(userId, prismaTx));
-
-    // Delete all current investment assets
-    promises.push(
-      prismaTx.invest_assets.deleteMany({
-        where: { users_user_id: userId }
-      })
-    );
-    promises.push(InvestAssetService.deleteAllAssetEvoSnapshotsForUser(userId, prismaTx));
-
-    await Promise.all(promises);
-  }, dbClient);
 };
 
 const createMockCategories = async (userId: bigint, dbClient = undefined) =>
@@ -1440,7 +1348,7 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
 
 const createMockData = async (userId: bigint, dbClient = undefined) =>
   performDatabaseRequest(async (prismaTx) => {
-    await deleteAllUserData(userId, prismaTx);
+    await UserService.deleteAllUserData(userId, prismaTx);
 
     // Create mock categories
     await createMockCategories(userId, prismaTx);

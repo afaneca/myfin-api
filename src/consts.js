@@ -66,7 +66,7 @@ const MYFIN = {
       INDEX_FUNDS: "index",
       INVESTMENT_FUNDS: "if",
       P2P: "p2p",
-      STOCKS: "stocks",
+      STOCKS: "stock",
     },
   },
   CURRENCIES: {
@@ -167,4 +167,27 @@ const MYFIN = {
   },
 };
 
-export { HTTP_STATUS_CODE, MYFIN };
+const COLOR_GRADIENTS = [
+  "red-gradient",
+  "blue-gradient",
+  "green-gradient",
+  "orange-gradient",
+  "dark-gray-gradient",
+  "purple-gradient",
+  "pink-gradient",
+  "dark-blue-gradient",
+  "brown-gradient",
+  "light-green-gradient",
+  "dark-red-gradient",
+  "yellow-gradient",
+  "roseanna-gradient",
+  "mauve-gradient",
+  "lush-gradient",
+  "pale-wood-gradient",
+  "aubergine-gradient",
+  "orange-coral-gradient",
+  "decent-gradient",
+  "dusk-gradient",
+]
+
+export { HTTP_STATUS_CODE, MYFIN, COLOR_GRADIENTS };
