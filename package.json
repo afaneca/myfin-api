@@ -17,14 +17,14 @@
     "test:integration": "dotenv -e .env.test -- docker compose -f docker-compose.tests.yml up -d && dotenv -e .env.test -- npm run db:deploy && dotenv -e .env.test -- vitest --run --config vitest.config.integration.ts && docker compose -f docker-compose.tests.yml down -v"
   },
   "name": "myfin-api",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "NodeJS API for Myfin",
   "main": "src/server.js",
   "devDependencies": {
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17",
     "@types/i18next": "^13.0.0",
-    "@types/node": "^20.4.10",
+    "@types/node": "^24.0.10",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "@vitest/coverage-v8": "^3.0.4",
@@ -78,6 +78,6 @@
     "ts-node": "^10.9.2"
   },
   "engines": {
-    "node": ">18.0.0"
+    "node": ">20.19.0"
   }
 }
