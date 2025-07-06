@@ -1,0 +1,1381 @@
+{
+  "apiVersion": "999999.0.0",
+  "accounts": [
+    {
+      "account_id": 1713,
+      "name": "BBank - Current",
+      "type": "CHEAC",
+      "description": "Current account from BBank",
+      "exclude_from_budgets": false,
+      "status": "Ativa",
+      "users_user_id": 7,
+      "current_balance": 826176,
+      "created_timestamp": null,
+      "updated_timestamp": null,
+      "color_gradient": "roseanna-gradient"
+    },
+    {
+      "account_id": 1714,
+      "name": "BBank - Savings",
+      "type": "SAVAC",
+      "description": "Savings account from BBank",
+      "exclude_from_budgets": false,
+      "status": "Ativa",
+      "users_user_id": 7,
+      "current_balance": 250000,
+      "created_timestamp": null,
+      "updated_timestamp": null,
+      "color_gradient": "dark-blue-gradient"
+    },
+    {
+      "account_id": 1715,
+      "name": "XYZ Capital",
+      "type": "INVAC",
+      "description": "Brokerage account from XYZ Capital",
+      "exclude_from_budgets": false,
+      "status": "Ativa",
+      "users_user_id": 7,
+      "current_balance": "0",
+      "created_timestamp": null,
+      "updated_timestamp": null,
+      "color_gradient": "yellow-gradient"
+    },
+    {
+      "account_id": 1716,
+      "name": "SAFU Credit",
+      "type": "CREAC",
+      "description": "Credit card from SAFU Credit",
+      "exclude_from_budgets": true,
+      "status": "Ativa",
+      "users_user_id": 7,
+      "current_balance": -91179,
+      "created_timestamp": null,
+      "updated_timestamp": null,
+      "color_gradient": "pale-wood-gradient"
+    },
+    {
+      "account_id": 1717,
+      "name": "HQ Mutual",
+      "type": "CREAC",
+      "description": "Mortgage loan from HQ Mutual",
+      "exclude_from_budgets": true,
+      "status": "Ativa",
+      "users_user_id": 7,
+      "current_balance": -29946540,
+      "created_timestamp": null,
+      "updated_timestamp": null,
+      "color_gradient": "dark-blue-gradient"
+    }
+  ],
+  "balances_snapshot": [
+    {
+      "accounts_account_id": 1713,
+      "month": 1,
+      "year": 1970,
+      "balance": "0",
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1713,
+      "month": 2,
+      "year": 1970,
+      "balance": "0",
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1713,
+      "month": 3,
+      "year": 1970,
+      "balance": "0",
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1713,
+      "month": 4,
+      "year": 2025,
+      "balance": 500000,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1713,
+      "month": 5,
+      "year": 2025,
+      "balance": 300000,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": 1751760595
+    },
+    {
+      "accounts_account_id": 1713,
+      "month": 6,
+      "year": 2025,
+      "balance": 555620,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": 1751760595
+    },
+    {
+      "accounts_account_id": 1713,
+      "month": 7,
+      "year": 2025,
+      "balance": 826176,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": 1751760595
+    },
+    {
+      "accounts_account_id": 1713,
+      "month": 8,
+      "year": 2025,
+      "balance": 826176,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": 1751760595
+    },
+    {
+      "accounts_account_id": 1713,
+      "month": 9,
+      "year": 2025,
+      "balance": 826176,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": 1751760595
+    },
+    {
+      "accounts_account_id": 1714,
+      "month": 1,
+      "year": 1970,
+      "balance": "0",
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1714,
+      "month": 2,
+      "year": 1970,
+      "balance": "0",
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1714,
+      "month": 3,
+      "year": 1970,
+      "balance": "0",
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1714,
+      "month": 5,
+      "year": 2025,
+      "balance": 200000,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1714,
+      "month": 6,
+      "year": 2025,
+      "balance": 250000,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": 1751760595
+    },
+    {
+      "accounts_account_id": 1714,
+      "month": 7,
+      "year": 2025,
+      "balance": 250000,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": 1751760595
+    },
+    {
+      "accounts_account_id": 1714,
+      "month": 8,
+      "year": 2025,
+      "balance": 250000,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1715,
+      "month": 1,
+      "year": 1970,
+      "balance": "0",
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1715,
+      "month": 2,
+      "year": 1970,
+      "balance": "0",
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1715,
+      "month": 3,
+      "year": 1970,
+      "balance": "0",
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1716,
+      "month": 1,
+      "year": 1970,
+      "balance": "0",
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1716,
+      "month": 2,
+      "year": 1970,
+      "balance": "0",
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1716,
+      "month": 3,
+      "year": 1970,
+      "balance": "0",
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1716,
+      "month": 5,
+      "year": 2025,
+      "balance": -8960,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1716,
+      "month": 6,
+      "year": 2025,
+      "balance": -52714,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": 1751760595
+    },
+    {
+      "accounts_account_id": 1716,
+      "month": 7,
+      "year": 2025,
+      "balance": -91179,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": 1751760595
+    },
+    {
+      "accounts_account_id": 1716,
+      "month": 8,
+      "year": 2025,
+      "balance": -91179,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": 1751760595
+    },
+    {
+      "accounts_account_id": 1716,
+      "month": 9,
+      "year": 2025,
+      "balance": -91179,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": 1751760595
+    },
+    {
+      "accounts_account_id": 1717,
+      "month": 1,
+      "year": 1970,
+      "balance": "0",
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1717,
+      "month": 2,
+      "year": 1970,
+      "balance": "0",
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1717,
+      "month": 3,
+      "year": 1970,
+      "balance": "0",
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1717,
+      "month": 5,
+      "year": 2025,
+      "balance": -30000000,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    },
+    {
+      "accounts_account_id": 1717,
+      "month": 6,
+      "year": 2025,
+      "balance": -29973270,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": 1751760595
+    },
+    {
+      "accounts_account_id": 1717,
+      "month": 7,
+      "year": 2025,
+      "balance": -29946540,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": 1751760595
+    },
+    {
+      "accounts_account_id": 1717,
+      "month": 8,
+      "year": 2025,
+      "balance": -29946540,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": 1751760595
+    },
+    {
+      "accounts_account_id": 1717,
+      "month": 9,
+      "year": 2025,
+      "balance": -29946540,
+      "created_timestamp": 1751760595,
+      "updated_timestamp": null
+    }
+  ],
+  "budgets": [
+    {
+      "budget_id": 1967,
+      "month": 5,
+      "year": 2025,
+      "observations": "🚘 Auto repair • 🎁 Hanna's birthday • 🐶 Pet training",
+      "is_open": false,
+      "initial_balance": null,
+      "users_user_id": 7
+    },
+    {
+      "budget_id": 1968,
+      "month": 6,
+      "year": 2025,
+      "observations": "⛱️ Trip to Tenerife",
+      "is_open": false,
+      "initial_balance": null,
+      "users_user_id": 7
+    },
+    {
+      "budget_id": 1969,
+      "month": 7,
+      "year": 2025,
+      "observations": "🚘 Auto repair • 🎁 Hanna's birthday • 🐶 Pet training",
+      "is_open": true,
+      "initial_balance": null,
+      "users_user_id": 7
+    },
+    {
+      "budget_id": 1970,
+      "month": 8,
+      "year": 2025,
+      "observations": "💸🚘 Car Insurance",
+      "is_open": true,
+      "initial_balance": null,
+      "users_user_id": 7
+    }
+  ],
+  "budgets_has_categories": [
+    {
+      "budgets_budget_id": 1967,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1499,
+      "planned_amount_credit": 350000,
+      "current_amount": "0",
+      "planned_amount_debit": "0"
+    },
+    {
+      "budgets_budget_id": 1967,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1503,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 27000
+    },
+    {
+      "budgets_budget_id": 1967,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1504,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 17700
+    },
+    {
+      "budgets_budget_id": 1967,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1505,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 20000
+    },
+    {
+      "budgets_budget_id": 1967,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1506,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 2000
+    },
+    {
+      "budgets_budget_id": 1968,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1499,
+      "planned_amount_credit": 350000,
+      "current_amount": "0",
+      "planned_amount_debit": "0"
+    },
+    {
+      "budgets_budget_id": 1968,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1500,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 80000
+    },
+    {
+      "budgets_budget_id": 1968,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1503,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 27000
+    },
+    {
+      "budgets_budget_id": 1968,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1504,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 17700
+    },
+    {
+      "budgets_budget_id": 1968,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1505,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 20000
+    },
+    {
+      "budgets_budget_id": 1968,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1506,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 2000
+    },
+    {
+      "budgets_budget_id": 1969,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1499,
+      "planned_amount_credit": 350000,
+      "current_amount": "0",
+      "planned_amount_debit": "0"
+    },
+    {
+      "budgets_budget_id": 1969,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1500,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 80000
+    },
+    {
+      "budgets_budget_id": 1969,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1503,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 27000
+    },
+    {
+      "budgets_budget_id": 1969,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1504,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 17700
+    },
+    {
+      "budgets_budget_id": 1969,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1505,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 20000
+    },
+    {
+      "budgets_budget_id": 1969,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1506,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 2000
+    },
+    {
+      "budgets_budget_id": 1970,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1499,
+      "planned_amount_credit": 350000,
+      "current_amount": "0",
+      "planned_amount_debit": "0"
+    },
+    {
+      "budgets_budget_id": 1970,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1500,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 80000
+    },
+    {
+      "budgets_budget_id": 1970,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1503,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 27000
+    },
+    {
+      "budgets_budget_id": 1970,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1504,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 17700
+    },
+    {
+      "budgets_budget_id": 1970,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1505,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 20000
+    },
+    {
+      "budgets_budget_id": 1970,
+      "budgets_users_user_id": 7,
+      "categories_category_id": 1506,
+      "planned_amount_credit": "0",
+      "current_amount": "0",
+      "planned_amount_debit": 2000
+    }
+  ],
+  "categories": [
+    {
+      "category_id": 1506,
+      "name": "Auto Maintenance 🚗",
+      "type": "M",
+      "users_user_id": 7,
+      "description": "Car repairs, upgrades, etc...",
+      "color_gradient": "decent-gradient",
+      "status": "Ativa",
+      "exclude_from_budgets": 0
+    },
+    {
+      "category_id": 1505,
+      "name": "Entertainment & Eating Out 🍿",
+      "type": "M",
+      "users_user_id": 7,
+      "description": "Eating out, going to the movies, etc...",
+      "color_gradient": "orange-gradient",
+      "status": "Ativa",
+      "exclude_from_budgets": 0
+    },
+    {
+      "category_id": 1500,
+      "name": "Groceries 🛒",
+      "type": "M",
+      "users_user_id": 7,
+      "description": "",
+      "color_gradient": "orange-coral-gradient",
+      "status": "Ativa",
+      "exclude_from_budgets": 0
+    },
+    {
+      "category_id": 1498,
+      "name": "Home Repairs 🧰",
+      "type": "M",
+      "users_user_id": 7,
+      "description": "Home maintenance & repais",
+      "color_gradient": "red-gradient",
+      "status": "Ativa",
+      "exclude_from_budgets": 0
+    },
+    {
+      "category_id": 1504,
+      "name": "Loan Interest 🧾",
+      "type": "M",
+      "users_user_id": 7,
+      "description": "Loans interest & other banking expenses",
+      "color_gradient": "green-gradient",
+      "status": "Ativa",
+      "exclude_from_budgets": 0
+    },
+    {
+      "category_id": 1503,
+      "name": "Loan Payments 💸",
+      "type": "M",
+      "users_user_id": 7,
+      "description": "Principal payments related to loans",
+      "color_gradient": "decent-gradient",
+      "status": "Ativa",
+      "exclude_from_budgets": 0
+    },
+    {
+      "category_id": 1501,
+      "name": "Reimbursable 💫",
+      "type": "M",
+      "users_user_id": 7,
+      "description": "Minor loans to family & friends and other reimbursable expenses",
+      "color_gradient": "lush-gradient",
+      "status": "Ativa",
+      "exclude_from_budgets": 0
+    },
+    {
+      "category_id": 1507,
+      "name": "Some other category",
+      "type": "M",
+      "users_user_id": 7,
+      "description": "",
+      "color_gradient": "dark-blue-gradient",
+      "status": "Inativa",
+      "exclude_from_budgets": 0
+    },
+    {
+      "category_id": 1502,
+      "name": "Utilities 💧⚡📺",
+      "type": "M",
+      "users_user_id": 7,
+      "description": "Water, electricity, tv & related bills",
+      "color_gradient": "mauve-gradient",
+      "status": "Ativa",
+      "exclude_from_budgets": 0
+    },
+    {
+      "category_id": 1499,
+      "name": "Wages 💼",
+      "type": "M",
+      "users_user_id": 7,
+      "description": "Job salaries & related comp",
+      "color_gradient": "red-gradient",
+      "status": "Ativa",
+      "exclude_from_budgets": 0
+    }
+  ],
+  "entities": [
+    {
+      "entity_id": 12345,
+      "name": "ABC Supermarket",
+      "users_user_id": 7
+    },
+    {
+      "entity_id": 12346,
+      "name": "Best Company",
+      "users_user_id": 7
+    },
+    {
+      "entity_id": 12347,
+      "name": "XYZ Store",
+      "users_user_id": 7
+    },
+    {
+      "entity_id": 12348,
+      "name": "QUERTY Store",
+      "users_user_id": 7
+    },
+    {
+      "entity_id": 12349,
+      "name": "Chow's Restaurant",
+      "users_user_id": 7
+    },
+    {
+      "entity_id": 12350,
+      "name": "HQ Mutual",
+      "users_user_id": 7
+    },
+    {
+      "entity_id": 12351,
+      "name": "DeliCely Restaurant",
+      "users_user_id": 7
+    },
+    {
+      "entity_id": 12352,
+      "name": "Popcorn World",
+      "users_user_id": 7
+    },
+    {
+      "entity_id": 12353,
+      "name": "BBank",
+      "users_user_id": 7
+    }
+  ],
+  "tags": [],
+  "invest_asset_evo_snapshot": [
+    {
+      "month": 1,
+      "year": 2026,
+      "units": "1502.3",
+      "invested_amount": 150000,
+      "current_value": 150230,
+      "invest_assets_asset_id": 752,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 7,
+      "year": 2025,
+      "units": "1502.3",
+      "invested_amount": 150000,
+      "current_value": 150230,
+      "invest_assets_asset_id": 752,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 8,
+      "year": 2025,
+      "units": "1502.3",
+      "invested_amount": 150000,
+      "current_value": 150230,
+      "invest_assets_asset_id": 752,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 9,
+      "year": 2025,
+      "units": "1502.3",
+      "invested_amount": 150000,
+      "current_value": 150230,
+      "invest_assets_asset_id": 752,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 10,
+      "year": 2025,
+      "units": "1502.3",
+      "invested_amount": 150000,
+      "current_value": 150230,
+      "invest_assets_asset_id": 752,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 11,
+      "year": 2025,
+      "units": "1502.3",
+      "invested_amount": 150000,
+      "current_value": 150230,
+      "invest_assets_asset_id": 752,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 12,
+      "year": 2025,
+      "units": "1502.3",
+      "invested_amount": 150000,
+      "current_value": 150230,
+      "invest_assets_asset_id": 752,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 1,
+      "year": 2026,
+      "units": "800",
+      "invested_amount": 80000,
+      "current_value": 80000,
+      "invest_assets_asset_id": 753,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 7,
+      "year": 2025,
+      "units": "800",
+      "invested_amount": 80000,
+      "current_value": 80000,
+      "invest_assets_asset_id": 753,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 8,
+      "year": 2025,
+      "units": "800",
+      "invested_amount": 80000,
+      "current_value": 80000,
+      "invest_assets_asset_id": 753,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 9,
+      "year": 2025,
+      "units": "800",
+      "invested_amount": 80000,
+      "current_value": 80000,
+      "invest_assets_asset_id": 753,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 10,
+      "year": 2025,
+      "units": "800",
+      "invested_amount": 80000,
+      "current_value": 80000,
+      "invest_assets_asset_id": 753,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 11,
+      "year": 2025,
+      "units": "800",
+      "invested_amount": 80000,
+      "current_value": 80000,
+      "invest_assets_asset_id": 753,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 12,
+      "year": 2025,
+      "units": "800",
+      "invested_amount": 80000,
+      "current_value": 80000,
+      "invest_assets_asset_id": 753,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 1,
+      "year": 2026,
+      "units": "0.5",
+      "invested_amount": 1235000,
+      "current_value": 1115000,
+      "invest_assets_asset_id": 754,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 7,
+      "year": 2025,
+      "units": "0.5",
+      "invested_amount": 1235000,
+      "current_value": 1115000,
+      "invest_assets_asset_id": 754,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 8,
+      "year": 2025,
+      "units": "0.5",
+      "invested_amount": 1235000,
+      "current_value": 1115000,
+      "invest_assets_asset_id": 754,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 9,
+      "year": 2025,
+      "units": "0.5",
+      "invested_amount": 1235000,
+      "current_value": 1115000,
+      "invest_assets_asset_id": 754,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 10,
+      "year": 2025,
+      "units": "0.5",
+      "invested_amount": 1235000,
+      "current_value": 1115000,
+      "invest_assets_asset_id": 754,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 11,
+      "year": 2025,
+      "units": "0.5",
+      "invested_amount": 1235000,
+      "current_value": 1115000,
+      "invest_assets_asset_id": 754,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 12,
+      "year": 2025,
+      "units": "0.5",
+      "invested_amount": 1235000,
+      "current_value": 1115000,
+      "invest_assets_asset_id": 754,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 1,
+      "year": 2026,
+      "units": "0",
+      "invested_amount": "0",
+      "current_value": 54200,
+      "invest_assets_asset_id": 755,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 7,
+      "year": 2025,
+      "units": "0",
+      "invested_amount": "0",
+      "current_value": 54200,
+      "invest_assets_asset_id": 755,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 8,
+      "year": 2025,
+      "units": "0",
+      "invested_amount": "0",
+      "current_value": 54200,
+      "invest_assets_asset_id": 755,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 9,
+      "year": 2025,
+      "units": "0",
+      "invested_amount": "0",
+      "current_value": 54200,
+      "invest_assets_asset_id": 755,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 10,
+      "year": 2025,
+      "units": "0",
+      "invested_amount": "0",
+      "current_value": 54200,
+      "invest_assets_asset_id": 755,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 11,
+      "year": 2025,
+      "units": "0",
+      "invested_amount": "0",
+      "current_value": 54200,
+      "invest_assets_asset_id": 755,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    },
+    {
+      "month": 12,
+      "year": 2025,
+      "units": "0",
+      "invested_amount": "0",
+      "current_value": 54200,
+      "invest_assets_asset_id": 755,
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "withdrawn_amount": "0"
+    }
+  ],
+  "invest_assets": [
+    {
+      "asset_id": 752,
+      "name": "High Yield Savings Acc",
+      "ticker": "HYSA",
+      "units": "1502.3",
+      "type": "fixed",
+      "broker": "BBank",
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "users_user_id": 7
+    },
+    {
+      "asset_id": 753,
+      "name": "Emergency Fund",
+      "ticker": "EF",
+      "units": "800",
+      "type": "fixed",
+      "broker": "BBank",
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "users_user_id": 7
+    },
+    {
+      "asset_id": 754,
+      "name": "Bitcoin",
+      "ticker": "BTC",
+      "units": "0.5",
+      "type": "crypto",
+      "broker": "Binance",
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "users_user_id": 7
+    },
+    {
+      "asset_id": 755,
+      "name": "Vanguard FTSE All-World UCITS ETF USD Acc",
+      "ticker": "VWCE",
+      "units": "0",
+      "type": "etf",
+      "broker": "DEGIRO",
+      "created_at": 1751760595,
+      "updated_at": 1751760595,
+      "users_user_id": 7
+    }
+  ],
+  "invest_desired_allocations": [],
+  "invest_transactions": [
+    {
+      "transaction_id": 3660,
+      "date_timestamp": 1751587200,
+      "type": "B",
+      "note": "Initial investment",
+      "total_price": 150000,
+      "units": "1500",
+      "fees_taxes": "0",
+      "invest_assets_asset_id": 752,
+      "created_at": 1751760595,
+      "updated_at": 1751760595
+    },
+    {
+      "transaction_id": 3663,
+      "date_timestamp": 1752364800,
+      "type": "B",
+      "note": "Yield",
+      "total_price": "0",
+      "units": "2.3",
+      "fees_taxes": "0",
+      "invest_assets_asset_id": 752,
+      "created_at": 1751760595,
+      "updated_at": 1751760595
+    },
+    {
+      "transaction_id": 3661,
+      "date_timestamp": 1751587200,
+      "type": "B",
+      "note": "Initial investment",
+      "total_price": 80000,
+      "units": "800",
+      "fees_taxes": "0",
+      "invest_assets_asset_id": 753,
+      "created_at": 1751760595,
+      "updated_at": 1751760595
+    },
+    {
+      "transaction_id": 3662,
+      "date_timestamp": 1752192000,
+      "type": "B",
+      "note": "Initial investment",
+      "total_price": 1235000,
+      "units": "0.5",
+      "fees_taxes": "0",
+      "invest_assets_asset_id": 754,
+      "created_at": 1751760595,
+      "updated_at": 1751760595
+    }
+  ],
+  "rules": [
+    {
+      "rule_id": 5288,
+      "matcher_description_operator": "CONTAINS",
+      "matcher_description_value": "wage",
+      "matcher_amount_operator": "EQ",
+      "matcher_amount_value": 35000000,
+      "matcher_type_operator": "EQ",
+      "matcher_type_value": "I",
+      "matcher_account_to_id_operator": "IG",
+      "matcher_account_to_id_value": null,
+      "matcher_account_from_id_operator": "IG",
+      "matcher_account_from_id_value": null,
+      "assign_category_id": 1499,
+      "assign_entity_id": 12346,
+      "assign_account_to_id": null,
+      "assign_account_from_id": null,
+      "assign_type": "",
+      "users_user_id": 7,
+      "assign_is_essential": true
+    },
+    {
+      "rule_id": 5289,
+      "matcher_description_operator": "CONTAINS",
+      "matcher_description_value": "movies",
+      "matcher_amount_operator": "IG",
+      "matcher_amount_value": null,
+      "matcher_type_operator": "IG",
+      "matcher_type_value": "",
+      "matcher_account_to_id_operator": "IG",
+      "matcher_account_to_id_value": null,
+      "matcher_account_from_id_operator": "IG",
+      "matcher_account_from_id_value": null,
+      "assign_category_id": 1505,
+      "assign_entity_id": 12352,
+      "assign_account_to_id": null,
+      "assign_account_from_id": null,
+      "assign_type": "",
+      "users_user_id": 7,
+      "assign_is_essential": false
+    }
+  ],
+  "transactions": [
+    {
+      "transaction_id": 82749,
+      "date_timestamp": 1745539200,
+      "amount": 500000,
+      "type": "I",
+      "description": "Initial balance",
+      "entities_entity_id": 12350,
+      "accounts_account_from_id": null,
+      "accounts_account_to_id": 1713,
+      "categories_category_id": null,
+      "is_essential": false
+    },
+    {
+      "transaction_id": 82750,
+      "date_timestamp": 1746144000,
+      "amount": 30000000,
+      "type": "E",
+      "description": "",
+      "entities_entity_id": 12350,
+      "accounts_account_from_id": 1717,
+      "accounts_account_to_id": null,
+      "categories_category_id": null,
+      "is_essential": false
+    },
+    {
+      "transaction_id": 82751,
+      "date_timestamp": 1746230400,
+      "amount": 200000,
+      "type": "T",
+      "description": "Savings",
+      "entities_entity_id": 12350,
+      "accounts_account_from_id": 1713,
+      "accounts_account_to_id": 1714,
+      "categories_category_id": null,
+      "is_essential": false
+    },
+    {
+      "transaction_id": 82752,
+      "date_timestamp": 1746230400,
+      "amount": 8960,
+      "type": "E",
+      "description": "Eating out",
+      "entities_entity_id": 12350,
+      "accounts_account_from_id": 1716,
+      "accounts_account_to_id": null,
+      "categories_category_id": 1505,
+      "is_essential": false
+    },
+    {
+      "transaction_id": 82753,
+      "date_timestamp": 1749081600,
+      "amount": 13567,
+      "type": "E",
+      "description": "Grocery shopping",
+      "entities_entity_id": 12345,
+      "accounts_account_from_id": 1716,
+      "accounts_account_to_id": null,
+      "categories_category_id": 1500,
+      "is_essential": true
+    },
+    {
+      "transaction_id": 82754,
+      "date_timestamp": 1750464000,
+      "amount": 350000,
+      "type": "I",
+      "description": "Monthly wage",
+      "entities_entity_id": 12346,
+      "accounts_account_from_id": null,
+      "accounts_account_to_id": 1713,
+      "categories_category_id": 1499,
+      "is_essential": false
+    },
+    {
+      "transaction_id": 82755,
+      "date_timestamp": 1750464000,
+      "amount": 50000,
+      "type": "T",
+      "description": "Savings increase",
+      "entities_entity_id": 12350,
+      "accounts_account_from_id": 1713,
+      "accounts_account_to_id": 1714,
+      "categories_category_id": null,
+      "is_essential": false
+    },
+    {
+      "transaction_id": 82756,
+      "date_timestamp": 1750636800,
+      "amount": 26730,
+      "type": "T",
+      "description": "Loan principal payment",
+      "entities_entity_id": 12350,
+      "accounts_account_from_id": 1713,
+      "accounts_account_to_id": 1717,
+      "categories_category_id": 1503,
+      "is_essential": true
+    },
+    {
+      "transaction_id": 82757,
+      "date_timestamp": 1750636800,
+      "amount": 17650,
+      "type": "E",
+      "description": "Loan interest payment",
+      "entities_entity_id": 12350,
+      "accounts_account_from_id": 1713,
+      "accounts_account_to_id": null,
+      "categories_category_id": 1504,
+      "is_essential": true
+    },
+    {
+      "transaction_id": 82758,
+      "date_timestamp": 1750809600,
+      "amount": 30187,
+      "type": "E",
+      "description": "Grocery Shopping",
+      "entities_entity_id": 12345,
+      "accounts_account_from_id": 1716,
+      "accounts_account_to_id": null,
+      "categories_category_id": 1500,
+      "is_essential": true
+    },
+    {
+      "transaction_id": 82759,
+      "date_timestamp": 1751414400,
+      "amount": 15632,
+      "type": "E",
+      "description": "Grocery shopping",
+      "entities_entity_id": 12345,
+      "accounts_account_from_id": 1716,
+      "accounts_account_to_id": null,
+      "categories_category_id": 1500,
+      "is_essential": true
+    },
+    {
+      "transaction_id": 82760,
+      "date_timestamp": 1751846400,
+      "amount": 52714,
+      "type": "T",
+      "description": "Card payment",
+      "entities_entity_id": 12353,
+      "accounts_account_from_id": 1713,
+      "accounts_account_to_id": 1716,
+      "categories_category_id": 1503,
+      "is_essential": true
+    },
+    {
+      "transaction_id": 82761,
+      "date_timestamp": 1752796800,
+      "amount": 42096,
+      "type": "E",
+      "description": "Grocery shopping",
+      "entities_entity_id": 12345,
+      "accounts_account_from_id": 1716,
+      "accounts_account_to_id": null,
+      "categories_category_id": 1500,
+      "is_essential": true
+    },
+    {
+      "transaction_id": 82762,
+      "date_timestamp": 1752883200,
+      "amount": 3264,
+      "type": "E",
+      "description": "Going to the movies",
+      "entities_entity_id": 12352,
+      "accounts_account_from_id": 1716,
+      "accounts_account_to_id": null,
+      "categories_category_id": 1505,
+      "is_essential": false
+    },
+    {
+      "transaction_id": 82763,
+      "date_timestamp": 1753056000,
+      "amount": 350000,
+      "type": "I",
+      "description": "Monthly wage",
+      "entities_entity_id": 12346,
+      "accounts_account_from_id": null,
+      "accounts_account_to_id": 1713,
+      "categories_category_id": 1499,
+      "is_essential": false
+    },
+    {
+      "transaction_id": 82764,
+      "date_timestamp": 1753228800,
+      "amount": 26730,
+      "type": "T",
+      "description": "Loan principal payment",
+      "entities_entity_id": 12350,
+      "accounts_account_from_id": 1713,
+      "accounts_account_to_id": 1717,
+      "categories_category_id": 1503,
+      "is_essential": true
+    },
+    {
+      "transaction_id": 82765,
+      "date_timestamp": 1753401600,
+      "amount": 30187,
+      "type": "E",
+      "description": "Grocery shopping",
+      "entities_entity_id": 12345,
+      "accounts_account_from_id": 1716,
+      "accounts_account_to_id": null,
+      "categories_category_id": 1500,
+      "is_essential": true
+    }
+  ]
+}
