@@ -1,7 +1,7 @@
 import i18next from "i18next";
 import * as middleware from "i18next-http-middleware";
-import en from "../locales/en.json" assert { type: "json" };
-import pt from "../locales/pt.json" assert { type: "json" };
+import en from "../locales/en.json" with { type: "json" };
+import pt from "../locales/pt.json" with { type: "json" };
 
 i18next.use(middleware.LanguageDetector).init({
   resources: {

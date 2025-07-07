@@ -3,6 +3,9 @@ import helmet from 'helmet';
 import cors from 'cors';
 import router from './routes/router.js';
 import { rateLimiter, apiErrorHandler, i18n } from "./middlewares/index.js";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json");
 
 const app = express();
 
@@ -28,7 +31,7 @@ app.use("/",
 );
 
 app.get('/', (request, response) => {
-  response.json({ info: 'MyFin API' });
+  response.json({ info: 'MyFin API', version: version });
 });
 
 router(app);
