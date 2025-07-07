@@ -1,6 +1,8 @@
 import { prisma } from "../config/prisma.js";
 import { Prisma } from "@prisma/client";
-import { version } from "../../package.json";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const { version } = require("../../package.json");
 import { isSameMajorVersion } from "./textUtils.js";
 import APIError from "../errorHandling/apiError.js";
 import { RestoreUserErrorCodes } from "../controllers/userController.js";
