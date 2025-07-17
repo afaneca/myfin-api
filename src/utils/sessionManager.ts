@@ -18,10 +18,32 @@ const updateUserSessionKeyValue = async (username: string, newSessionKey: string
 
 const updateUserTrustlimitValue = async (username: string, newTrustLimit: number, mobile = false) => {
     const trustLimitAttr = mobile ? 'trustlimit_mobile' : 'trustlimit';
-    await User.update({
-        where: {username},
-        data: {[trustLimitAttr]: newTrustLimit},
-    });
+    let retries = 5;
+    while (retries > 0) {
+        //    Logger.addLog(`RETRY 1020 error (remaining: ${retries})`);
+        try {
+            await User.update({
+                where: { username },
+                data: { [trustLimitAttr]: newTrustLimit },
+            });
+            return;
+        } catch (err) {
+            const isKnown1020 =
+                err.code === '1020';
+            const isUnknown1020 =
+                err.message.includes("code: 1020");
+
+            if (isKnown1020 || isUnknown1020) {
+                retries--;
+
+                if (retries === 0) throw err;
+
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            } else {
+                throw err;
+            }
+        }
+    }
 };
 
 /**
