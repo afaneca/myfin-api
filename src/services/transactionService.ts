@@ -585,7 +585,7 @@ const updateTransaction = async (
         );
         break;
       case MYFIN.TRX_TYPES.EXPENSE:
-        await AccountService.changeBalance(userId, oldAccountFrom, -oldAmount, prismaTx);
+        await AccountService.changeBalance(userId, oldAccountFrom, oldAmount, prismaTx);
         await AccountService.recalculateBalanceForAccountIncrementally(
           oldAccountFrom,
           oldTimestamp - 1n,
@@ -602,9 +602,9 @@ const updateTransaction = async (
           DateTimeUtils.getCurrentUnixTimestamp() + 1,
           prismaTx
         );
-        await AccountService.changeBalance(userId, oldAccountTo, -oldAmount, prismaTx);
+        await AccountService.changeBalance(userId, oldAccountFrom, oldAmount, prismaTx);
         await AccountService.recalculateBalanceForAccountIncrementally(
-          oldAccountTo,
+          oldAccountFrom,
           oldTimestamp - 1n,
           DateTimeUtils.getCurrentUnixTimestamp() + 1,
           prismaTx
