@@ -2,7 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import router from './routes/router.js';
-import { rateLimiter, apiErrorHandler, i18n } from "./middlewares/index.js";
+import { rateLimiter, apiErrorHandler, i18n, headerInjector } from "./middlewares/index.js";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json");
@@ -13,6 +13,7 @@ app.use(rateLimiter);
 app.use(cors());
 app.use(helmet());
 app.use(i18n.middleware());
+app.use(headerInjector);
 
 // payload size exception for /user/restore endpoint
 app.use("/user/restore", express.json({ limit: '100mb' }));
