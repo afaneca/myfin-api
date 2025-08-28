@@ -564,10 +564,10 @@ const getCalculatedAmountsForUserInMonth = async (
   userCategories: { category_id: bigint, name: string }[] | null = null,
   dbClient = prisma
 ): Promise<MonthByMonthDataItem> => {
-  const categories = userCategories ?? await CategoryService.getAllCategoriesForUser(userId, {
+  const categories = userCategories ?? (await CategoryService.getAllCategoriesForUser(userId, {
     category_id: true,
     name: true,
-  }, dbClient);
+  }, dbClient));
 
   const promises = [];
   for (const category of categories) {
