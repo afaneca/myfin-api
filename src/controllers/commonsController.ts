@@ -24,7 +24,7 @@ const checkAuthSessionValidity = async (req: Request, renewTrustLimit = true) =>
   const userId : bigint  = await userService.getUserIdFromUsername(username);
 
   if (
-    !(!bypassSessionChecking && await SessionManager.checkIfSessionKeyIsValid(sessionkey, username, renewTrustLimit, mobile))
+    !(!bypassSessionChecking && (await SessionManager.checkIfSessionKeyIsValid(sessionkey, username, renewTrustLimit, mobile)))
   ) {
     throw APIError.notAuthorized();
   }
