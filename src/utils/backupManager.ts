@@ -1,21 +1,21 @@
-import { prisma } from "../config/prisma.js";
-import { Prisma } from "@prisma/client";
-import { createRequire } from "node:module";
-const require = createRequire(import.meta.url);
-const { version } = require("../../package.json");
-import { isSameMajorVersion } from "./textUtils.js";
-import APIError from "../errorHandling/apiError.js";
-import { RestoreUserErrorCodes } from "../controllers/userController.js";
-import UserService from "../services/userService.js";
-import AccountService from "../services/accountService.js";
-import CategoryService from "../services/categoryService.js";
-import EntityService from "../services/entityService.js";
-import TagService from "../services/tagService.js";
-import RuleService from "../services/ruleService.js";
-import BudgetService from "../services/budgetService.js";
-import Logger from "./Logger.js";
-import { MYFIN } from "../consts.js";
+import { prisma } from '../config/prisma.js';
+import { Prisma } from '@prisma/client';
+import { createRequire } from 'node:module';
+import { isSameMajorVersion } from './textUtils.js';
+import APIError from '../errorHandling/apiError.js';
+import { RestoreUserErrorCodes } from '../controllers/userController.js';
+import UserService from '../services/userService.js';
+import AccountService from '../services/accountService.js';
+import CategoryService from '../services/categoryService.js';
+import EntityService from '../services/entityService.js';
+import TagService from '../services/tagService.js';
+import RuleService from '../services/ruleService.js';
+import Logger from './Logger.js';
+import { MYFIN } from '../consts.js';
+import ConvertUtils from './convertUtils.js';
 
+const require = createRequire(import.meta.url);
+const { version } = require('../../package.json');
 
 export interface BackupData {
   apiVersion: string;
@@ -36,7 +36,6 @@ export interface BackupData {
 
 class BackupManager {
   static async createBackup(userId: bigint, dbClient = prisma): Promise<BackupData> {
-
     const [
       accounts,
       balancesSnapshot,
@@ -86,7 +85,7 @@ class BackupManager {
 
       // Tags
       dbClient.tags.findMany({
-        where: { users_user_id: userId, },
+        where: { users_user_id: userId },
       }),
 
       // Investment snapshots
@@ -149,7 +148,10 @@ class BackupManager {
 
   static async restoreBackup(userId: bigint, data: BackupData, dbClient = prisma) {
     if (!isSameMajorVersion(data.apiVersion, version)) {
-      throw APIError.notAcceptable("This backups is not compatible with your API version.", RestoreUserErrorCodes.IncompatibleVersions);
+      throw APIError.notAcceptable(
+        'This backups is not compatible with your API version.',
+        RestoreUserErrorCodes.IncompatibleVersions
+      );
     }
 
     // We need to map the previous ids to the newly generated ones to maintain the already existing associations between entities
@@ -168,15 +170,24 @@ class BackupManager {
     // region Accounts
     const accountPromises = data.accounts.map(async (account) => {
       if (!Object.values(MYFIN.ACCOUNT_TYPES).includes(account.type)) {
-        throw APIError.notAcceptable(`Account type not recognized for account #${account.account_id}`, RestoreUserErrorCodes.MalformedBackup);
+        throw APIError.notAcceptable(
+          `Account type not recognized for account #${account.account_id}`,
+          RestoreUserErrorCodes.MalformedBackup
+        );
       }
 
       if (!Object.values(MYFIN.ACCOUNT_STATUS).includes(account.status)) {
-        throw APIError.notAcceptable(`Account status not recognized for account #${account.account_id}`, RestoreUserErrorCodes.MalformedBackup);
+        throw APIError.notAcceptable(
+          `Account status not recognized for account #${account.account_id}`,
+          RestoreUserErrorCodes.MalformedBackup
+        );
       }
 
-      if (typeof account.exclude_from_budgets !== "boolean") {
-        throw APIError.notAcceptable(`Account exclude_from_budgets flag not recognized for account #${account.account_id}`, RestoreUserErrorCodes.MalformedBackup);
+      if (typeof account.exclude_from_budgets !== 'boolean') {
+        throw APIError.notAcceptable(
+          `Account exclude_from_budgets flag not recognized for account #${account.account_id}`,
+          RestoreUserErrorCodes.MalformedBackup
+        );
       }
 
       const newAccount = await dbClient.accounts.create({
@@ -191,7 +202,7 @@ class BackupManager {
           created_timestamp: account.created_timestamp,
           updated_timestamp: account.updated_timestamp,
           color_gradient: account.color_gradient,
-        }
+        },
       });
 
       // Map old ID to new ID
@@ -202,11 +213,17 @@ class BackupManager {
     // region Categories
     const categoryPromises = data.categories.map(async (category) => {
       if (!Object.values([0, 1]).includes(category.exclude_from_budgets)) {
-        throw APIError.notAcceptable(`Category exclude_from_budgets flag not recognized for category #${category.category_id}`, RestoreUserErrorCodes.MalformedBackup);
+        throw APIError.notAcceptable(
+          `Category exclude_from_budgets flag not recognized for category #${category.category_id}`,
+          RestoreUserErrorCodes.MalformedBackup
+        );
       }
 
       if (!Object.values(MYFIN.CATEGORY_STATUS).includes(category.status)) {
-        throw APIError.notAcceptable(`Category status not recognized for category #${category.category_id}`, RestoreUserErrorCodes.MalformedBackup);
+        throw APIError.notAcceptable(
+          `Category status not recognized for category #${category.category_id}`,
+          RestoreUserErrorCodes.MalformedBackup
+        );
       }
 
       const newCategory = await CategoryService.createCategory(
@@ -219,7 +236,7 @@ class BackupManager {
           status: category.status,
           exclude_from_budgets: category.exclude_from_budgets,
         },
-        dbClient,
+        dbClient
       );
       // Map old ID to new ID
       categoryIdMap.set(category.category_id, newCategory.category_id);
@@ -233,7 +250,7 @@ class BackupManager {
           users_user_id: userId,
           name: entity.name,
         },
-        dbClient,
+        dbClient
       );
 
       // Map old ID to new ID
@@ -249,7 +266,7 @@ class BackupManager {
           name: tag.name,
           description: tag.description,
         },
-        dbClient,
+        dbClient
       );
 
       // Map old ID to new ID
@@ -257,53 +274,13 @@ class BackupManager {
       return newTag;
     });
     // endregion
-    // region Rules
-    const rulePromises = data.rules.map(async (rule) => {
-      if (
-        !Object.values(MYFIN.RULES.OPERATOR).includes(rule.matcher_account_from_id_operator)
-        || !Object.values(MYFIN.RULES.OPERATOR).includes(rule.matcher_account_to_id_operator)
-        || !Object.values(MYFIN.RULES.OPERATOR).includes(rule.matcher_amount_operator)
-        || !Object.values(MYFIN.RULES.OPERATOR).includes(rule.matcher_type_operator)
-        || !Object.values(MYFIN.RULES.OPERATOR).includes(rule.matcher_description_operator)
-      ) {
-        throw APIError.notAcceptable(`Rule operator not recognized for rule #${rule.rule_id}`, RestoreUserErrorCodes.MalformedBackup);
-      }
-
-      if (typeof rule.assign_is_essential !== 'boolean') {
-        throw APIError.notAcceptable(`Rule assign_is_essential flag not recognized for rule #${rule.rule_id}`, RestoreUserErrorCodes.MalformedBackup);
-      }
-
-
-      // check if all values are valid
-      const newRule = await RuleService.createRule(
-        userId, {
-          users_user_id: userId,
-          matcher_description_operator: rule.matcher_description_operator,
-          matcher_description_value: rule.matcher_description_value,
-          matcher_amount_operator: rule.matcher_amount_operator,
-          matcher_amount_value: rule.matcher_amount_value,
-          matcher_type_operator: rule.matcher_type_operator,
-          matcher_type_value: rule.matcher_type_value,
-          matcher_account_to_id_operator: rule.matcher_account_to_id_operator,
-          matcher_account_to_id_value: rule.matcher_account_to_id_value,
-          matcher_account_from_id_operator: rule.matcher_account_from_id_operator,
-          matcher_account_from_id_value: rule.matcher_account_from_id_value,
-          assign_category_id: rule.assign_category_id,
-          assign_entity_id: rule.assign_entity_id,
-          assign_account_to_id: rule.assign_account_to_id,
-          assign_account_from_id: rule.assign_account_from_id,
-          assign_type: rule.assign_type,
-          assign_is_essential: rule.assign_is_essential,
-        },
-        dbClient,
-      );
-      return newRule;
-    });
-    // endregion
     // region Invest Assets
     const assetPromises = data.invest_assets.map(async (asset) => {
       if (!Object.values(MYFIN.INVEST.ASSET_TYPE).includes(asset.type)) {
-        throw APIError.notAcceptable(`Asset type not recognized for asset #${asset.asset_id}`, RestoreUserErrorCodes.MalformedBackup);
+        throw APIError.notAcceptable(
+          `Asset type not recognized for asset #${asset.asset_id}`,
+          RestoreUserErrorCodes.MalformedBackup
+        );
       }
 
       const newAsset = await dbClient.invest_assets.create({
@@ -316,7 +293,7 @@ class BackupManager {
           created_at: asset.created_at,
           updated_at: asset.updated_at,
           users_user_id: userId,
-        }
+        },
       });
 
       // Map old ID to new ID
@@ -347,15 +324,70 @@ class BackupManager {
       ...categoryPromises,
       ...entityPromises,
       ...tagPromises,
-      ...rulePromises,
       ...assetPromises,
-      ...budgetPromises]);
+      ...budgetPromises,
+    ]);
     Logger.addLog(`BackupManager > Restore | Core entities successfully imported!`);
+
+    // region Rules
+    // check if all values are valid
+    const rulePromises = data.rules.map(async (rule) => {
+      if (
+        !Object.values(MYFIN.RULES.OPERATOR).includes(rule.matcher_account_from_id_operator) ||
+        !Object.values(MYFIN.RULES.OPERATOR).includes(rule.matcher_account_to_id_operator) ||
+        !Object.values(MYFIN.RULES.OPERATOR).includes(rule.matcher_amount_operator) ||
+        !Object.values(MYFIN.RULES.OPERATOR).includes(rule.matcher_type_operator) ||
+        !Object.values(MYFIN.RULES.OPERATOR).includes(rule.matcher_description_operator)
+      ) {
+        throw APIError.notAcceptable(
+          `Rule operator not recognized for rule #${rule.rule_id}`,
+          RestoreUserErrorCodes.MalformedBackup
+        );
+      }
+
+      if (typeof rule.assign_is_essential !== 'boolean') {
+        throw APIError.notAcceptable(
+          `Rule assign_is_essential flag not recognized for rule #${rule.rule_id}`,
+          RestoreUserErrorCodes.MalformedBackup
+        );
+      }
+
+      const newRule = await RuleService.createRule(
+        userId,
+        {
+          users_user_id: userId,
+          matcher_description_operator: rule.matcher_description_operator,
+          matcher_description_value: rule.matcher_description_value,
+          matcher_amount_operator: rule.matcher_amount_operator,
+          matcher_amount_value: rule.matcher_amount_value
+            ? ConvertUtils.convertBigIntegerToFloat(rule.matcher_amount_value)
+            : undefined,
+          matcher_type_operator: rule.matcher_type_operator,
+          matcher_type_value: rule.matcher_type_value,
+          matcher_account_to_id_operator: rule.matcher_account_to_id_operator,
+          matcher_account_to_id_value: accountIdMap.get(rule.matcher_account_to_id_value),
+          matcher_account_from_id_operator: rule.matcher_account_from_id_operator,
+          matcher_account_from_id_value: accountIdMap.get(rule.matcher_account_from_id_value),
+          assign_category_id: categoryIdMap.get(rule.assign_category_id),
+          assign_entity_id: entityIdMap.get(rule.assign_entity_id),
+          assign_account_to_id: accountIdMap.get(rule.assign_account_to_id),
+          assign_account_from_id: accountIdMap.get(rule.assign_account_from_id),
+          assign_type: rule.assign_type,
+          assign_is_essential: rule.assign_is_essential,
+        },
+        dbClient
+      );
+      return newRule;
+    });
+    // endregion
 
     //region Transactions
     const trxPromises = data.transactions.map(async (trx) => {
       if (!Object.values(MYFIN.TRX_TYPES).includes(trx.type)) {
-        throw APIError.notAcceptable(`Transaction type not recognized for transaction #${trx.transaction_id}`, RestoreUserErrorCodes.MalformedBackup);
+        throw APIError.notAcceptable(
+          `Transaction type not recognized for transaction #${trx.transaction_id}`,
+          RestoreUserErrorCodes.MalformedBackup
+        );
       }
 
       const newTrx = await dbClient.transactions.create({
@@ -369,7 +401,7 @@ class BackupManager {
           accounts_account_to_id: accountIdMap.get(trx.accounts_account_to_id),
           categories_category_id: categoryIdMap.get(trx.categories_category_id),
           is_essential: trx.is_essential,
-        }
+        },
       });
       return newTrx;
     });
@@ -377,7 +409,10 @@ class BackupManager {
     // region Asset Transactions
     const assetTrxPromises = data.invest_transactions.map(async (trx) => {
       if (!Object.values(MYFIN.INVEST.TRX_TYPE).includes(trx.type)) {
-        throw APIError.notAcceptable(`Asset transaction type not recognized for transaction #${trx.transaction_id}`, RestoreUserErrorCodes.MalformedBackup);
+        throw APIError.notAcceptable(
+          `Asset transaction type not recognized for transaction #${trx.transaction_id}`,
+          RestoreUserErrorCodes.MalformedBackup
+        );
       }
 
       const newTrx = await dbClient.invest_transactions.create({
@@ -391,17 +426,14 @@ class BackupManager {
           invest_assets_asset_id: assetIdMap.get(trx.invest_assets_asset_id),
           created_at: trx.created_at,
           updated_at: trx.updated_at,
-        }
+        },
       });
       return newTrx;
     });
     // endregion
 
     Logger.addLog(`BackupManager > Restore | Importing transactions...`);
-    await Promise.all([
-      ...trxPromises,
-      ...assetTrxPromises,
-    ]);
+    await Promise.all([...rulePromises, ...trxPromises, ...assetTrxPromises]);
     Logger.addLog(`BackupManager > Restore | Transactions successfully imported!`);
 
     // region Asset Evolution Snapshots
@@ -417,7 +449,7 @@ class BackupManager {
           created_at: snapshot.created_at,
           updated_at: snapshot.updated_at,
           withdrawn_amount: snapshot.withdrawn_amount,
-        }
+        },
       });
       return newSnapshot;
     });
@@ -433,7 +465,7 @@ class BackupManager {
           planned_amount_credit: category.planned_amount_credit,
           planned_amount_debit: category.planned_amount_debit,
           current_amount: category.current_amount,
-        }
+        },
       });
 
       return newBudgetCategory;
@@ -447,8 +479,7 @@ class BackupManager {
     ]);
     Logger.addLog(`BackupManager > Restore | Balances successfully recalculated!`);
 
-
-    return Promise.resolve("ok");
+    return Promise.resolve('ok');
   }
 }
 
