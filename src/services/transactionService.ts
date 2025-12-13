@@ -146,8 +146,7 @@ const getFilteredTransactionsByForUser = async (
                                        OR categories.name LIKE ${query}
                                        OR tags.name LIKE ${query})
                                      GROUP BY transaction_id
-                                     ORDER BY transactions.date_timestamp
-                                         DESC
+                                     ORDER BY transactions.date_timestamp DESC, transactions.transaction_id DESC
                                      LIMIT ${pageSize} OFFSET ${offsetValue}`;
 
   // count of total of filtered results
