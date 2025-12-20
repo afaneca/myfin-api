@@ -311,7 +311,7 @@ ij_typescript_ternary_operation_signs_on_next_line = false
 ij_typescript_ternary_operation_wrap = off
 ij_typescript_union_types_wrap = on_every_item
 ij_typescript_use_chained_calls_group_indents = false
-ij_typescript_use_double_quotes = true
+ij_typescript_use_double_quotes = false
 ij_typescript_use_explicit_js_extension = always_js
 ij_typescript_use_import_type = auto
 ij_typescript_use_path_mapping = always
@@ -331,6 +331,7 @@ ij_shell_minify_program = false
 ij_shell_redirect_followed_by_space = false
 ij_shell_switch_cases_indented = false
 ij_shell_use_unix_line_separator = true
+
 
 [{*.cjs,*.es6,*.js,*.mjs}]
 indent_size = 2

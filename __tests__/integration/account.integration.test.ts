@@ -38,34 +38,3 @@ describe('Account tests', () => {
     expect(account.balance).toBeCloseTo(0);
   });
 });
-
-export const assertAccountBalanceAtMonth = async (
-  accountId: bigint,
-  month: number,
-  year: number,
-  expectedBalance,
-) => {
-  const accountBalance = await AccountService.getBalanceSnapshotAtMonth(accountId, month, year);
-  expect(accountBalance.balance).toBeCloseTo(expectedBalance);
-};
-
-export const assertCurrentAccountBalance = async (
-  accountId: bigint,
-  expectedBalance,
-) => {
-  // Assert from the latest snapshot
-  await assertAccountBalanceAtMonth(
-    accountId,
-    DateTimeUtils.getCurrentMonth(),
-    DateTimeUtils.getCurrentYear(),
-    expectedBalance,
-  )
-
-  // Also assert from current_balance property
-  const account = await prisma.accounts.findUniqueOrThrow({
-    where: {
-      account_id: accountId
-    }
-  });
-  expect(ConvertUtils.convertBigIntegerToFloat(account.current_balance)).toBeCloseTo(expectedBalance);
-}
