@@ -177,7 +177,7 @@ const checkNumberMatcher = (rule: Rule, attribute: number | bigint, ruleOperator
             }
         case MYFIN.RULES.OPERATOR.NOT_CONTAINS:
         case MYFIN.RULES.OPERATOR.NOT_EQUALS:
-            if (ruleValue != ConvertUtils.convertFloatToBigInteger(attribute)) {
+            if (ruleValue != attribute) {
                 return RuleMatcherResult.MATCHED;
             } else {
                 // Fails the validation -> try the next rule
