@@ -4,7 +4,6 @@ import ConvertUtils from '../utils/convertUtils.js';
 import AccountService from './accountService.js';
 import EntityService from './entityService.js';
 import CategoryService from './categoryService.js';
-import { Prisma } from '@prisma/client';
 import { MYFIN } from '../consts.js';
 
 interface Rule {
@@ -131,75 +130,139 @@ enum RuleMatcherResult {
   IGNORE = 2,
 }
 
+type RuleMatchResult = {
+  result: RuleMatcherResult;
+  score?: number;
+};
+
+/* Match type weights - higher is more specific
+These are multiplied by specificity length, so they act as multipliers */
+const MATCH_TYPE_WEIGHTS = {
+  [MYFIN.RULES.OPERATOR.EQUALS]: 1000,
+  [MYFIN.RULES.OPERATOR.CONTAINS]: 100,
+  [MYFIN.RULES.OPERATOR.NOT_EQUALS]: 10,
+  [MYFIN.RULES.OPERATOR.NOT_CONTAINS]: 1,
+  [MYFIN.RULES.OPERATOR.IGNORE]: 0,
+};
+
+const calculateMatchScore = (
+  attribute: string | number | bigint,
+  ruleValue: string | number | bigint,
+  ruleOperator: string
+): number => {
+  let typeMultiplier = MATCH_TYPE_WEIGHTS[ruleOperator] || 0;
+  let specificityLength = 0;
+
+  // Handle ignore case
+  if (ruleOperator === MYFIN.RULES.OPERATOR.IGNORE || typeMultiplier === 0) {
+    return 0;
+  }
+
+  const isString = typeof attribute === 'string' && typeof ruleValue === 'string';
+  const isNumeric =
+    (typeof attribute === 'number' || typeof attribute === 'bigint') &&
+    (typeof ruleValue === 'number' || typeof ruleValue === 'bigint');
+
+  if (!isString && !isNumeric) return 0;
+
+  switch (ruleOperator) {
+    case MYFIN.RULES.OPERATOR.EQUALS:
+      specificityLength = isString ? ruleValue.length : 100;
+      break;
+
+    case MYFIN.RULES.OPERATOR.CONTAINS:
+      specificityLength = isString ? ruleValue.length : 0;
+      break;
+
+    case MYFIN.RULES.OPERATOR.NOT_EQUALS:
+    case MYFIN.RULES.OPERATOR.NOT_CONTAINS:
+      specificityLength = 1;
+      break;
+
+    default:
+      specificityLength = 0;
+      break;
+  }
+
+  // Calculate final score: multiply type weight by specificity
+  return typeMultiplier * specificityLength;
+};
+
 const checkStringMatcher = (
   rule: Rule,
   attribute: string,
   ruleOperator: string,
   ruleValue
-): RuleMatcherResult => {
+): RuleMatchResult => {
   if (!(ruleOperator && ruleValue != null && attribute !== MYFIN.RULES.MATCHING.IGNORE)) {
-    return RuleMatcherResult.IGNORE;
+    return { result: RuleMatcherResult.IGNORE };
   }
   switch (ruleOperator) {
     case MYFIN.RULES.OPERATOR.CONTAINS:
-      if (attribute.toUpperCase().includes(ruleValue.toUpperCase())) {
-        return RuleMatcherResult.MATCHED;
-      } else {
-        // Fails the validation -> try the next rule
-        return RuleMatcherResult.FAILED;
-      }
-    case MYFIN.RULES.OPERATOR.NOT_CONTAINS:
       if (!attribute.toUpperCase().includes(ruleValue.toUpperCase())) {
-        return RuleMatcherResult.MATCHED;
-      } else {
         // Fails the validation -> try the next rule
-        return RuleMatcherResult.FAILED;
+        return { result: RuleMatcherResult.FAILED };
       }
+      break;
+    case MYFIN.RULES.OPERATOR.NOT_CONTAINS:
+      if (attribute.toUpperCase().includes(ruleValue.toUpperCase())) {
+        // Fails the validation -> try the next rule
+        return { result: RuleMatcherResult.FAILED };
+      }
+      break;
     case MYFIN.RULES.OPERATOR.EQUALS:
-      if (attribute.toUpperCase() === ruleValue.toUpperCase()) {
-        return RuleMatcherResult.MATCHED;
-      } else {
-        // Fails the validation -> try the next rule
-        return RuleMatcherResult.FAILED;
-      }
-    case MYFIN.RULES.OPERATOR.NOT_EQUALS:
       if (attribute.toUpperCase() !== ruleValue.toUpperCase()) {
-        return RuleMatcherResult.MATCHED;
-      } else {
         // Fails the validation -> try the next rule
-        return RuleMatcherResult.FAILED;
+        return { result: RuleMatcherResult.FAILED };
       }
+      break;
+    case MYFIN.RULES.OPERATOR.NOT_EQUALS:
+      if (attribute.toUpperCase() === ruleValue.toUpperCase()) {
+        // Fails the validation -> try the next rule
+        return { result: RuleMatcherResult.FAILED };
+      }
+      break;
     default:
-      return RuleMatcherResult.IGNORE;
+      return { result: RuleMatcherResult.IGNORE };
   }
+
+  return {
+    result: RuleMatcherResult.MATCHED,
+    score: calculateMatchScore(attribute, ruleValue, ruleOperator),
+  };
 };
+
 const checkNumberMatcher = (
   rule: Rule,
   attribute: number | bigint,
   ruleOperator: string,
   ruleValue: number | bigint
-): RuleMatcherResult => {
+): RuleMatchResult => {
   switch (ruleOperator) {
     case MYFIN.RULES.OPERATOR.CONTAINS:
     case MYFIN.RULES.OPERATOR.EQUALS:
-      if (ruleValue == attribute) {
-        return RuleMatcherResult.MATCHED;
-      } else {
+      if (ruleValue != attribute) {
         // Fails the validation -> try the next rule
-        return RuleMatcherResult.FAILED;
+        return { result: RuleMatcherResult.FAILED };
       }
+      break;
     case MYFIN.RULES.OPERATOR.NOT_CONTAINS:
     case MYFIN.RULES.OPERATOR.NOT_EQUALS:
-      if (ruleValue != attribute) {
-        return RuleMatcherResult.MATCHED;
-      } else {
+      if (ruleValue == attribute) {
         // Fails the validation -> try the next rule
-        return RuleMatcherResult.FAILED;
+        return { result: RuleMatcherResult.FAILED };
       }
+      break;
     default:
-      return RuleMatcherResult.IGNORE;
+      return { result: RuleMatcherResult.IGNORE };
   }
+
+  return {
+    result: RuleMatcherResult.MATCHED,
+    score: calculateMatchScore(attribute, ruleValue, ruleOperator),
+  };
 };
+
 const getRuleForTransaction = async (
   userId: bigint,
   description: string,
@@ -215,8 +278,12 @@ const getRuleForTransaction = async (
     where: { users_user_id: userId },
   });
 
+  type MatchedAttribute = { ruleId: bigint | number; matchScore: number };
+  type WeightedRule = { rule: Rule; matchedAttributes: MatchedAttribute[] };
+
+  const matchedRules: WeightedRule[] = [];
   for (const rule of userRules) {
-    let hasMatched = false;
+    let matchedAttributes: MatchedAttribute[] = [];
     Logger.addLog('--------- RULE ---------');
     Logger.addStringifiedLog(rule);
     Logger.addLog('--');
@@ -232,9 +299,9 @@ const getRuleForTransaction = async (
       rule.matcher_description_value
     );
     /* Logger.addLog(`Description Matcher: ${descriptionMatcher}`); */
-    switch (descriptionMatcher) {
+    switch (descriptionMatcher.result) {
       case RuleMatcherResult.MATCHED:
-        hasMatched = true;
+        matchedAttributes.push({ ruleId: rule.rule_id, matchScore: descriptionMatcher.score });
         break;
       case RuleMatcherResult.FAILED:
         // Fails the validation -> try the next rule
@@ -251,9 +318,9 @@ const getRuleForTransaction = async (
       rule.matcher_amount_value
     );
     /* Logger.addLog(`Amount Matcher: ${amountMatcher}`); */
-    switch (amountMatcher) {
+    switch (amountMatcher.result) {
       case RuleMatcherResult.MATCHED:
-        hasMatched = true;
+        matchedAttributes.push({ ruleId: rule.rule_id, matchScore: amountMatcher.score });
         break;
       case RuleMatcherResult.FAILED:
         // Fails the validation -> try the next rule
@@ -270,9 +337,9 @@ const getRuleForTransaction = async (
       rule.matcher_type_value
     );
     /* Logger.addLog(`Type Matcher: ${typeMatcher}`); */
-    switch (typeMatcher) {
+    switch (typeMatcher.result) {
       case RuleMatcherResult.MATCHED:
-        hasMatched = true;
+        matchedAttributes.push({ ruleId: rule.rule_id, matchScore: typeMatcher.score });
         break;
       case RuleMatcherResult.FAILED:
         // Fails the validation -> try the next rule
@@ -289,9 +356,9 @@ const getRuleForTransaction = async (
       rule.matcher_account_to_id_value
     );
     /* Logger.addLog(`Account To Matcher: ${accountToMatcher}`); */
-    switch (accountToMatcher) {
+    switch (accountToMatcher.result) {
       case RuleMatcherResult.MATCHED:
-        hasMatched = true;
+        matchedAttributes.push({ ruleId: rule.rule_id, matchScore: accountToMatcher.score });
         break;
       case RuleMatcherResult.FAILED:
         // Fails the validation -> try the next rule
@@ -308,9 +375,9 @@ const getRuleForTransaction = async (
       rule.matcher_account_from_id_value
     );
     /*Logger.addLog(`Account From Matcher: ${accountFromMatcher}`);*/
-    switch (accountFromMatcher) {
+    switch (accountFromMatcher.result) {
       case RuleMatcherResult.MATCHED:
-        hasMatched = true;
+        matchedAttributes.push({ ruleId: rule.rule_id, matchScore: accountFromMatcher.score });
         break;
       case RuleMatcherResult.FAILED:
         // Fails the validation -> try the next rule
@@ -319,9 +386,41 @@ const getRuleForTransaction = async (
         break;
     }
 
-    if (hasMatched) return rule;
+    if (matchedAttributes.length > 0) {
+      matchedRules.push({ rule: rule, matchedAttributes: matchedAttributes });
+    }
   }
 
+  Logger.addStringifiedLog(matchedRules);
+
+  // loop through matched rules and choose the best match based on priority: 1. most matched attributes, 2. highest total score
+  let bestRule: Rule | null = null;
+  let bestScore = -1;
+  let bestMatchedCount = -1;
+  for (const weightedRule of matchedRules) {
+    const totalScore = weightedRule.matchedAttributes.reduce(
+      (sum, attr) => sum + attr.matchScore,
+      0
+    );
+    const matchedCount = weightedRule.matchedAttributes.length;
+
+    if (
+      matchedCount > bestMatchedCount ||
+      (matchedCount === bestMatchedCount && totalScore > bestScore)
+    ) {
+      bestRule = weightedRule.rule;
+      bestScore = totalScore;
+      bestMatchedCount = matchedCount;
+    }
+  }
+
+  if (bestRule) {
+    Logger.addLog('Best matching rule found:');
+    Logger.addStringifiedLog(bestRule);
+    return bestRule;
+  }
+
+  Logger.addLog('No matching rule found.');
   return undefined;
 };
 

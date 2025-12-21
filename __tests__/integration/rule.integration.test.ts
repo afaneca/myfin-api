@@ -2086,5 +2086,836 @@ describe('Rule tests', () => {
       expect(result4.selectedCategoryID).toBe(undefined);
       expect(result4.selectedEntityID).toBe(undefined);
     });
+
+    test('When multiple rules are matched, the most appropriated one is selected based on smart criteria', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const mostSpecificDescription = 'specific description';
+      const lessSpecificDescription = 'description';
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: lessSpecificDescription,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: mostSpecificDescription,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedCategoryId + 100n,
+      });
+
+      // Transaction with specific description - should match the most specific result
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        mostSpecificDescription,
+        100,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.selectedCategoryID).toBe(rule2.assign_category_id);
+      expect(result1.selectedEntityID).toBe(rule2.assign_entity_id);
+    });
+
+    // Match Type Priority Tests
+    test('EQUALS match type beats CONTAINS match type even with shorter string length', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const shortExactMatch = 'Store';
+      const longContainsMatch = 'Store with very long description';
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: longContainsMatch,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: shortExactMatch,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedEntityId + 100n,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        shortExactMatch,
+        100,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(rule2.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule2.assign_entity_id);
+    });
+
+    test('CONTAINS match type beats NOT_EQUALS match type', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const containsValue = 'Supermarket';
+      const notEqualsValue = 'Restaurant';
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.NOT_EQUALS,
+        matcher_description_value: notEqualsValue,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: containsValue,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedEntityId + 100n,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        'Payment at Supermarket downtown',
+        100,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(rule2.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule2.assign_entity_id);
+    });
+
+    test('NOT_EQUALS match type beats DOES_NOT_CONTAIN match type', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const notEqualsValue = 'Restaurant';
+      const doesNotContainValue = 'Cafe';
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.DOES_NOT_CONTAIN,
+        matcher_description_value: doesNotContainValue,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.NOT_EQUALS,
+        matcher_description_value: notEqualsValue,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedEntityId + 100n,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        'Supermarket',
+        100,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(rule2.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule2.assign_entity_id);
+    });
+
+    // Multiple Conditions Tests
+    test('Rule with 2 matching conditions beats rule with 1 matching condition regardless of specificity', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const longDescription = 'Very specific and long description';
+      const shortDescription = 'description';
+      const amount = 50.0;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: longDescription,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: shortDescription,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_amount_value: amount,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedEntityId + 100n,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        longDescription,
+        amount,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(rule2.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule2.assign_entity_id);
+    });
+
+    test('Rule with description AND amount match beats rule with only description match', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const description = 'Continente';
+      const amount = 75.5;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: description,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: description,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_amount_value: amount,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedEntityId + 100n,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        description,
+        amount,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(rule2.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule2.assign_entity_id);
+    });
+
+    test('Rule with multiple conditions of lower specificity beats rule with single highly specific condition', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const veryLongDescription = 'This is a very long description';
+      const shortDescription = 'description';
+      const amount = 100.0;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: veryLongDescription,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: shortDescription,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_amount_value: amount,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedEntityId + 100n,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        veryLongDescription,
+        amount,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(rule2.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule2.assign_entity_id);
+    });
+
+    // Edge Cases
+    test('Returns the only matching rule when only one rule matches', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const matchingDescription = 'Continente';
+      const nonMatchingDescription = 'Pingo Doce';
+
+      await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: nonMatchingDescription,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 200n,
+        assign_entity_id: matchedEntityId + 200n,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: matchingDescription,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        matchingDescription,
+        100,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(rule2.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule2.assign_entity_id);
+    });
+
+    test('Handles rules with IGNORE operators correctly (should not contribute to score)', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const description = 'Store Purchase';
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: description,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: description,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedEntityId + 100n,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        description,
+        100,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      // Should return one of the rules (implementation dependent on tie-breaking)
+      expect([rule1.assign_category_id, rule2.assign_category_id]).toContain(
+        result.selectedCategoryID
+      );
+    });
+
+    // Negative Match Tests
+    test('NOT_EQUALS condition with longer string still has lower priority than CONTAINS with shorter string', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const longNotEqualsValue = 'Very long description that does not match';
+      const shortContainsValue = 'Shop';
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.NOT_EQUALS,
+        matcher_description_value: longNotEqualsValue,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: shortContainsValue,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedEntityId + 100n,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        'Shop transaction',
+        100,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(rule2.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule2.assign_entity_id);
+    });
+
+    test('DOES_NOT_CONTAIN is correctly deprioritized compared to positive matches', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const doesNotContainValue = 'Restaurant';
+      const containsValue = 'Market';
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.DOES_NOT_CONTAIN,
+        matcher_description_value: doesNotContainValue,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: containsValue,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedEntityId + 100n,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        'SuperMarket purchase',
+        100,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(rule2.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule2.assign_entity_id);
+    });
+
+    // Numeric Amount Tests
+    test('EQUALS amount match combined with description beats description-only match', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const description = 'Monthly subscription';
+      const amount = 9.99;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: description,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: description,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_amount_value: amount,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedEntityId + 100n,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        description,
+        amount,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(rule2.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule2.assign_entity_id);
+    });
+
+    test('Two rules with same description specificity but one has exact amount match - amount rule wins', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const description = 'Payment';
+      const amount = 42.0;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: description,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: description,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_amount_value: amount,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedEntityId + 100n,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        description,
+        amount,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(rule2.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule2.assign_entity_id);
+    });
+
+    // Real-world Scenarios
+    test('Continente vs IRS (Continente) - more specific substring wins', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const genericStore = 'Continente';
+      const specificIRS = 'IRS (Continente)';
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: genericStore,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: specificIRS,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedEntityId + 100n,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        'Payment IRS (Continente) Lisboa',
+        100,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(rule2.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule2.assign_entity_id);
+    });
+
+    test('Generic store name vs specific store location - specific location wins', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const genericName = 'Store';
+      const specificLocation = 'Store Porto Downtown';
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: genericName,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: specificLocation,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedEntityId + 100n,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        'Purchase at Store Porto Downtown',
+        100,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(rule2.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule2.assign_entity_id);
+    });
+
+    test('Rule matching description and wrong amount loses to rule matching only description', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const description = 'Electricity bill';
+      const correctAmount = 50.0;
+      const wrongAmount = 75.0;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: description,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_amount_value: wrongAmount,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: description,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedEntityId + 100n,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        description,
+        correctAmount,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(rule2.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule2.assign_entity_id);
+    });
+
+    test('Multiple rules with different combinations of conditions select based on condition count first', async () => {
+      const matchedCategoryId = 10n;
+      const matchedEntityId = 11n;
+
+      const description = 'Store purchase';
+      const amount = 30.0;
+      const trxType = MYFIN.TRX_TYPES.EXPENSE;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: description,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId,
+        assign_entity_id: matchedEntityId,
+      });
+
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: description,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_amount_value: amount,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 100n,
+        assign_entity_id: matchedEntityId + 100n,
+      });
+
+      const rule3 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: description,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_amount_value: amount,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_type_value: trxType,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: matchedCategoryId + 200n,
+        assign_entity_id: matchedEntityId + 200n,
+      });
+
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 7;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        description,
+        amount,
+        trxType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(rule3.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule3.assign_entity_id);
+    });
   });
 });
