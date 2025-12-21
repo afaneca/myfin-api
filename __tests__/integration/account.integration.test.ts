@@ -2,9 +2,6 @@ import { beforeEach, describe, expect, test } from 'vitest';
 import UserService from '../../src/services/userService.js';
 import AccountService from '../../src/services/accountService.js';
 import { MYFIN } from '../../src/consts.js';
-import DateTimeUtils from '../../src/utils/DateTimeUtils.js';
-import { prisma } from '../../src/config/prisma.js';
-import ConvertUtils from '../../src/utils/convertUtils.js';
 
 describe('Account tests', () => {
   let user: { user_id: bigint; username: string };
@@ -38,34 +35,3 @@ describe('Account tests', () => {
     expect(account.balance).toBeCloseTo(0);
   });
 });
-
-export const assertAccountBalanceAtMonth = async (
-  accountId: bigint,
-  month: number,
-  year: number,
-  expectedBalance,
-) => {
-  const accountBalance = await AccountService.getBalanceSnapshotAtMonth(accountId, month, year);
-  expect(accountBalance.balance).toBeCloseTo(expectedBalance);
-};
-
-export const assertCurrentAccountBalance = async (
-  accountId: bigint,
-  expectedBalance,
-) => {
-  // Assert from the latest snapshot
-  await assertAccountBalanceAtMonth(
-    accountId,
-    DateTimeUtils.getCurrentMonth(),
-    DateTimeUtils.getCurrentYear(),
-    expectedBalance,
-  )
-
-  // Also assert from current_balance property
-  const account = await prisma.accounts.findUniqueOrThrow({
-    where: {
-      account_id: accountId
-    }
-  });
-  expect(ConvertUtils.convertBigIntegerToFloat(account.current_balance)).toBeCloseTo(expectedBalance);
-}

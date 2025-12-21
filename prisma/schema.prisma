@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
 }
 
@@ -168,7 +168,7 @@ model invest_transactions {
 model rules {
   rule_id                          BigInt  @default(autoincrement())
   matcher_description_operator     String? @db.VarChar(45)
-  matcher_description_value        String? @db.VarChar(45)
+  matcher_description_value        String? @db.LongText
   matcher_amount_operator          String? @db.VarChar(45)
   matcher_amount_value             BigInt?
   matcher_type_operator            String? @db.VarChar(45)

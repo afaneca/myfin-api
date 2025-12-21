@@ -4,7 +4,7 @@ import AccountService from '../../src/services/accountService.js';
 import { MYFIN } from '../../src/consts.js';
 import TransactionService from '../../src/services/transactionService.js';
 import DateTimeUtils from '../../src/utils/DateTimeUtils.js';
-import { assertAccountBalanceAtMonth, assertCurrentAccountBalance } from './account.integration.test.js';
+import { assertAccountBalanceAtMonth, assertCurrentAccountBalance } from './utils/testUtils.js';
 
 describe('Transaction tests', () => {
   let user: { user_id: bigint; username: string };

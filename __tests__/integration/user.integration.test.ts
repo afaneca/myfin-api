@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, test } from 'vitest';
 import UserService from '../../src/services/userService.js';
 import { expectThrowErrorCode } from './utils/testUtils.js';
 import DemoDataManager from '../../src/utils/demoDataManager.js';
