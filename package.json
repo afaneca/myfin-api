@@ -14,10 +14,11 @@
     "test:unit": "vitest -c ./vitest.config.unit.ts",
     "test:unit:run": "vitest run -c ./vitest.config.unit.ts",
     "test:unit:ui": "vitest -c ./vitest.config.unit.ts --ui --coverage",
-    "test:integration": "dotenv -e .env.test -- docker compose -f docker-compose.tests.yml up -d && dotenv -e .env.test -- npm run db:deploy && dotenv -e .env.test -- vitest --run --config vitest.config.integration.ts && docker compose -f docker-compose.tests.yml down -v"
+    "_comment_test_integration": "Run all integration tests by default. Example usage: npm run test:integration (all tests), npm run test:integration user (runs tests matching 'user'), npm run test:integration 'user.integration.test.ts' (specific test file)",
+    "test:integration": "sh -c 'FILES=${1:-__tests__/integration/*.test.ts}; dotenv -e .env.test -- docker compose -f docker-compose.tests.yml up -d && dotenv -e .env.test -- npm run db:deploy && dotenv -e .env.test -- vitest --run --config vitest.config.integration.ts $FILES && docker compose -f docker-compose.tests.yml down -v' --"
   },
   "name": "myfin-api",
-  "version": "3.3.2",
+  "version": "3.4.0",
   "description": "NodeJS API for Myfin",
   "main": "src/server.js",
   "devDependencies": {
@@ -30,8 +31,8 @@
     "@types/node": "^24.0.10",
     "@typescript-eslint/eslint-plugin": "^8.41.0",
     "@typescript-eslint/parser": "^8.41.0",
-    "@vitest/coverage-v8": "^3.0.4",
-    "@vitest/ui": "^3.0.2",
+    "@vitest/coverage-v8": "^4.0.16",
+    "@vitest/ui": "^4.0.16",
     "eslint": "^9.34.0",
     "eslint-config-airbnb-extended": "^2.2.0",
     "eslint-config-google": "^0.14.0",
@@ -52,7 +53,7 @@
     "tsx": "^4.19.2",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.41.0",
-    "vitest": "^3.0.2",
+    "vitest": "^4.0.16",
     "vitest-mock-extended": "^3.1.0"
   },
   "repository": {
