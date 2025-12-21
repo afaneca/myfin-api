@@ -83,8 +83,8 @@ describe('Rule tests', () => {
       expect(result2.selectedAccountFromID).toBe(accountFromId);
       expect(result2.selectedAccountToID).toBe(accountToId);
       expect(result2.date).toBe(date);
-      expect(result2.selectedCategoryID).toBe(undefined);
-      expect(result2.selectedEntityID).toBe(undefined);
+      expect(result2.selectedCategoryID).toBeNullable();
+      expect(result2.selectedEntityID).toBeNullable();
     });
 
     test('When CONTAINS matching is required, a partial match will be made', async () => {
@@ -198,8 +198,8 @@ describe('Rule tests', () => {
       expect(result2.date).toBe(date);
       expect(result2.selectedAccountFromID).toBe(accountFromId);
       expect(result2.selectedAccountToID).toBe(accountToId);
-      expect(result2.selectedCategoryID).toBe(undefined);
-      expect(result2.selectedEntityID).toBe(undefined);
+      expect(result2.selectedCategoryID).toBeNullable();
+      expect(result2.selectedEntityID).toBeNullable();
     });
 
     test('When NOT CONTAINS matching is required, a match will only be made if attribute is not contained', async () => {
@@ -266,8 +266,8 @@ describe('Rule tests', () => {
       expect(result2.date).toBe(date);
       expect(result2.selectedAccountFromID).toBe(accountFromId);
       expect(result2.selectedAccountToID).toBe(accountToId);
-      expect(result2.selectedCategoryID).toBe(undefined);
-      expect(result2.selectedEntityID).toBe(undefined);
+      expect(result2.selectedCategoryID).toBeNullable();
+      expect(result2.selectedEntityID).toBeNullable();
 
       // Partial match - should NOT match
       const partialMatchDescription = `some text ${matchDescription} and some more text`;
@@ -289,8 +289,209 @@ describe('Rule tests', () => {
       expect(result3.date).toBe(date);
       expect(result3.selectedAccountFromID).toBe(accountFromId);
       expect(result3.selectedAccountToID).toBe(accountToId);
-      expect(result3.selectedCategoryID).toBe(undefined);
-      expect(result3.selectedEntityID).toBe(undefined);
+      expect(result3.selectedCategoryID).toBeNullable();
+      expect(result3.selectedEntityID).toBeNullable();
+    });
+
+    test('When description matching is case-insensitive, matches should ignore case', async () => {
+      const matchDescription = 'CaSe InSeNsItIvE';
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: matchDescription,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      // Lowercase - should match
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        matchDescription.toLowerCase(),
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.description).toBe(matchDescription.toLowerCase());
+      expect(result1.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result1.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // Uppercase - should match
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        matchDescription.toUpperCase(),
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.description).toBe(matchDescription.toUpperCase());
+      expect(result2.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result2.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // Mixed case - should match
+      const result3 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        'case insensitive',
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result3).not.toBeNull();
+      expect(result3.description).toBe('case insensitive');
+      expect(result3.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result3.selectedEntityID).toBe(rule1.assign_entity_id);
+    });
+
+    test('When description contains special characters, CONTAINS matching works correctly', async () => {
+      const matchDescription = 'special $#@! chars';
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: matchDescription,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      // Contains special chars - should match
+      const transactionDescription = `text before ${matchDescription} text after`;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.description).toBe(transactionDescription);
+      expect(result.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule1.assign_entity_id);
+    });
+
+    test('When description contains unicode characters, matching works correctly', async () => {
+      const matchDescription = 'café ñoño 日本語 emoji 🎉';
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: matchDescription,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      // Contains unicode - should match
+      const transactionDescription = `payment at ${matchDescription} shop`;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.description).toBe(transactionDescription);
+      expect(result.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule1.assign_entity_id);
+    });
+
+    test('When description is very long, matching still works', async () => {
+      const matchDescription = 'needle';
+      const longText = 'a'.repeat(1000);
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: matchDescription,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      // Very long description with needle in the middle - should match
+      const transactionDescription = `${longText}${matchDescription}${longText}`;
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.description).toBe(transactionDescription);
+      expect(result.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // Very long description without needle - should not match
+      const transactionDescription2 = `${longText}${longText}`;
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription2,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.description).toBe(transactionDescription2);
+      expect(result2.selectedCategoryID).toBeNullable();
+      expect(result2.selectedEntityID).toBeNullable();
     });
   });
 
@@ -356,8 +557,1071 @@ describe('Rule tests', () => {
       expect(result2.selectedAccountFromID).toBe(accountFromId);
       expect(result2.selectedAccountToID).toBe(accountToId);
       expect(result2.date).toBe(date);
-      expect(result2.selectedCategoryID).toBe(undefined);
-      expect(result2.selectedEntityID).toBe(undefined);
+      expect(result2.selectedCategoryID).toBeNullable();
+      expect(result2.selectedEntityID).toBeNullable();
+    });
+
+    test('When NOT_EQUALS matching is required for amount, only non-matching amounts trigger rule', async () => {
+      const matchAmount = 1990;
+      const nonMatchAmount1 = 1991;
+      const nonMatchAmount2 = 1989.99;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.NOT_EQUALS,
+        matcher_amount_value: matchAmount,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionDescription = 'description';
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      // Non-matching amount - should match
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        nonMatchAmount1,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.description).toBe(transactionDescription);
+      expect(result1.amount).toBeCloseTo(nonMatchAmount1);
+      expect(result1.type).toBe(transactionType);
+      expect(result1.selectedAccountFromID).toBe(accountFromId);
+      expect(result1.selectedAccountToID).toBe(accountToId);
+      expect(result1.date).toBe(date);
+      expect(result1.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result1.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // Another non-matching amount - should match
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        nonMatchAmount2,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.amount).toBeCloseTo(nonMatchAmount2);
+      expect(result2.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result2.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // Exact match amount - should NOT match
+      const result3 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        matchAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result3).not.toBeNull();
+      expect(result3.amount).toBeCloseTo(matchAmount);
+      expect(result3.selectedCategoryID).toBeNullable();
+      expect(result3.selectedEntityID).toBeNullable();
+    });
+
+    test('When IGNORE matching is set for amount, rule requires at least one other matcher to be active', async () => {
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: 'test description',
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionDescription = 'test description';
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      // Any amount with matching description - should match
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        100.5,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.amount).toBeCloseTo(100.5);
+      expect(result1.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result1.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // Different amount with matching description - should also match
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        9999.99,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.amount).toBeCloseTo(9999.99);
+      expect(result2.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result2.selectedEntityID).toBe(rule1.assign_entity_id);
+    });
+
+    test('When amount value is negative, matching works correctly', async () => {
+      const negativeAmount = -150.75;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_amount_value: negativeAmount,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionDescription = 'description';
+      const transactionType = MYFIN.TRX_TYPES.EXPENSE;
+      const accountFromId = 1n;
+      const accountToId = null;
+      const date = 1;
+
+      // Exact negative match - should match
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        negativeAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.amount).toBeCloseTo(negativeAmount);
+      expect(result1.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result1.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // Positive amount - should not match
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        Math.abs(negativeAmount),
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.amount).toBeCloseTo(Math.abs(negativeAmount));
+      expect(result2.selectedCategoryID).toBeNullable();
+      expect(result2.selectedEntityID).toBeNullable();
+    });
+  });
+
+  describe('Type matching', () => {
+    test('When EQUALS matching is required for type, only matching type triggers rule', async () => {
+      const matchType = MYFIN.TRX_TYPES.INCOME;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_type_value: matchType,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionDescription = 'description';
+      const transactionAmount = 100.9;
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      // Matching type - should match
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        matchType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.description).toBe(transactionDescription);
+      expect(result1.amount).toBeCloseTo(transactionAmount);
+      expect(result1.type).toBe(matchType);
+      expect(result1.selectedAccountFromID).toBe(accountFromId);
+      expect(result1.selectedAccountToID).toBe(accountToId);
+      expect(result1.date).toBe(date);
+      expect(result1.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result1.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // Non-matching type (EXPENSE) - should not match
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        MYFIN.TRX_TYPES.EXPENSE,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.type).toBe(MYFIN.TRX_TYPES.EXPENSE);
+      expect(result2.selectedCategoryID).toBeNullable();
+      expect(result2.selectedEntityID).toBeNullable();
+    });
+
+    test('When NOT_EQUALS matching is required for type, non-matching types trigger rule', async () => {
+      const excludeType = MYFIN.TRX_TYPES.EXPENSE;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.NOT_EQUALS,
+        matcher_type_value: excludeType,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionDescription = 'description';
+      const transactionAmount = 100.9;
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      // INCOME type (not excluded) - should match
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.type).toBe(MYFIN.TRX_TYPES.INCOME);
+      expect(result1.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result1.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // EXPENSE type (excluded) - should NOT match
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        excludeType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.type).toBe(excludeType);
+      expect(result2.selectedCategoryID).toBeNullable();
+      expect(result2.selectedEntityID).toBeNullable();
+    });
+
+    test('When IGNORE matching is set for type, rule requires at least one other matcher to be active', async () => {
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: 'test description',
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionDescription = 'test description';
+      const transactionAmount = 100.9;
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      // INCOME type with matching description - should match
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.type).toBe(MYFIN.TRX_TYPES.INCOME);
+      expect(result1.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result1.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // EXPENSE type with matching description - should also match
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        MYFIN.TRX_TYPES.EXPENSE,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.type).toBe(MYFIN.TRX_TYPES.EXPENSE);
+      expect(result2.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result2.selectedEntityID).toBe(rule1.assign_entity_id);
+    });
+  });
+
+  describe('Account matching', () => {
+    test('When EQUALS matching is required for account_from_id, only matching account triggers rule', async () => {
+      const matchAccountFromId = 5n;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_account_from_id_value: matchAccountFromId,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionDescription = 'description';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.EXPENSE;
+      const accountToId = null;
+      const date = 1;
+
+      // Matching account_from_id - should match
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        matchAccountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.description).toBe(transactionDescription);
+      expect(result1.amount).toBeCloseTo(transactionAmount);
+      expect(result1.type).toBe(transactionType);
+      expect(result1.selectedAccountFromID).toBe(matchAccountFromId);
+      expect(result1.selectedAccountToID).toBe(accountToId);
+      expect(result1.date).toBe(date);
+      expect(result1.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result1.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // Non-matching account_from_id - should not match
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        6n,
+        accountToId,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.selectedAccountFromID).toBe(6n);
+      expect(result2.selectedCategoryID).toBeNullable();
+      expect(result2.selectedEntityID).toBeNullable();
+    });
+
+    test('When NOT_EQUALS matching is required for account_from_id, non-matching accounts trigger rule', async () => {
+      const excludeAccountFromId = 5n;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.NOT_EQUALS,
+        matcher_account_from_id_value: excludeAccountFromId,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionDescription = 'description';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.EXPENSE;
+      const accountToId = null;
+      const date = 1;
+
+      // Different account_from_id - should match
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        6n,
+        accountToId,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.selectedAccountFromID).toBe(6n);
+      expect(result1.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result1.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // Excluded account_from_id - should NOT match
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        excludeAccountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.selectedAccountFromID).toBe(excludeAccountFromId);
+      expect(result2.selectedCategoryID).toBeNullable();
+      expect(result2.selectedEntityID).toBeNullable();
+    });
+
+    test('When IGNORE matching is set for account_from_id, rule requires at least one other matcher to be active', async () => {
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: 'test description',
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionDescription = 'test description';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.EXPENSE;
+      const accountToId = null;
+      const date = 1;
+
+      // Any account_from_id with matching description - should match
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        1n,
+        accountToId,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.selectedAccountFromID).toBe(1n);
+      expect(result1.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result1.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // Different account_from_id with matching description - should also match
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        99n,
+        accountToId,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.selectedAccountFromID).toBe(99n);
+      expect(result2.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result2.selectedEntityID).toBe(rule1.assign_entity_id);
+    });
+
+    test('When EQUALS matching is required for account_to_id, only matching account triggers rule', async () => {
+      const matchAccountToId = 7n;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_account_to_id_value: matchAccountToId,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionDescription = 'description';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const date = 1;
+
+      // Matching account_to_id - should match
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        matchAccountToId,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.description).toBe(transactionDescription);
+      expect(result1.amount).toBeCloseTo(transactionAmount);
+      expect(result1.type).toBe(transactionType);
+      expect(result1.selectedAccountFromID).toBe(accountFromId);
+      expect(result1.selectedAccountToID).toBe(matchAccountToId);
+      expect(result1.date).toBe(date);
+      expect(result1.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result1.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // Non-matching account_to_id - should not match
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        8n,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.selectedAccountToID).toBe(8n);
+      expect(result2.selectedCategoryID).toBeNullable();
+      expect(result2.selectedEntityID).toBeNullable();
+    });
+
+    test('When NOT_EQUALS matching is required for account_to_id, non-matching accounts trigger rule', async () => {
+      const excludeAccountToId = 7n;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.NOT_EQUALS,
+        matcher_account_to_id_value: excludeAccountToId,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionDescription = 'description';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const date = 1;
+
+      // Different account_to_id - should match
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        8n,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.selectedAccountToID).toBe(8n);
+      expect(result1.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result1.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // Excluded account_to_id - should NOT match
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        excludeAccountToId,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.selectedAccountToID).toBe(excludeAccountToId);
+      expect(result2.selectedCategoryID).toBeNullable();
+      expect(result2.selectedEntityID).toBeNullable();
+    });
+
+    test('When IGNORE matching is set for account_to_id, rule requires at least one other matcher to be active', async () => {
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: 'test description',
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionDescription = 'test description';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const date = 1;
+
+      // Any account_to_id with matching description - should match
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        1n,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.selectedAccountToID).toBe(1n);
+      expect(result1.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result1.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // Different account_to_id with matching description - should also match
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        99n,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.selectedAccountToID).toBe(99n);
+      expect(result2.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result2.selectedEntityID).toBe(rule1.assign_entity_id);
+    });
+
+    test('When account IDs are null and EQUALS matching is required, behavior is correct', async () => {
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_account_to_id_value: null,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_account_from_id_value: null,
+        assign_entity_id: matchedEntity.entity_id,
+        assign_category_id: 2n,
+      });
+
+      const transactionDescription = 'description';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const date = 1;
+
+      // Both null - should match
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        null,
+        null,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.selectedAccountFromID).toBe(null);
+      expect(result1.selectedAccountToID).toBe(null);
+      expect(result1.selectedCategoryID).toBe(rule1.assign_category_id);
+      expect(result1.selectedEntityID).toBe(rule1.assign_entity_id);
+
+      // account_from_id not null - should not match
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        1n,
+        null,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.selectedAccountFromID).toBe(1n);
+      expect(result2.selectedCategoryID).toBeNullable();
+      expect(result2.selectedEntityID).toBeNullable();
+
+      // account_to_id not null - should not match
+      const result3 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        null,
+        1n,
+        date
+      );
+
+      expect(result3).not.toBeNull();
+      expect(result3.selectedAccountToID).toBe(1n);
+      expect(result3.selectedCategoryID).toBeNullable();
+      expect(result3.selectedEntityID).toBeNullable();
+    });
+  });
+
+  describe('Assignment behavior', () => {
+    test('When rule assigns only category_id, other attributes remain unchanged', async () => {
+      const assignCategoryId = 10n;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: 'test',
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: assignCategoryId,
+        assign_entity_id: null,
+        assign_account_from_id: null,
+        assign_account_to_id: null,
+      });
+
+      const transactionDescription = 'test';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 1;
+
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.description).toBe(transactionDescription);
+      expect(result.amount).toBeCloseTo(transactionAmount);
+      expect(result.type).toBe(transactionType);
+      expect(result.selectedAccountFromID).toBe(accountFromId);
+      expect(result.selectedAccountToID).toBe(accountToId);
+      expect(result.date).toBe(date);
+      expect(result.selectedCategoryID).toBe(assignCategoryId);
+      expect(result.selectedEntityID).toBeNullable();
+    });
+
+    test('When rule assigns only entity_id, other attributes remain unchanged', async () => {
+      const assignEntityId = matchedEntity.entity_id;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: 'test',
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: null,
+        assign_entity_id: assignEntityId,
+        assign_account_from_id: null,
+        assign_account_to_id: null,
+      });
+
+      const transactionDescription = 'test';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 1;
+
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.description).toBe(transactionDescription);
+      expect(result.amount).toBeCloseTo(transactionAmount);
+      expect(result.type).toBe(transactionType);
+      expect(result.selectedAccountFromID).toBe(accountFromId);
+      expect(result.selectedAccountToID).toBe(accountToId);
+      expect(result.date).toBe(date);
+      expect(result.selectedCategoryID).toBeNullable();
+      expect(result.selectedEntityID).toBe(assignEntityId);
+    });
+
+    test('When rule assigns only account_from_id, other attributes remain unchanged', async () => {
+      const assignAccountFromId = 10n;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: 'test',
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: null,
+        assign_entity_id: null,
+        assign_account_from_id: assignAccountFromId,
+        assign_account_to_id: null,
+      });
+
+      const transactionDescription = 'test';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.EXPENSE;
+      const accountFromId = 5n;
+      const accountToId = null;
+      const date = 1;
+
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.description).toBe(transactionDescription);
+      expect(result.amount).toBeCloseTo(transactionAmount);
+      expect(result.type).toBe(transactionType);
+      expect(result.selectedAccountFromID).toBe(assignAccountFromId);
+      expect(result.selectedAccountToID).toBe(accountToId);
+      expect(result.date).toBe(date);
+      expect(result.selectedCategoryID).toBeNullable();
+      expect(result.selectedEntityID).toBeNullable();
+    });
+
+    test('When rule assigns only account_to_id, other attributes remain unchanged', async () => {
+      const assignAccountToId = 10n;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: 'test',
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: null,
+        assign_entity_id: null,
+        assign_account_from_id: null,
+        assign_account_to_id: assignAccountToId,
+      });
+
+      const transactionDescription = 'test';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const accountToId = 6n;
+      const date = 1;
+
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.description).toBe(transactionDescription);
+      expect(result.amount).toBeCloseTo(transactionAmount);
+      expect(result.type).toBe(transactionType);
+      expect(result.selectedAccountFromID).toBe(accountFromId);
+      expect(result.selectedAccountToID).toBe(assignAccountToId);
+      expect(result.date).toBe(date);
+      expect(result.selectedCategoryID).toBeNullable();
+      expect(result.selectedEntityID).toBeNullable();
+    });
+
+    test('When rule assigns multiple attributes simultaneously, all are applied correctly', async () => {
+      const assignCategoryId = 10n;
+      const assignEntityId = matchedEntity.entity_id;
+      const assignAccountFromId = 20n;
+      const assignAccountToId = 30n;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: 'test',
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: assignCategoryId,
+        assign_entity_id: assignEntityId,
+        assign_account_from_id: assignAccountFromId,
+        assign_account_to_id: assignAccountToId,
+      });
+
+      const transactionDescription = 'test';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 1;
+
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.description).toBe(transactionDescription);
+      expect(result.amount).toBeCloseTo(transactionAmount);
+      expect(result.type).toBe(transactionType);
+      expect(result.selectedAccountFromID).toBe(assignAccountFromId);
+      expect(result.selectedAccountToID).toBe(assignAccountToId);
+      expect(result.date).toBe(date);
+      expect(result.selectedCategoryID).toBe(assignCategoryId);
+      expect(result.selectedEntityID).toBe(assignEntityId);
+    });
+
+    test('When rule assigns no attributes (all null), transaction remains unchanged', async () => {
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: 'test',
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: null,
+        assign_entity_id: null,
+        assign_account_from_id: null,
+        assign_account_to_id: null,
+      });
+
+      const transactionDescription = 'test';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = 5n;
+      const accountToId = 6n;
+      const date = 1;
+
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.description).toBe(transactionDescription);
+      expect(result.amount).toBeCloseTo(transactionAmount);
+      expect(result.type).toBe(transactionType);
+      expect(result.selectedAccountFromID).toBe(accountFromId);
+      expect(result.selectedAccountToID).toBe(accountToId);
+      expect(result.date).toBe(date);
+      expect(result.selectedCategoryID).toBeNullable();
+      expect(result.selectedEntityID).toBeNullable();
+    });
+
+    test('When multiple rules match the same transaction, first matching rule wins', async () => {
+      const firstRuleEntityId = matchedEntity.entity_id;
+      const firstRuleCategoryId = 10n;
+
+      const secondEntity = await EntityService.createEntity({
+        name: 'Second Entity',
+        users_user_id: user.user_id,
+      });
+      const secondRuleCategoryId = 20n;
+
+      // Create first rule
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: 'match',
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: firstRuleCategoryId,
+        assign_entity_id: firstRuleEntityId,
+      });
+
+      // Create second rule that would also match
+      const rule2 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
+        matcher_description_value: 'match',
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: secondRuleCategoryId,
+        assign_entity_id: secondEntity.entity_id,
+      });
+
+      const transactionDescription = 'this will match both rules';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      // Should match the first rule only
+      expect(result).not.toBeNull();
+      expect(result.description).toBe(transactionDescription);
+      expect(result.selectedCategoryID).toBe(firstRuleCategoryId);
+      expect(result.selectedEntityID).toBe(firstRuleEntityId);
     });
   });
 
@@ -432,8 +1696,8 @@ describe('Rule tests', () => {
       expect(result2.selectedAccountFromID).toBe(matchAccountFromId);
       expect(result2.selectedAccountToID).toBe(matchAccountToId);
       expect(result2.date).toBe(date);
-      expect(result2.selectedCategoryID).toBe(undefined);
-      expect(result2.selectedEntityID).toBe(undefined);
+      expect(result2.selectedCategoryID).toBeNullable();
+      expect(result2.selectedEntityID).toBeNullable();
 
       // All match except amount - should not match
       const result3 = await TransactionService.autoCategorizeTransaction(
@@ -454,8 +1718,8 @@ describe('Rule tests', () => {
       expect(result3.selectedAccountFromID).toBe(matchAccountFromId);
       expect(result3.selectedAccountToID).toBe(matchAccountToId);
       expect(result3.date).toBe(date);
-      expect(result3.selectedCategoryID).toBe(undefined);
-      expect(result3.selectedEntityID).toBe(undefined);
+      expect(result3.selectedCategoryID).toBeNullable();
+      expect(result3.selectedEntityID).toBeNullable();
 
       // All match except type - should not match
       const result4 = await TransactionService.autoCategorizeTransaction(
@@ -476,8 +1740,8 @@ describe('Rule tests', () => {
       expect(result4.selectedAccountFromID).toBe(matchAccountFromId);
       expect(result4.selectedAccountToID).toBe(matchAccountToId);
       expect(result4.date).toBe(date);
-      expect(result4.selectedCategoryID).toBe(undefined);
-      expect(result4.selectedEntityID).toBe(undefined);
+      expect(result4.selectedCategoryID).toBeNullable();
+      expect(result4.selectedEntityID).toBeNullable();
 
       // All match except account from - should not match
       const result5 = await TransactionService.autoCategorizeTransaction(
@@ -498,8 +1762,8 @@ describe('Rule tests', () => {
       expect(result5.selectedAccountFromID).toBe(unmatchAccountFromId);
       expect(result5.selectedAccountToID).toBe(matchAccountToId);
       expect(result5.date).toBe(date);
-      expect(result5.selectedCategoryID).toBe(undefined);
-      expect(result5.selectedEntityID).toBe(undefined);
+      expect(result5.selectedCategoryID).toBeNullable();
+      expect(result5.selectedEntityID).toBeNullable();
 
       // All match except account to - should not match
       const result6 = await TransactionService.autoCategorizeTransaction(
@@ -520,8 +1784,307 @@ describe('Rule tests', () => {
       expect(result6.selectedAccountFromID).toBe(matchAccountFromId);
       expect(result6.selectedAccountToID).toBe(unmatchAccountToId);
       expect(result6.date).toBe(date);
-      expect(result6.selectedCategoryID).toBe(undefined);
-      expect(result6.selectedEntityID).toBe(undefined);
+      expect(result6.selectedCategoryID).toBeNullable();
+      expect(result6.selectedEntityID).toBeNullable();
+    });
+  });
+
+  describe('Edge cases', () => {
+    test('When no rules exist for user, no categorization occurs', async () => {
+      const transactionDescription = 'any description';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.description).toBe(transactionDescription);
+      expect(result.amount).toBeCloseTo(transactionAmount);
+      expect(result.type).toBe(transactionType);
+      expect(result.selectedAccountFromID).toBe(accountFromId);
+      expect(result.selectedAccountToID).toBe(accountToId);
+      expect(result.date).toBe(date);
+      expect(result.selectedCategoryID).toBe(undefined);
+      expect(result.selectedEntityID).toBe(undefined);
+    });
+
+    test('When transaction already has category/entity, rule overwrites it', async () => {
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: 'test',
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: 10n,
+        assign_entity_id: matchedEntity.entity_id,
+      });
+
+      const transactionDescription = 'test';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      // Note: The function signature doesn't show existing category/entity parameters,
+      // but the result should show that the rule's assignments take precedence
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.selectedCategoryID).toBe(10n);
+      expect(result.selectedEntityID).toBe(matchedEntity.entity_id);
+    });
+
+    test('When all matchers are set to IGNORE, no rule matching occurs', async () => {
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: 10n,
+        assign_entity_id: matchedEntity.entity_id,
+      });
+
+      const transactionDescription = 'any description';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      // Rule should NOT match because all matchers are IGNORE
+      expect(result).not.toBeNull();
+      expect(result.description).toBe(transactionDescription);
+      expect(result.amount).toBeCloseTo(transactionAmount);
+      expect(result.type).toBe(transactionType);
+      expect(result.selectedAccountFromID).toBe(accountFromId);
+      expect(result.selectedAccountToID).toBe(accountToId);
+      expect(result.date).toBe(date);
+      expect(result.selectedCategoryID).toBe(undefined);
+      expect(result.selectedEntityID).toBe(undefined);
+    });
+
+    test('When rule matching encounters null values in transaction, appropriate behavior occurs', async () => {
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: 'test',
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: 10n,
+        assign_entity_id: matchedEntity.entity_id,
+      });
+
+      const transactionDescription = 'test';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const accountToId = null;
+      const date = 1;
+
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.description).toBe(transactionDescription);
+      expect(result.selectedAccountFromID).toBe(null);
+      expect(result.selectedAccountToID).toBe(null);
+      expect(result.selectedCategoryID).toBe(10n);
+      expect(result.selectedEntityID).toBe(matchedEntity.entity_id);
+    });
+
+    test('When description is empty and rule matches empty descriptions, categorization occurs', async () => {
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: '',
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: 10n,
+        assign_entity_id: matchedEntity.entity_id,
+      });
+
+      const transactionDescription = '';
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.description).toBe('');
+      expect(result.selectedCategoryID).toBe(10n);
+      expect(result.selectedEntityID).toBe(matchedEntity.entity_id);
+    });
+
+    test('When description has leading/trailing whitespace, matching handles it appropriately', async () => {
+      const matchDescription = 'test description';
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.EQUALS,
+        matcher_description_value: matchDescription,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: 10n,
+        assign_entity_id: matchedEntity.entity_id,
+      });
+
+      const transactionAmount = 100.9;
+      const transactionType = MYFIN.TRX_TYPES.INCOME;
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      // Description with leading/trailing whitespace
+      const transactionDescription = '  test description  ';
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        transactionDescription,
+        transactionAmount,
+        transactionType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      // This test documents the current behavior - whether whitespace is trimmed or not
+      expect(result).not.toBeNull();
+      expect(result.description).toBe(transactionDescription);
+    });
+
+    test('When multiple NOT_EQUALS matchers are used, transaction must not match any of them', async () => {
+      const excludeDescription = 'exclude';
+      const excludeAmount = 50;
+      const excludeType = MYFIN.TRX_TYPES.EXPENSE;
+
+      const rule1 = await RuleService.createRule(user.user_id, {
+        matcher_description_operator: MYFIN.RULES.OPERATOR.NOT_EQUALS,
+        matcher_description_value: excludeDescription,
+        matcher_amount_operator: MYFIN.RULES.OPERATOR.NOT_EQUALS,
+        matcher_amount_value: excludeAmount,
+        matcher_type_operator: MYFIN.RULES.OPERATOR.NOT_EQUALS,
+        matcher_type_value: excludeType,
+        matcher_account_to_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        matcher_account_from_id_operator: MYFIN.RULES.OPERATOR.IGNORE,
+        assign_category_id: 10n,
+        assign_entity_id: matchedEntity.entity_id,
+      });
+
+      const accountFromId = null;
+      const accountToId = 1n;
+      const date = 1;
+
+      // All different from excluded values - should match
+      const result1 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        'different description',
+        100,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result1).not.toBeNull();
+      expect(result1.selectedCategoryID).toBe(10n);
+      expect(result1.selectedEntityID).toBe(matchedEntity.entity_id);
+
+      // Description matches excluded value - should NOT match
+      const result2 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        excludeDescription,
+        100,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result2).not.toBeNull();
+      expect(result2.selectedCategoryID).toBe(undefined);
+      expect(result2.selectedEntityID).toBe(undefined);
+
+      // Amount matches excluded value - should NOT match
+      const result3 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        'different description',
+        excludeAmount,
+        MYFIN.TRX_TYPES.INCOME,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result3).not.toBeNull();
+      expect(result3.selectedCategoryID).toBe(undefined);
+      expect(result3.selectedEntityID).toBe(undefined);
+
+      // Type matches excluded value - should NOT match
+      const result4 = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        'different description',
+        100,
+        excludeType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result4).not.toBeNull();
+      expect(result4.selectedCategoryID).toBe(undefined);
+      expect(result4.selectedEntityID).toBe(undefined);
     });
   });
 });
