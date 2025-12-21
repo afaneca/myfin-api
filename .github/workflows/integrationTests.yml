@@ -17,6 +17,6 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - name: npm install
-        run: npm ci && -g dotenv-cli
+        run: npm ci && dotenv-cli
       - name: tests
         run: npm run test:integration
