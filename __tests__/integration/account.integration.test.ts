@@ -2,9 +2,6 @@ import { beforeEach, describe, expect, test } from 'vitest';
 import UserService from '../../src/services/userService.js';
 import AccountService from '../../src/services/accountService.js';
 import { MYFIN } from '../../src/consts.js';
-import DateTimeUtils from '../../src/utils/DateTimeUtils.js';
-import { prisma } from '../../src/config/prisma.js';
-import ConvertUtils from '../../src/utils/convertUtils.js';
 
 describe('Account tests', () => {
   let user: { user_id: bigint; username: string };

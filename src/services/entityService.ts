@@ -3,7 +3,7 @@ import {Prisma} from "@prisma/client";
 import DateTimeUtils from "../utils/DateTimeUtils.js";
 
 
-interface Entity {
+export interface Entity {
     entity_id?: bigint;
     name?: string;
     users_user_id?: bigint;
