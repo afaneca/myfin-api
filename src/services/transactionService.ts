@@ -411,7 +411,7 @@ const deleteTransaction = async (userId: bigint, transactionId: number, dbClient
     await prismaTx.transaction_has_tags.deleteMany({
       where: {
         transactions_transaction_id: transactionId,
-      }
+      },
     });
 
     // Delete transaction
@@ -548,7 +548,7 @@ const updateTransaction = async (
       );
     }
 
-    Logger.addStringifiedLog(trx)
+    Logger.addStringifiedLog(trx);
 
     await prismaTx.transactions.update({
       where: { transaction_id: trx.transaction_id },
@@ -752,11 +752,11 @@ const getAllTransactionsForUserInCategoryAndInMonth = async (
                               AND (transactions.type = ${type}
                               OR transactions.type = 'T')
                               AND transactions.date_timestamp >= ${DateTimeUtils.getUnixTimestampFromDate(
-    minDate
-  )}
+                                minDate
+                              )}
                               AND transactions.date_timestamp <= ${DateTimeUtils.getUnixTimestampFromDate(
-    maxDate
-  )}
+                                maxDate
+                              )}
                             GROUP BY transaction_id
                             ORDER BY transactions.date_timestamp
                                 DESC`;
@@ -794,6 +794,8 @@ const autoCategorizeTransaction = async (
   accountsFromId?: bigint,
   accountsToId?: bigint,
   date?: number,
+  entitiesCache?: Array<{ entity_id: bigint; name: string }>,
+  categoriesCache?: Array<{ category_id: bigint; name: string }>,
   dbClient = undefined
 ): Promise<RuleInstructions> =>
   performDatabaseRequest(async (prismaTx) => {
@@ -807,6 +809,8 @@ const autoCategorizeTransaction = async (
       accountsToId,
       MYFIN.RULES.MATCHING.IGNORE,
       MYFIN.RULES.MATCHING.IGNORE,
+      entitiesCache,
+      categoriesCache,
       dbClient
     );
     Logger.addLog('Rule found:');
@@ -841,6 +845,19 @@ const autoCategorizeTransactionList = async (
   trxList: Array<TransactionPreRuleInstructions>,
   dbClient = undefined
 ) => {
+  // Fetch entities and categories ONCE for all transactions to avoid N queries
+  const entitiesCache = (await EntityService.getAllEntitiesForUser(
+    userId,
+    { entity_id: true, name: true },
+    dbClient
+  )) as Array<{ entity_id: bigint; name: string }>;
+
+  const categoriesCache = (await CategoryService.getAllCategoriesForUser(
+    userId,
+    { category_id: true, name: true },
+    dbClient
+  )) as Array<{ category_id: bigint; name: string }>;
+
   const promises = [];
   for (const trx of trxList) {
     promises.push(
@@ -852,6 +869,8 @@ const autoCategorizeTransactionList = async (
         trx.type == MYFIN.TRX_TYPES.INCOME ? null : accountId,
         trx.type != MYFIN.TRX_TYPES.INCOME ? null : accountId,
         trx.date,
+        entitiesCache,
+        categoriesCache,
         dbClient
       )
     );
