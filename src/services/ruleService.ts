@@ -270,13 +270,16 @@ const checkNumberMatcher = (
 const guessEntityIdForDescription = async (
   userId: bigint,
   description: string,
+  entitiesCache?: Array<{ entity_id: bigint; name: string }>,
   dbClient = prisma
 ): Promise<bigint | null> => {
-  const entities = (await EntityService.getAllEntitiesForUser(
-    userId,
-    { entity_id: true, name: true },
-    dbClient
-  )) as Array<{ entity_id: bigint; name: string }>;
+  const entities =
+    entitiesCache ??
+    ((await EntityService.getAllEntitiesForUser(
+      userId,
+      { entity_id: true, name: true },
+      dbClient
+    )) as Array<{ entity_id: bigint; name: string }>);
 
   const candidates = entities
     .filter((e) => !!e?.entity_id && !!e?.name)
@@ -292,13 +295,16 @@ const guessEntityIdForDescription = async (
 const guessCategoryIdForDescription = async (
   userId: bigint,
   description: string,
+  categoriesCache?: Array<{ category_id: bigint; name: string }>,
   dbClient = prisma
 ): Promise<bigint | null> => {
-  const categories = (await CategoryService.getAllCategoriesForUser(
-    userId,
-    { category_id: true, name: true },
-    dbClient
-  )) as Array<{ category_id: bigint; name: string }>;
+  const categories =
+    categoriesCache ??
+    ((await CategoryService.getAllCategoriesForUser(
+      userId,
+      { category_id: true, name: true },
+      dbClient
+    )) as Array<{ category_id: bigint; name: string }>);
 
   const candidates = categories
     .filter((c) => !!c?.category_id && !!c?.name)
@@ -320,6 +326,8 @@ const getRuleForTransaction = async (
   accountsToId: bigint,
   selectedCategoryId: bigint | string,
   selectedEntityId: bigint | string,
+  entitiesCache?: Array<{ entity_id: bigint; name: string }>,
+  categoriesCache?: Array<{ category_id: bigint; name: string }>,
   dbClient = prisma
 ): Promise<Rule | undefined> => {
   const userRules = await dbClient.rules.findMany({
@@ -469,7 +477,12 @@ const getRuleForTransaction = async (
   }
 
   // Fallback: when no rule matches, try to infer entity/category by fuzzy matching
-  const guessedEntityId = await guessEntityIdForDescription(userId, description, dbClient);
+  const guessedEntityId = await guessEntityIdForDescription(
+    userId,
+    description,
+    entitiesCache,
+    dbClient
+  );
   if (guessedEntityId) {
     return {
       rule_id: -1,
@@ -477,7 +490,12 @@ const getRuleForTransaction = async (
     };
   }
 
-  const guessedCategoryId = await guessCategoryIdForDescription(userId, description, dbClient);
+  const guessedCategoryId = await guessCategoryIdForDescription(
+    userId,
+    description,
+    categoriesCache,
+    dbClient
+  );
   if (guessedCategoryId) {
     return {
       rule_id: -1,

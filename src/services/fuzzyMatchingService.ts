@@ -49,6 +49,7 @@ export const getBestFuzzyMatch = (
   if (!haystack) return null;
 
   let best: FuzzySuggestion | null = null;
+  let bestNormalizedName = '';
 
   for (const c of candidates) {
     const needle = normalizeForFuzzyMatch(c.name);
@@ -60,9 +61,10 @@ export const getBestFuzzyMatch = (
       score >= threshold &&
       (!best ||
         score > best.score ||
-        (score === best.score && needle.length > normalizeForFuzzyMatch(best.name).length))
+        (score === best.score && needle.length > bestNormalizedName.length))
     ) {
       best = { id: c.id, score, name: c.name };
+      bestNormalizedName = needle;
     }
   }
 
