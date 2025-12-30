@@ -5,6 +5,7 @@ import AccountService from './accountService.js';
 import EntityService from './entityService.js';
 import CategoryService from './categoryService.js';
 import { MYFIN } from '../consts.js';
+import { getBestFuzzyMatch } from './fuzzyMatchingService.js';
 
 interface Rule {
   rule_id?: bigint | number;
@@ -123,6 +124,9 @@ const getCountOfUserRules = async (userId, dbClient = prisma) =>
   dbClient.rules.count({
     where: { users_user_id: userId },
   });
+
+// Fuzzy matching threshold for entity/category inference (0-100)
+const FUZZY_THRESHOLD = 80;
 
 enum RuleMatcherResult {
   MATCHED = 0,
@@ -261,6 +265,50 @@ const checkNumberMatcher = (
     result: RuleMatcherResult.MATCHED,
     score: calculateMatchScore(attribute, ruleValue, ruleOperator),
   };
+};
+
+const guessEntityIdForDescription = async (
+  userId: bigint,
+  description: string,
+  dbClient = prisma
+): Promise<bigint | null> => {
+  const entities = (await EntityService.getAllEntitiesForUser(
+    userId,
+    { entity_id: true, name: true },
+    dbClient
+  )) as Array<{ entity_id: bigint; name: string }>;
+
+  const candidates = entities
+    .filter((e) => !!e?.entity_id && !!e?.name)
+    .map((e) => ({ id: e.entity_id, name: e.name }));
+
+  const best = getBestFuzzyMatch(description, candidates, FUZZY_THRESHOLD);
+  if (!best) return null;
+
+  Logger.addLog(`Fuzzy entity suggestion: '${best.name}' (score=${best.score})`);
+  return best.id;
+};
+
+const guessCategoryIdForDescription = async (
+  userId: bigint,
+  description: string,
+  dbClient = prisma
+): Promise<bigint | null> => {
+  const categories = (await CategoryService.getAllCategoriesForUser(
+    userId,
+    { category_id: true, name: true },
+    dbClient
+  )) as Array<{ category_id: bigint; name: string }>;
+
+  const candidates = categories
+    .filter((c) => !!c?.category_id && !!c?.name)
+    .map((c) => ({ id: c.category_id, name: c.name }));
+
+  const best = getBestFuzzyMatch(description, candidates, FUZZY_THRESHOLD);
+  if (!best) return null;
+
+  Logger.addLog(`Fuzzy category suggestion: '${best.name}' (score=${best.score})`);
+  return best.id;
 };
 
 const getRuleForTransaction = async (
@@ -418,6 +466,23 @@ const getRuleForTransaction = async (
     Logger.addLog('Best matching rule found:');
     Logger.addStringifiedLog(bestRule);
     return bestRule;
+  }
+
+  // Fallback: when no rule matches, try to infer entity/category by fuzzy matching
+  const guessedEntityId = await guessEntityIdForDescription(userId, description, dbClient);
+  if (guessedEntityId) {
+    return {
+      rule_id: -1,
+      assign_entity_id: guessedEntityId,
+    };
+  }
+
+  const guessedCategoryId = await guessCategoryIdForDescription(userId, description, dbClient);
+  if (guessedCategoryId) {
+    return {
+      rule_id: -1,
+      assign_category_id: guessedCategoryId,
+    };
   }
 
   Logger.addLog('No matching rule found.');

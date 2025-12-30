@@ -75,6 +75,7 @@
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "express-rate-limit": "^8.0.1",
+    "fuzzball": "^2.2.0",
     "helmet": "^8.0.0",
     "i18next": "^25.4.2",
     "i18next-http-middleware": "^3.7.0",

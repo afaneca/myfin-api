@@ -4,6 +4,7 @@ import RuleService from '../../src/services/ruleService.js';
 import { MYFIN } from '../../src/consts.js';
 import EntityService, { Entity } from '../../src/services/entityService.js';
 import TransactionService from '../../src/services/transactionService.js';
+import CategoryService from '../../src/services/categoryService.js';
 
 describe('Rule tests', () => {
   let user: { user_id: bigint; username: string };
@@ -2916,6 +2917,125 @@ describe('Rule tests', () => {
       expect(result).not.toBeNull();
       expect(result.selectedCategoryID).toBe(rule3.assign_category_id);
       expect(result.selectedEntityID).toBe(rule3.assign_entity_id);
+    });
+  });
+
+  describe('Fuzzy fallback matching (no rules)', () => {
+    test('When no rules match, should infer entity via fuzzy matching', async () => {
+      // Create entities - one similar to transaction description, others as noise
+      const lidlEntity = await EntityService.createEntity({
+        name: 'LIDL',
+        users_user_id: user.user_id,
+      });
+
+      await EntityService.createEntity({
+        name: 'CONTINENTE',
+        users_user_id: user.user_id,
+      });
+
+      const description = 'Compra LIDL VAGOS etc';
+      const amount = 25.5;
+      const trxType = MYFIN.TRX_TYPES.EXPENSE;
+      const accountFromId = 1n;
+      const accountToId = 2n;
+      const date = 1;
+
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        description,
+        amount,
+        trxType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.matching_rule).toBe(-1);
+      expect(result.selectedEntityID).toBe(lidlEntity.entity_id);
+      expect(result.selectedCategoryID).toBeUndefined();
+    });
+
+    test('When no rules match and entity not found, should infer category via fuzzy matching', async () => {
+      // Create entities that won't match
+      await EntityService.createEntity({
+        name: 'RANDOM STORE',
+        users_user_id: user.user_id,
+      });
+
+      // Create categories - one similar to description
+      const groceriesCategory = await CategoryService.createCategory({
+        name: 'Groceries',
+        type: MYFIN.TRX_TYPES.EXPENSE,
+        status: MYFIN.CATEGORY_STATUS.ACTIVE,
+        users_user_id: user.user_id,
+      });
+
+      await CategoryService.createCategory({
+        name: 'Transport',
+        type: MYFIN.TRX_TYPES.EXPENSE,
+        status: MYFIN.CATEGORY_STATUS.ACTIVE,
+        users_user_id: user.user_id,
+      });
+
+      const description = 'Shopping at Groceries store';
+      const amount = 30.0;
+      const trxType = MYFIN.TRX_TYPES.EXPENSE;
+      const accountFromId = 1n;
+      const accountToId = 2n;
+      const date = 1;
+
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        description,
+        amount,
+        trxType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.matching_rule).toBe(-1);
+      expect(result.selectedEntityID).toBeUndefined();
+      expect(result.selectedCategoryID).toBe(groceriesCategory.category_id);
+    });
+
+    test('When no rules match and no fuzzy matches found, both entity and category remain null', async () => {
+      // Create entities and categories with completely different names
+      await EntityService.createEntity({
+        name: 'XYZ Corp',
+        users_user_id: user.user_id,
+      });
+
+      await CategoryService.createCategory({
+        name: 'Utilities',
+        type: MYFIN.TRX_TYPES.EXPENSE,
+        status: MYFIN.CATEGORY_STATUS.ACTIVE,
+        users_user_id: user.user_id,
+      });
+
+      const description = 'ABCDEFG random description';
+      const amount = 15.0;
+      const trxType = MYFIN.TRX_TYPES.EXPENSE;
+      const accountFromId = 1n;
+      const accountToId = 2n;
+      const date = 1;
+
+      const result = await TransactionService.autoCategorizeTransaction(
+        user.user_id,
+        description,
+        amount,
+        trxType,
+        accountFromId,
+        accountToId,
+        date
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.matching_rule).toBeUndefined();
+      expect(result.selectedEntityID).toBeUndefined();
+      expect(result.selectedCategoryID).toBeUndefined();
     });
   });
 });
