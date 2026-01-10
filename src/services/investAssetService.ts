@@ -83,7 +83,7 @@ class InvestAssetService {
                                               FROM invest_transactions
                                               WHERE invest_assets_asset_id = ${assetId}`;
 
-    return result[0].fees_taxes;
+    return result[0].fees_taxes ?? 0;
   }
 
   static async getAverageBuyingPriceForAsset(assetId: bigint, dbClient = prisma) {
@@ -460,12 +460,14 @@ class InvestAssetService {
       let fullInvestedValue = 0;
       let fullCurrentValue = 0;
       let fullWithdrawnAmount = 0;
+      let fullFeesAndTaxes = 0;
       let lastYearsValue = 0; // the value of all assets combined at last day of previous year
 
       for (const asset of userAssets) {
         fullInvestedValue += asset.invested_value;
         fullCurrentValue += asset.current_value;
         fullWithdrawnAmount += asset.withdrawn_amount;
+        fullFeesAndTaxes += asset.fees_taxes;
 
         const lastYearsSnapshot = await this.getLatestSnapshotForAsset(
           asset.asset_id,
@@ -485,9 +487,12 @@ class InvestAssetService {
 
       const totalInvestedValue = fullInvestedValue - fullWithdrawnAmount;
       const totalCurrentValue = fullCurrentValue;
-      const globalRoiValue = fullCurrentValue - fullInvestedValue + fullWithdrawnAmount;
+      const globalRoiValue =
+        fullCurrentValue - fullInvestedValue + fullWithdrawnAmount - fullFeesAndTaxes;
       const globalRoiPercentage =
-        fullInvestedValue != 0 ? (globalRoiValue / totalInvestedValue) * 100 : '-';
+        totalInvestedValue + fullFeesAndTaxes != 0
+          ? (globalRoiValue / (totalInvestedValue + fullFeesAndTaxes)) * 100
+          : '-';
 
       const yearStart = DateTimeUtils.getUnixTimestampFromDate(
         new Date(DateTimeUtils.getYearFromTimestamp(), 0, 1)
