@@ -1,15 +1,15 @@
-import { performDatabaseRequest } from "../config/prisma.js";
-import AccountService from "../services/accountService.js";
-import DateTimeUtils from "./DateTimeUtils.js";
-import TransactionService from "../services/transactionService.js";
-import InvestAssetService from "../services/investAssetService.js";
-import InvestTransactionsService from "../services/investTransactionsService.js";
-import CategoryService from "../services/categoryService.js";
-import { COLOR_GRADIENTS, MYFIN } from "../consts.js";
-import EntityService from "../services/entityService.js";
-import RuleService from "../services/ruleService.js";
-import { invest_transactions_type } from "@prisma/client";
-import UserService from "../services/userService.js";
+import { performDatabaseRequest } from '../config/prisma.js';
+import AccountService from '../services/accountService.js';
+import DateTimeUtils from './DateTimeUtils.js';
+import TransactionService from '../services/transactionService.js';
+import InvestAssetService from '../services/investAssetService.js';
+import InvestTransactionsService from '../services/investTransactionsService.js';
+import CategoryService from '../services/categoryService.js';
+import { COLOR_GRADIENTS, MYFIN } from '../consts.js';
+import EntityService from '../services/entityService.js';
+import RuleService from '../services/ruleService.js';
+import { invest_transactions_type } from '@prisma/client';
+import UserService from '../services/userService.js';
 
 // ACCOUNTS
 let ACCOUNT_CURRENT1_ID = -1;
@@ -59,13 +59,13 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       CategoryService.createCategory(
         {
-          type: "M",
+          type: 'M',
           users_user_id: userId,
-          name: "Home Repairs 🧰",
-          description: "Home maintenance & repais",
+          name: 'Home Repairs 🧰',
+          description: 'Home maintenance & repais',
           color_gradient: getRandomColorGradient(),
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
-          exclude_from_budgets: 0
+          exclude_from_budgets: 0,
         },
         prismaTx
       )
@@ -75,13 +75,13 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       CategoryService.createCategory(
         {
-          type: "M",
+          type: 'M',
           users_user_id: userId,
-          name: "Wages 💼",
-          description: "Job salaries & related comp",
+          name: 'Wages 💼',
+          description: 'Job salaries & related comp',
           color_gradient: getRandomColorGradient(),
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
-          exclude_from_budgets: 0
+          exclude_from_budgets: 0,
         },
         prismaTx
       )
@@ -91,13 +91,13 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       CategoryService.createCategory(
         {
-          type: "M",
+          type: 'M',
           users_user_id: userId,
-          name: "Groceries 🛒",
-          description: "",
+          name: 'Groceries 🛒',
+          description: '',
           color_gradient: getRandomColorGradient(),
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
-          exclude_from_budgets: 0
+          exclude_from_budgets: 0,
         },
         prismaTx
       )
@@ -107,13 +107,13 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       CategoryService.createCategory(
         {
-          type: "M",
+          type: 'M',
           users_user_id: userId,
-          name: "Reimbursable 💫",
-          description: "Minor loans to family & friends and other reimbursable expenses",
+          name: 'Reimbursable 💫',
+          description: 'Minor loans to family & friends and other reimbursable expenses',
           color_gradient: getRandomColorGradient(),
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
-          exclude_from_budgets: 0
+          exclude_from_budgets: 0,
         },
         prismaTx
       )
@@ -123,13 +123,13 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       CategoryService.createCategory(
         {
-          type: "M",
+          type: 'M',
           users_user_id: userId,
-          name: "Utilities 💧⚡📺",
-          description: "Water, electricity, tv & related bills",
+          name: 'Utilities 💧⚡📺',
+          description: 'Water, electricity, tv & related bills',
           color_gradient: getRandomColorGradient(),
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
-          exclude_from_budgets: 0
+          exclude_from_budgets: 0,
         },
         prismaTx
       )
@@ -139,13 +139,13 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       CategoryService.createCategory(
         {
-          type: "M",
+          type: 'M',
           users_user_id: userId,
-          name: "Loan Payments 💸",
-          description: "Principal payments related to loans",
+          name: 'Loan Payments 💸',
+          description: 'Principal payments related to loans',
           color_gradient: getRandomColorGradient(),
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
-          exclude_from_budgets: 0
+          exclude_from_budgets: 0,
         },
         prismaTx
       )
@@ -155,13 +155,13 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       CategoryService.createCategory(
         {
-          type: "M",
+          type: 'M',
           users_user_id: userId,
-          name: "Loan Interest 🧾",
-          description: "Loans interest & other banking expenses",
+          name: 'Loan Interest 🧾',
+          description: 'Loans interest & other banking expenses',
           color_gradient: getRandomColorGradient(),
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
-          exclude_from_budgets: 0
+          exclude_from_budgets: 0,
         },
         prismaTx
       )
@@ -171,13 +171,13 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       CategoryService.createCategory(
         {
-          type: "M",
+          type: 'M',
           users_user_id: userId,
-          name: "Entertainment & Eating Out 🍿",
-          description: "Eating out, going to the movies, etc...",
+          name: 'Entertainment & Eating Out 🍿',
+          description: 'Eating out, going to the movies, etc...',
           color_gradient: getRandomColorGradient(),
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
-          exclude_from_budgets: 0
+          exclude_from_budgets: 0,
         },
         prismaTx
       )
@@ -187,13 +187,13 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       CategoryService.createCategory(
         {
-          type: "M",
+          type: 'M',
           users_user_id: userId,
-          name: "Auto Maintenance 🚗",
-          description: "Car repairs, upgrades, etc...",
+          name: 'Auto Maintenance 🚗',
+          description: 'Car repairs, upgrades, etc...',
           color_gradient: getRandomColorGradient(),
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
-          exclude_from_budgets: 0
+          exclude_from_budgets: 0,
         },
         prismaTx
       )
@@ -203,13 +203,13 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       CategoryService.createCategory(
         {
-          type: "M",
+          type: 'M',
           users_user_id: userId,
-          name: "Some other category",
-          description: "",
+          name: 'Some other category',
+          description: '',
           color_gradient: getRandomColorGradient(),
           status: MYFIN.CATEGORY_STATUS.INACTIVE,
-          exclude_from_budgets: 0
+          exclude_from_budgets: 0,
         },
         prismaTx
       )
@@ -235,7 +235,7 @@ const createMockEntities = async (userId: bigint, dbClient = undefined) =>
       EntityService.createEntity(
         {
           users_user_id: userId,
-          name: "ABC Supermarket"
+          name: 'ABC Supermarket',
         },
         prismaTx
       )
@@ -245,7 +245,7 @@ const createMockEntities = async (userId: bigint, dbClient = undefined) =>
       EntityService.createEntity(
         {
           users_user_id: userId,
-          name: "Best Company"
+          name: 'Best Company',
         },
         prismaTx
       )
@@ -255,7 +255,7 @@ const createMockEntities = async (userId: bigint, dbClient = undefined) =>
       EntityService.createEntity(
         {
           users_user_id: userId,
-          name: "XYZ Store"
+          name: 'XYZ Store',
         },
         prismaTx
       )
@@ -265,7 +265,7 @@ const createMockEntities = async (userId: bigint, dbClient = undefined) =>
       EntityService.createEntity(
         {
           users_user_id: userId,
-          name: "QUERTY Store"
+          name: 'QUERTY Store',
         },
         prismaTx
       )
@@ -275,7 +275,7 @@ const createMockEntities = async (userId: bigint, dbClient = undefined) =>
       EntityService.createEntity(
         {
           users_user_id: userId,
-          name: `Chow's Restaurant`
+          name: `Chow's Restaurant`,
         },
         prismaTx
       )
@@ -285,7 +285,7 @@ const createMockEntities = async (userId: bigint, dbClient = undefined) =>
       EntityService.createEntity(
         {
           users_user_id: userId,
-          name: "HQ Mutual"
+          name: 'HQ Mutual',
         },
         prismaTx
       )
@@ -295,7 +295,7 @@ const createMockEntities = async (userId: bigint, dbClient = undefined) =>
       EntityService.createEntity(
         {
           users_user_id: userId,
-          name: "DeliCely Restaurant"
+          name: 'DeliCely Restaurant',
         },
         prismaTx
       )
@@ -305,7 +305,7 @@ const createMockEntities = async (userId: bigint, dbClient = undefined) =>
       EntityService.createEntity(
         {
           users_user_id: userId,
-          name: "Popcorn World"
+          name: 'Popcorn World',
         },
         prismaTx
       )
@@ -315,7 +315,7 @@ const createMockEntities = async (userId: bigint, dbClient = undefined) =>
       EntityService.createEntity(
         {
           users_user_id: userId,
-          name: "BBank"
+          name: 'BBank',
         },
         prismaTx
       )
@@ -341,13 +341,13 @@ const createMockAccounts = async (userId: bigint, dbClient = undefined) =>
       AccountService.createAccount(
         {
           users_user_id: userId,
-          name: "BBank - Current",
-          description: "Current account from BBank",
+          name: 'BBank - Current',
+          description: 'Current account from BBank',
           exclude_from_budgets: false,
           type: MYFIN.ACCOUNT_TYPES.CHECKING,
           status: MYFIN.ACCOUNT_STATUS.ACTIVE,
           current_balance: 0,
-          color_gradient: getRandomColorGradient()
+          color_gradient: getRandomColorGradient(),
         },
         userId,
         prismaTx
@@ -358,13 +358,13 @@ const createMockAccounts = async (userId: bigint, dbClient = undefined) =>
       AccountService.createAccount(
         {
           users_user_id: userId,
-          name: "BBank - Savings",
-          description: "Savings account from BBank",
+          name: 'BBank - Savings',
+          description: 'Savings account from BBank',
           exclude_from_budgets: false,
           type: MYFIN.ACCOUNT_TYPES.SAVINGS,
           status: MYFIN.ACCOUNT_STATUS.ACTIVE,
           current_balance: 0,
-          color_gradient: getRandomColorGradient()
+          color_gradient: getRandomColorGradient(),
         },
         userId,
         prismaTx
@@ -375,13 +375,13 @@ const createMockAccounts = async (userId: bigint, dbClient = undefined) =>
       AccountService.createAccount(
         {
           users_user_id: userId,
-          name: "XYZ Capital",
-          description: "Brokerage account from XYZ Capital",
+          name: 'XYZ Capital',
+          description: 'Brokerage account from XYZ Capital',
           exclude_from_budgets: false,
           type: MYFIN.ACCOUNT_TYPES.INVESTING,
           status: MYFIN.ACCOUNT_STATUS.ACTIVE,
           current_balance: 0,
-          color_gradient: getRandomColorGradient()
+          color_gradient: getRandomColorGradient(),
         },
         userId,
         prismaTx
@@ -392,13 +392,13 @@ const createMockAccounts = async (userId: bigint, dbClient = undefined) =>
       AccountService.createAccount(
         {
           users_user_id: userId,
-          name: "SAFU Credit",
-          description: "Credit card from SAFU Credit",
+          name: 'SAFU Credit',
+          description: 'Credit card from SAFU Credit',
           exclude_from_budgets: true,
           type: MYFIN.ACCOUNT_TYPES.CREDIT,
           status: MYFIN.ACCOUNT_STATUS.ACTIVE,
           current_balance: 0,
-          color_gradient: getRandomColorGradient()
+          color_gradient: getRandomColorGradient(),
         },
         userId,
         prismaTx
@@ -409,13 +409,13 @@ const createMockAccounts = async (userId: bigint, dbClient = undefined) =>
       AccountService.createAccount(
         {
           users_user_id: userId,
-          name: "HQ Mutual",
-          description: "Mortgage loan from HQ Mutual",
+          name: 'HQ Mutual',
+          description: 'Mortgage loan from HQ Mutual',
           exclude_from_budgets: true,
           type: MYFIN.ACCOUNT_TYPES.CREDIT,
           status: MYFIN.ACCOUNT_STATUS.ACTIVE,
           current_balance: 0,
-          color_gradient: getRandomColorGradient()
+          color_gradient: getRandomColorGradient(),
         },
         userId,
         prismaTx
@@ -448,15 +448,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 25)),
-          description: "Initial balance",
+          description: 'Initial balance',
           amount: 5_000_00,
           type: MYFIN.TRX_TYPES.INCOME,
           entities_entity_id: ENT_BANK1_ID,
           accounts_account_from_id: null,
           accounts_account_to_id: ACCOUNT_CURRENT1_ID,
           categories_category_id: null,
-          is_essential: false
-        }
+          is_essential: false,
+        },
       })
     );
 
@@ -473,15 +473,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 2)),
-          description: "",
+          description: '',
           amount: 300_000_00,
           type: MYFIN.TRX_TYPES.EXPENSE,
           entities_entity_id: ENT_BANK1_ID,
           accounts_account_from_id: ACCOUNT_CREDIT2_MORTGAGE_ID,
           accounts_account_to_id: null,
           categories_category_id: null,
-          is_essential: false
-        }
+          is_essential: false,
+        },
       })
     );
 
@@ -489,15 +489,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 3)),
-          description: "Savings",
+          description: 'Savings',
           amount: 2_000_00,
           type: MYFIN.TRX_TYPES.TRANSFER,
           entities_entity_id: ENT_BANK1_ID,
           accounts_account_from_id: ACCOUNT_CURRENT1_ID,
           accounts_account_to_id: ACCOUNT_SAVINGS1_ID,
           categories_category_id: null,
-          is_essential: false
-        }
+          is_essential: false,
+        },
       })
     );
 
@@ -505,15 +505,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 3)),
-          description: "Eating out",
+          description: 'Eating out',
           amount: 89_60,
           type: MYFIN.TRX_TYPES.EXPENSE,
           entities_entity_id: ENT_BANK1_ID,
           accounts_account_from_id: ACCOUNT_CREDIT1_ID,
           accounts_account_to_id: null,
           categories_category_id: CAT_ENTERTAINMENT_ID,
-          is_essential: false
-        }
+          is_essential: false,
+        },
       })
     );
 
@@ -530,15 +530,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 5)),
-          description: "Grocery shopping",
+          description: 'Grocery shopping',
           amount: 135_67,
           type: MYFIN.TRX_TYPES.EXPENSE,
           entities_entity_id: ENT_SUPERMARKET1_ID,
           accounts_account_from_id: ACCOUNT_CREDIT1_ID,
           accounts_account_to_id: null,
           categories_category_id: CAT_GROCERIES_ID,
-          is_essential: true
-        }
+          is_essential: true,
+        },
       })
     );
 
@@ -546,15 +546,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 21)),
-          description: "Monthly wage",
+          description: 'Monthly wage',
           amount: 3500_00,
           type: MYFIN.TRX_TYPES.INCOME,
           entities_entity_id: ENT_COMPANY1_ID,
           accounts_account_from_id: null,
           accounts_account_to_id: ACCOUNT_CURRENT1_ID,
           categories_category_id: CAT_WAGES_ID,
-          is_essential: false
-        }
+          is_essential: false,
+        },
       })
     );
 
@@ -562,15 +562,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 21)),
-          description: "Savings increase",
+          description: 'Savings increase',
           amount: 500_00,
           type: MYFIN.TRX_TYPES.TRANSFER,
           entities_entity_id: ENT_BANK1_ID,
           accounts_account_from_id: ACCOUNT_CURRENT1_ID,
           accounts_account_to_id: ACCOUNT_SAVINGS1_ID,
           categories_category_id: null,
-          is_essential: false
-        }
+          is_essential: false,
+        },
       })
     );
 
@@ -578,15 +578,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 23)),
-          description: "Loan principal payment",
+          description: 'Loan principal payment',
           amount: 267_30,
           type: MYFIN.TRX_TYPES.TRANSFER,
           entities_entity_id: ENT_BANK1_ID,
           accounts_account_from_id: ACCOUNT_CURRENT1_ID,
           accounts_account_to_id: ACCOUNT_CREDIT2_MORTGAGE_ID,
           categories_category_id: CAT_LOAN_PAYMENTS_ID,
-          is_essential: true
-        }
+          is_essential: true,
+        },
       })
     );
 
@@ -594,15 +594,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 23)),
-          description: "Loan interest payment",
+          description: 'Loan interest payment',
           amount: 176_50,
           type: MYFIN.TRX_TYPES.EXPENSE,
           entities_entity_id: ENT_BANK1_ID,
           accounts_account_from_id: ACCOUNT_CURRENT1_ID,
           accounts_account_to_id: null,
           categories_category_id: CAT_LOAN_INTEREST_ID,
-          is_essential: true
-        }
+          is_essential: true,
+        },
       })
     );
 
@@ -610,15 +610,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 25)),
-          description: "Grocery Shopping",
+          description: 'Grocery Shopping',
           amount: 301_87,
           type: MYFIN.TRX_TYPES.EXPENSE,
           entities_entity_id: ENT_SUPERMARKET1_ID,
           accounts_account_from_id: ACCOUNT_CREDIT1_ID,
           accounts_account_to_id: null,
           categories_category_id: CAT_GROCERIES_ID,
-          is_essential: true
-        }
+          is_essential: true,
+        },
       })
     );
 
@@ -630,15 +630,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 2)),
-          description: "Grocery shopping",
+          description: 'Grocery shopping',
           amount: 156_32,
           type: MYFIN.TRX_TYPES.EXPENSE,
           entities_entity_id: ENT_SUPERMARKET1_ID,
           accounts_account_from_id: ACCOUNT_CREDIT1_ID,
           accounts_account_to_id: null,
           categories_category_id: CAT_GROCERIES_ID,
-          is_essential: true
-        }
+          is_essential: true,
+        },
       })
     );
 
@@ -646,15 +646,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 7)),
-          description: "Card payment",
+          description: 'Card payment',
           amount: 527_14,
           type: MYFIN.TRX_TYPES.TRANSFER,
           entities_entity_id: ENT_BANK2_ID,
           accounts_account_from_id: ACCOUNT_CURRENT1_ID,
           accounts_account_to_id: ACCOUNT_CREDIT1_ID,
           categories_category_id: CAT_LOAN_PAYMENTS_ID,
-          is_essential: true
-        }
+          is_essential: true,
+        },
       })
     );
 
@@ -662,15 +662,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 18)),
-          description: "Grocery shopping",
+          description: 'Grocery shopping',
           amount: 420_96,
           type: MYFIN.TRX_TYPES.EXPENSE,
           entities_entity_id: ENT_SUPERMARKET1_ID,
           accounts_account_from_id: ACCOUNT_CREDIT1_ID,
           accounts_account_to_id: null,
           categories_category_id: CAT_GROCERIES_ID,
-          is_essential: true
-        }
+          is_essential: true,
+        },
       })
     );
 
@@ -678,15 +678,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 19)),
-          description: "Going to the movies",
+          description: 'Going to the movies',
           amount: 32_64,
           type: MYFIN.TRX_TYPES.EXPENSE,
           entities_entity_id: ENT_CINEMA1,
           accounts_account_from_id: ACCOUNT_CREDIT1_ID,
           accounts_account_to_id: null,
           categories_category_id: CAT_ENTERTAINMENT_ID,
-          is_essential: false
-        }
+          is_essential: false,
+        },
       })
     );
 
@@ -694,15 +694,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 21)),
-          description: "Monthly wage",
+          description: 'Monthly wage',
           amount: 3500_00,
           type: MYFIN.TRX_TYPES.INCOME,
           entities_entity_id: ENT_COMPANY1_ID,
           accounts_account_from_id: null,
           accounts_account_to_id: ACCOUNT_CURRENT1_ID,
           categories_category_id: CAT_WAGES_ID,
-          is_essential: false
-        }
+          is_essential: false,
+        },
       })
     );
 
@@ -710,15 +710,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 23)),
-          description: "Loan principal payment",
+          description: 'Loan principal payment',
           amount: 267_30,
           type: MYFIN.TRX_TYPES.TRANSFER,
           entities_entity_id: ENT_BANK1_ID,
           accounts_account_from_id: ACCOUNT_CURRENT1_ID,
           accounts_account_to_id: ACCOUNT_CREDIT2_MORTGAGE_ID,
           categories_category_id: CAT_LOAN_PAYMENTS_ID,
-          is_essential: true
-        }
+          is_essential: true,
+        },
       })
     );
 
@@ -726,15 +726,15 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
       prismaTx.transactions.create({
         data: {
           date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 25)),
-          description: "Grocery shopping",
+          description: 'Grocery shopping',
           amount: 301_87,
           type: MYFIN.TRX_TYPES.EXPENSE,
           entities_entity_id: ENT_SUPERMARKET1_ID,
           accounts_account_from_id: ACCOUNT_CREDIT1_ID,
           accounts_account_to_id: null,
           categories_category_id: CAT_GROCERIES_ID,
-          is_essential: true
-        }
+          is_essential: true,
+        },
       })
     );
 
@@ -751,7 +751,7 @@ const createMockRules = async (userId: bigint, dbClient = undefined) =>
         {
           users_user_id: userId,
           matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
-          matcher_description_value: "wage",
+          matcher_description_value: 'wage',
           matcher_amount_operator: MYFIN.RULES.OPERATOR.EQUALS,
           matcher_amount_value: 3500_00,
           matcher_type_operator: MYFIN.RULES.OPERATOR.EQUALS,
@@ -765,7 +765,7 @@ const createMockRules = async (userId: bigint, dbClient = undefined) =>
           assign_account_to_id: null,
           assign_account_from_id: null,
           assign_type: null,
-          assign_is_essential: true
+          assign_is_essential: true,
         },
         prismaTx
       )
@@ -777,7 +777,7 @@ const createMockRules = async (userId: bigint, dbClient = undefined) =>
         {
           users_user_id: userId,
           matcher_description_operator: MYFIN.RULES.OPERATOR.CONTAINS,
-          matcher_description_value: "movies",
+          matcher_description_value: 'movies',
           matcher_amount_operator: MYFIN.RULES.OPERATOR.IGNORE,
           matcher_amount_value: 0,
           matcher_type_operator: MYFIN.RULES.OPERATOR.IGNORE,
@@ -791,7 +791,7 @@ const createMockRules = async (userId: bigint, dbClient = undefined) =>
           assign_account_to_id: null,
           assign_account_from_id: null,
           assign_type: null,
-          assign_is_essential: false
+          assign_is_essential: false,
         },
         prismaTx
       )
@@ -808,11 +808,11 @@ const createMockAssets = async (userId: bigint, dbClient = undefined) =>
       InvestAssetService.createAsset(
         userId,
         {
-          name: "High Yield Savings Acc",
-          ticker: "HYSA",
+          name: 'High Yield Savings Acc',
+          ticker: 'HYSA',
           units: 0,
           type: MYFIN.INVEST.ASSET_TYPE.FIXED_INCOME,
-          broker: "BBank"
+          broker: 'BBank',
         },
         prismaTx
       )
@@ -822,11 +822,11 @@ const createMockAssets = async (userId: bigint, dbClient = undefined) =>
       InvestAssetService.createAsset(
         userId,
         {
-          name: "Emergency Fund",
-          ticker: "EF",
+          name: 'Emergency Fund',
+          ticker: 'EF',
           units: 0,
           type: MYFIN.INVEST.ASSET_TYPE.FIXED_INCOME,
-          broker: "BBank"
+          broker: 'BBank',
         },
         prismaTx
       )
@@ -836,11 +836,11 @@ const createMockAssets = async (userId: bigint, dbClient = undefined) =>
       InvestAssetService.createAsset(
         userId,
         {
-          name: "Bitcoin",
-          ticker: "BTC",
+          name: 'Bitcoin',
+          ticker: 'BTC',
           units: 0,
           type: MYFIN.INVEST.ASSET_TYPE.CRYPTO,
-          broker: "Binance"
+          broker: 'Binance',
         },
         prismaTx
       )
@@ -850,11 +850,11 @@ const createMockAssets = async (userId: bigint, dbClient = undefined) =>
       InvestAssetService.createAsset(
         userId,
         {
-          name: "Vanguard FTSE All-World UCITS ETF USD Acc",
-          ticker: "VWCE",
+          name: 'Vanguard FTSE All-World UCITS ETF USD Acc',
+          ticker: 'VWCE',
           units: 0,
           type: MYFIN.INVEST.ASSET_TYPE.ETF,
-          broker: "DEGIRO"
+          broker: 'DEGIRO',
         },
         prismaTx
       )
@@ -879,7 +879,7 @@ const createMockAssetTransactions = async (userId: bigint, dbClient = undefined)
         userId,
         BigInt(ASSET_FIXED_INC1),
         DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 4)),
-        "Initial investment",
+        'Initial investment',
         1500,
         1500,
         0,
@@ -895,7 +895,7 @@ const createMockAssetTransactions = async (userId: bigint, dbClient = undefined)
         userId,
         BigInt(ASSET_FIXED_INC2),
         DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 4)),
-        "Initial investment",
+        'Initial investment',
         800,
         800,
         0,
@@ -911,7 +911,7 @@ const createMockAssetTransactions = async (userId: bigint, dbClient = undefined)
         userId,
         BigInt(ASSET_CRYPTO1),
         DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 11)),
-        "Initial investment",
+        'Initial investment',
         12_350,
         0.5,
         0,
@@ -927,7 +927,7 @@ const createMockAssetTransactions = async (userId: bigint, dbClient = undefined)
         userId,
         BigInt(ASSET_FIXED_INC1),
         DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 13)),
-        "Yield",
+        'Yield',
         0,
         2.3,
         0,
@@ -945,7 +945,7 @@ const createMockAssetTransactions = async (userId: bigint, dbClient = undefined)
       InvestAssetService.updateCurrentAssetValue(userId, BigInt(ASSET_FIXED_INC2), 800, prismaTx)
     );
     promises.push(
-      InvestAssetService.updateCurrentAssetValue(userId, BigInt(ASSET_ETF1), 510 + 32, prismaTx)
+      InvestAssetService.updateCurrentAssetValue(userId, BigInt(ASSET_ETF1), 0, prismaTx)
     );
     promises.push(
       InvestAssetService.updateCurrentAssetValue(
@@ -977,8 +977,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
         year,
         observations: "🚘 Auto repair • 🎁 Hanna's birthday • 🐶 Pet training",
         is_open: false,
-        users_user_id: userId
-      }
+        users_user_id: userId,
+      },
     });
 
     promises = [];
@@ -990,8 +990,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_ENTERTAINMENT_ID,
           planned_amount_credit: 0,
           planned_amount_debit: 200_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1003,8 +1003,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_WAGES_ID,
           planned_amount_credit: 3500_00,
           planned_amount_debit: 0,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1016,8 +1016,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_LOAN_INTEREST_ID,
           planned_amount_credit: 0,
           planned_amount_debit: 177_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1029,8 +1029,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_LOAN_PAYMENTS_ID,
           planned_amount_credit: 0,
           planned_amount_debit: 270_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1042,8 +1042,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_AUTO_MAINTENANCE,
           planned_amount_credit: 0,
           planned_amount_debit: 20_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1062,10 +1062,10 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
       data: {
         month,
         year,
-        observations: "⛱️ Trip to Tenerife",
+        observations: '⛱️ Trip to Tenerife',
         is_open: false,
-        users_user_id: userId
-      }
+        users_user_id: userId,
+      },
     });
 
     promises = [];
@@ -1077,8 +1077,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_ENTERTAINMENT_ID,
           planned_amount_credit: 0,
           planned_amount_debit: 200_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1090,8 +1090,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_WAGES_ID,
           planned_amount_credit: 3500_00,
           planned_amount_debit: 0,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1103,8 +1103,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_LOAN_INTEREST_ID,
           planned_amount_credit: 0,
           planned_amount_debit: 177_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1116,8 +1116,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_LOAN_PAYMENTS_ID,
           planned_amount_credit: 0,
           planned_amount_debit: 270_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1129,8 +1129,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_GROCERIES_ID,
           planned_amount_credit: 0,
           planned_amount_debit: 800_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1142,8 +1142,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_AUTO_MAINTENANCE,
           planned_amount_credit: 0,
           planned_amount_debit: 20_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1159,8 +1159,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
         year,
         observations: "🚘 Auto repair • 🎁 Hanna's birthday • 🐶 Pet training",
         is_open: true,
-        users_user_id: userId
-      }
+        users_user_id: userId,
+      },
     });
 
     promises = [];
@@ -1172,8 +1172,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_ENTERTAINMENT_ID,
           planned_amount_credit: 0,
           planned_amount_debit: 200_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1185,8 +1185,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_WAGES_ID,
           planned_amount_credit: 3500_00,
           planned_amount_debit: 0,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1198,8 +1198,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_LOAN_INTEREST_ID,
           planned_amount_credit: 0,
           planned_amount_debit: 177_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1211,8 +1211,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_LOAN_PAYMENTS_ID,
           planned_amount_credit: 0,
           planned_amount_debit: 270_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1224,8 +1224,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_GROCERIES_ID,
           planned_amount_credit: 0,
           planned_amount_debit: 800_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1237,8 +1237,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_AUTO_MAINTENANCE,
           planned_amount_credit: 0,
           planned_amount_debit: 20_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1257,10 +1257,10 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
       data: {
         month,
         year,
-        observations: "💸🚘 Car Insurance",
+        observations: '💸🚘 Car Insurance',
         is_open: true,
-        users_user_id: userId
-      }
+        users_user_id: userId,
+      },
     });
 
     promises = [];
@@ -1272,8 +1272,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_ENTERTAINMENT_ID,
           planned_amount_credit: 0,
           planned_amount_debit: 200_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1285,8 +1285,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_WAGES_ID,
           planned_amount_credit: 3500_00,
           planned_amount_debit: 0,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1298,8 +1298,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_LOAN_INTEREST_ID,
           planned_amount_credit: 0,
           planned_amount_debit: 177_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1311,8 +1311,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_LOAN_PAYMENTS_ID,
           planned_amount_credit: 0,
           planned_amount_debit: 270_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1324,8 +1324,8 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_GROCERIES_ID,
           planned_amount_credit: 0,
           planned_amount_debit: 800_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
@@ -1337,13 +1337,12 @@ const createMockBudgets = async (userId: bigint, dbClient = undefined) =>
           categories_category_id: CAT_AUTO_MAINTENANCE,
           planned_amount_credit: 0,
           planned_amount_debit: 20_00,
-          current_amount: 0
-        }
+          current_amount: 0,
+        },
       })
     );
 
     await Promise.all(promises);
-
   }, dbClient);
 
 const createMockData = async (userId: bigint, dbClient = undefined) =>
@@ -1374,7 +1373,11 @@ const createMockData = async (userId: bigint, dbClient = undefined) =>
     // Create mock investment transactions
     await createMockAssetTransactions(userId, prismaTx);
 
-    const userAccounts = await AccountService.getAccountsForUser(userId, { account_id: true }, prismaTx);
+    const userAccounts = await AccountService.getAccountsForUser(
+      userId,
+      { account_id: true },
+      prismaTx
+    );
     for (const account of userAccounts) {
       const newBalance = await AccountService.recalculateBalanceForAccountIncrementally(
         account.account_id,
@@ -1387,5 +1390,5 @@ const createMockData = async (userId: bigint, dbClient = undefined) =>
   }, dbClient);
 
 export default {
-  createMockData
+  createMockData,
 };
