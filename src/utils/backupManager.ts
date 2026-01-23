@@ -1,18 +1,18 @@
-import { prisma } from '../config/prisma.js';
-import { Prisma } from '@prisma/client';
 import { createRequire } from 'node:module';
-import { isSameMajorVersion } from './textUtils.js';
-import APIError from '../errorHandling/apiError.js';
+import type { Prisma } from '@prisma/client';
+import { prisma } from '../config/prisma.js';
+import { MYFIN } from '../consts.js';
 import { RestoreUserErrorCodes } from '../controllers/userController.js';
-import UserService from '../services/userService.js';
+import APIError from '../errorHandling/apiError.js';
 import AccountService from '../services/accountService.js';
 import CategoryService from '../services/categoryService.js';
 import EntityService from '../services/entityService.js';
-import TagService from '../services/tagService.js';
 import RuleService from '../services/ruleService.js';
+import TagService from '../services/tagService.js';
+import UserService from '../services/userService.js';
 import Logger from './Logger.js';
-import { MYFIN } from '../consts.js';
 import ConvertUtils from './convertUtils.js';
+import { isSameMajorVersion } from './textUtils.js';
 
 const require = createRequire(import.meta.url);
 const { version } = require('../../package.json');

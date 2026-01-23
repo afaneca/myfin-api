@@ -1,10 +1,10 @@
+import type { Prisma } from '@prisma/client';
 import { performDatabaseRequest, prisma } from '../config/prisma.js';
-import { Prisma } from '@prisma/client';
-import DateTimeUtils from '../utils/DateTimeUtils.js';
-import ConvertUtils from '../utils/convertUtils.js';
-import APIError from '../errorHandling/apiError.js';
 import { MYFIN } from '../consts.js';
+import APIError from '../errorHandling/apiError.js';
+import DateTimeUtils from '../utils/DateTimeUtils.js';
 import Logger from '../utils/Logger.js';
+import ConvertUtils from '../utils/convertUtils.js';
 
 interface CalculatedAssetAmounts {
   invested_value?: number;
@@ -114,7 +114,7 @@ class InvestAssetService {
     const currentValue = ConvertUtils.convertBigIntegerToFloat(
       BigInt(snapshot?.current_value ?? 0)
     );
-    const feesAndTaxes = parseFloat(
+    const feesAndTaxes = Number.parseFloat(
       await this.getTotalFessAndTaxesForAsset(asset.asset_id as bigint, dbClient)
     );
 
@@ -336,7 +336,7 @@ class InvestAssetService {
                                                 AND date_timestamp BETWEEN ${beginTimestamp} and ${endTimestamp}`;
 
     if (!result || !Array.isArray(result) || (result as Array<any>).length < 1) return null;
-    return parseFloat(result[0].invested_balance);
+    return Number.parseFloat(result[0].invested_balance);
   }
 
   static async getAllAssetSnapshotsForUser(userId: bigint, dbClient = prisma): Promise<Array<any>> {
@@ -386,7 +386,7 @@ class InvestAssetService {
               WHERE users_user_id = ${userId} AND date_timestamp BETWEEN ${beginTimestamp} and ${endTimestamp}`;
 
     if (!result || !Array.isArray(result) || (result as Array<any>).length < 1) return null;
-    return parseFloat(result[0].invested_fees);
+    return Number.parseFloat(result[0].invested_fees);
   }
 
   static async getCombinedRoiByYear(userId: bigint, initialYear: number, dbClient = undefined) {
@@ -816,13 +816,13 @@ class InvestAssetService {
         if (trxType == MYFIN.INVEST.TRX_TYPE.SELL) {
           changeInUnits *= -1;
           initialSnapshot.withdrawn_amount =
-            Number(initialSnapshot.withdrawn_amount) + parseFloat(changeInAmounts);
+            Number(initialSnapshot.withdrawn_amount) + Number.parseFloat(changeInAmounts);
         } else {
           initialSnapshot.invested_amount =
-            Number(initialSnapshot.invested_amount) + parseFloat(changeInAmounts);
+            Number(initialSnapshot.invested_amount) + Number.parseFloat(changeInAmounts);
         }
 
-        initialSnapshot.units = Number(initialSnapshot.units) + parseFloat(changeInUnits);
+        initialSnapshot.units = Number(initialSnapshot.units) + Number.parseFloat(changeInUnits);
 
         /* Automatically add snapshots for current & next 6 months in order to create a buffer*/
         addCustomBalanceSnapshotsPromises = [];

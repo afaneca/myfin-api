@@ -6,7 +6,7 @@
  * or null if the version string is invalid.
  */
 const parseVersion = (version: string): number[] | null => {
-  const parts = version.split('.').map(num => parseInt(num, 10));
+  const parts = version.split('.').map((num) => Number.parseInt(num, 10));
   if (parts.length !== 3 || parts.some(isNaN)) {
     return null; // Invalid semantic version format
   }
@@ -22,7 +22,6 @@ const parseVersion = (version: string): number[] | null => {
  * @returns true if versionA is older (or older/equal if inclusive), otherwise false.
  */
 export function isVersionOlder(versionA: string, versionB: string, inclusive = false): boolean {
-
   const [majorA, minorA, patchA] = parseVersion(versionA);
   const [majorB, minorB, patchB] = parseVersion(versionB);
 
@@ -48,7 +47,6 @@ export function isVersionOlder(versionA: string, versionB: string, inclusive = f
  * @returns `true` if both versions have the same major version, `false` otherwise.
  */
 export function isSameMajorVersion(versionA: string, versionB: string): boolean {
-
   const partsA = parseVersion(versionA);
   const partsB = parseVersion(versionB);
 

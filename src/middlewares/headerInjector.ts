@@ -1,5 +1,5 @@
-import { NextFunction, Request, Response } from 'express';
 import { createRequire } from 'node:module';
+import type { NextFunction, Request, Response } from 'express';
 
 const require = createRequire(import.meta.url);
 const { version } = require('../../package.json');

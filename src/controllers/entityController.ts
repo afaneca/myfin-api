@@ -1,10 +1,10 @@
-import joi from "joi";
-import APIError from "../errorHandling/apiError.js";
-import CommonsController from "./commonsController.js";
-import Logger from "../utils/Logger.js";
-import EntityService from "../services/entityService.js";
-import { NextFunction } from "express";
-import { Request, Response } from "express";
+import type { NextFunction } from 'express';
+import type { Request, Response } from 'express';
+import joi from 'joi';
+import APIError from '../errorHandling/apiError.js';
+import EntityService from '../services/entityService.js';
+import Logger from '../utils/Logger.js';
+import CommonsController from './commonsController.js';
 
 // READ
 const getAllEntitiesForUser = async (req: Request, res: Response, next: NextFunction) => {
@@ -20,7 +20,7 @@ const getAllEntitiesForUser = async (req: Request, res: Response, next: NextFunc
 
 // CREATE
 const createEntitySchema = joi.object({
-  name: joi.string().trim().required()
+  name: joi.string().trim().required(),
 });
 
 // eslint-disable-next-line consistent-return
@@ -30,10 +30,10 @@ const createEntity = async (req: Request, res: Response, next: NextFunction) => 
     const input = await createEntitySchema.validateAsync(req.body);
     await EntityService.createEntity({
       users_user_id: sessionData.userId,
-      name: input.name
+      name: input.name,
     });
 
-    return res.json("Entity successfully created!");
+    return res.json('Entity successfully created!');
   } catch (err) {
     Logger.addLog(err);
     next(err || APIError.internalServerError());
@@ -42,7 +42,7 @@ const createEntity = async (req: Request, res: Response, next: NextFunction) => 
 
 // DELETE
 const removeEntitySchema = joi.object({
-  entity_id: joi.number().required()
+  entity_id: joi.number().required(),
 });
 
 // eslint-disable-next-line consistent-return
@@ -52,7 +52,7 @@ const deleteEntity = async (req: Request, res: Response, next: NextFunction) => 
     const entity = await removeEntitySchema.validateAsync(req.body);
     await EntityService.deleteEntity(sessionData.userId, entity.entity_id);
 
-    return res.json("Entity successfully deleted!");
+    return res.json('Entity successfully deleted!');
   } catch (err) {
     Logger.addLog(err);
     next(err || APIError.internalServerError());
@@ -62,7 +62,7 @@ const deleteEntity = async (req: Request, res: Response, next: NextFunction) => 
 // UPDATE
 const updateEntitySchema = joi.object({
   entity_id: joi.number().required(),
-  new_name: joi.string().trim().required()
+  new_name: joi.string().trim().required(),
 });
 
 // eslint-disable-next-line consistent-return
@@ -72,7 +72,7 @@ const updateEntity = async (req: Request, res: Response, next: NextFunction) => 
     const input = await updateEntitySchema.validateAsync(req.body);
     await EntityService.updateEntity(sessionData.userId, input.entity_id, { name: input.new_name });
 
-    return res.json("Entity successfully updated!");
+    return res.json('Entity successfully updated!');
   } catch (err) {
     Logger.addLog(err);
     next(err || APIError.internalServerError());

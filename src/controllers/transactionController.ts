@@ -1,14 +1,14 @@
-import { NextFunction, Request, Response } from 'express';
-import APIError from '../errorHandling/apiError.js';
-import Logger from '../utils/Logger.js';
-import CommonsController from './commonsController.js';
-import TransactionService from '../services/transactionService.js';
-import { MYFIN } from '../consts.js';
+import type { NextFunction, Request, Response } from 'express';
 import joi from 'joi';
+import { MYFIN } from '../consts.js';
+import APIError from '../errorHandling/apiError.js';
 import AccountService from '../services/accountService.js';
 import CategoryService from '../services/categoryService.js';
 import EntityService from '../services/entityService.js';
+import TransactionService from '../services/transactionService.js';
+import Logger from '../utils/Logger.js';
 import ConvertUtils from '../utils/convertUtils.js';
+import CommonsController from './commonsController.js';
 
 // READ
 const getAllTrxForUserSchema = joi
@@ -252,14 +252,22 @@ const importTransactionsStep1 = async (req: Request, res: Response, next: NextFu
         name: true,
       }),
       EntityService.getAllEntitiesForUser(sessionData.userId, { entity_id: true, name: true }),
-      AccountService.getAccountsForUser(sessionData.userId, { account_id: true, name: true, current_balance: true }),
+      AccountService.getAccountsForUser(sessionData.userId, {
+        account_id: true,
+        name: true,
+        current_balance: true,
+      }),
     ]);
 
     res.json({
       fillData,
       categories,
       entities,
-      accounts: accounts.map((acc) => ({ account_id: acc.account_id, name: acc.name, balance: ConvertUtils.convertBigIntegerToFloat(acc.current_balance) })),
+      accounts: accounts.map((acc) => ({
+        account_id: acc.account_id,
+        name: acc.name,
+        balance: ConvertUtils.convertBigIntegerToFloat(acc.current_balance),
+      })),
     });
   } catch (err) {
     Logger.addLog(err);

@@ -1,7 +1,12 @@
-import nodemailer from "nodemailer";
-import Logger from "../utils/Logger.js";
+import nodemailer from 'nodemailer';
+import Logger from '../utils/Logger.js';
 
-const sendEmail = async (to: string, subject: string, text?: string, html?: string): Promise<boolean> => {
+const sendEmail = async (
+  to: string,
+  subject: string,
+  text?: string,
+  html?: string
+): Promise<boolean> => {
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST, // e.g., 'smtp.gmail.com'
     port: Number(process.env.SMTP_PORT), // Use 465 for SSL, 587 for TLS
@@ -10,7 +15,7 @@ const sendEmail = async (to: string, subject: string, text?: string, html?: stri
       user: process.env.SMTP_USER, // Your email address
       pass: process.env.SMTP_PASSWORD, // Your email password
     },
-  })
+  });
 
   // send mail with defined transport object
   const info = await transporter.sendMail({
@@ -21,9 +26,9 @@ const sendEmail = async (to: string, subject: string, text?: string, html?: stri
     html: html, // html body
   });
   Logger.addLog(`Email sent: ${info.messageId}`);
-  return true
-}
+  return true;
+};
 
 export default {
-  sendEmail
+  sendEmail,
 };

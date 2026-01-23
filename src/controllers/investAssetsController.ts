@@ -1,10 +1,10 @@
-import { NextFunction, Request, Response } from 'express';
-import Logger from '../utils/Logger.js';
-import APIError from '../errorHandling/apiError.js';
-import CommonsController from './commonsController.js';
-import InvestAssetService from '../services/investAssetService.js';
+import type { NextFunction, Request, Response } from 'express';
 import joi from 'joi';
 import { MYFIN } from '../consts.js';
+import APIError from '../errorHandling/apiError.js';
+import InvestAssetService from '../services/investAssetService.js';
+import Logger from '../utils/Logger.js';
+import CommonsController from './commonsController.js';
 
 const getAllAssetsForUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
