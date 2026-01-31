@@ -1,14 +1,13 @@
 import type { invest_transactions_type } from '@prisma/client';
-import { date } from 'joi';
 import { performDatabaseRequest, prisma } from '../config/prisma.js';
+import { MYFIN } from '../consts.js';
 import APIError from '../errorHandling/apiError.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
-import Logger from '../utils/Logger.js';
 import ConvertUtils from '../utils/convertUtils.js';
 import InvestAssetService from './investAssetService.js';
 
 const getAllTransactionsForUser = async (userId: bigint, dbClient = prisma) =>
-  dbClient.$queryRaw`SELECT transaction_id, date_timestamp, invest_transactions.type as 'trx_type', invest_assets.type as 'asset_type', note, (total_price/100) as 'total_price', invest_transactions.units, invest_assets_asset_id, name, ticker, broker, invest_assets.asset_id, (fees_taxes / 100) as 'fees_taxes' 
+  dbClient.$queryRaw`SELECT transaction_id, date_timestamp, invest_transactions.type as 'trx_type', invest_assets.type as 'asset_type', note, (total_price/100) as 'total_price', invest_transactions.units, invest_assets_asset_id, name, ticker, broker, invest_assets.asset_id, (fees_taxes_amount / 100) as 'fees_taxes_amount', fees_taxes_units
   FROM invest_transactions INNER JOIN invest_assets ON invest_assets.asset_id = invest_assets_asset_id
   WHERE users_user_id = ${userId} ORDER BY date_timestamp DESC;`;
 
@@ -22,9 +21,16 @@ const getFilteredTrxByPage = async (
   const offsetValue = page * pageSize;
 
   // main query for list of results (limited by pageSize and offsetValue)
-  const mainQuery = prisma.$queryRaw`SELECT transaction_id, date_timestamp, invest_transactions.type as 'trx_type', 
-                                        invest_assets.type as 'asset_type', note, (total_price/100) as 'total_price', invest_transactions.units, 
-                                        invest_assets_asset_id, name, ticker, broker, invest_assets.asset_id, (fees_taxes / 100) as 'fees_taxes' 
+  const mainQuery = prisma.$queryRaw`SELECT transaction_id,
+                                            date_timestamp,
+                                            invest_transactions.type as 'trx_type', invest_assets.type as 'asset_type', note,
+                                            (total_price / 100) as 'total_price', invest_transactions.units,
+                                            invest_assets_asset_id,
+                                            name,
+                                            ticker,
+                                            broker,
+                                            invest_assets.asset_id,
+                                            (fees_taxes_amount / 100) as 'fees_taxes_amount', fees_taxes_units
                                      FROM invest_transactions
                                             INNER JOIN invest_assets ON invest_assets.asset_id = invest_assets_asset_id
                                      WHERE users_user_id = ${userId}
@@ -33,22 +39,25 @@ const getFilteredTrxByPage = async (
                                             invest_assets.type LIKE ${query}
                                        OR invest_transactions.type LIKE ${query}
                                        OR total_price LIKE ${query}
-                                       OR (total_price/100) LIKE ${query}
+                                       OR (total_price / 100) LIKE ${query}
                                        OR name LIKE ${query}
                                        OR ticker LIKE ${query}
                                        OR broker LIKE ${query}
-                                       OR fees_taxes LIKE ${query}
-                                       OR (fees_taxes / 100) LIKE ${query})
+                                       OR fees_taxes_amount LIKE ${query}
+                                       OR (fees_taxes_amount / 100) LIKE ${query}
+                                       OR fees_taxes_units LIKE ${query}
+                                       OR (fees_taxes_units) LIKE ${query})
                                      GROUP BY transaction_id
                                      ORDER BY date_timestamp
-                                         DESC
-                                     LIMIT ${pageSize} OFFSET ${offsetValue}`;
+                                       DESC
+                                       LIMIT ${pageSize}
+                                     OFFSET ${offsetValue}`;
 
   // count of total of filtered results
   const countQuery = prisma.$queryRaw`SELECT count(*) as 'count'
                                       FROM (SELECT transaction_id, date_timestamp, invest_transactions.type as 'trx_type', 
                                         invest_assets.type as 'asset_type', note, (total_price/100) as 'total_price', invest_transactions.units, 
-                                        invest_assets_asset_id, name, ticker, broker, invest_assets.asset_id, (fees_taxes / 100) as 'fees_taxes' 
+                                        invest_assets_asset_id, name, ticker, broker, invest_assets.asset_id, (fees_taxes_amount / 100) as 'fees_taxes_amount', fees_taxes_units 
                                      FROM invest_transactions
                                             INNER JOIN invest_assets ON invest_assets.asset_id = invest_assets_asset_id
                                      WHERE users_user_id = ${userId}
@@ -61,14 +70,16 @@ const getFilteredTrxByPage = async (
                                        OR name LIKE ${query}
                                        OR ticker LIKE ${query}
                                        OR broker LIKE ${query}
-                                       OR fees_taxes LIKE ${query}
-                                       OR (fees_taxes / 100) LIKE ${query})
+                                       OR fees_taxes_amount LIKE ${query}
+                                       OR (fees_taxes_amount / 100) LIKE ${query}
+                                       OR fees_taxes_units LIKE ${query}
+                                       OR (fees_taxes_units) LIKE ${query})
                                      GROUP BY transaction_id) trx`;
 
   const totalCountQuery = prisma.$queryRaw`SELECT count(*) as 'count'
                                            FROM (SELECT transaction_id, date_timestamp, invest_transactions.type as 'trx_type', 
                                         invest_assets.type as 'asset_type', note, (total_price/100) as 'total_price', invest_transactions.units, 
-                                        invest_assets_asset_id, name, ticker, broker, invest_assets.asset_id, (fees_taxes / 100) as 'fees_taxes' 
+                                        invest_assets_asset_id, name, ticker, broker, invest_assets.asset_id, (fees_taxes_amount / 100) as 'fees_taxes_amount', fees_taxes_units 
                                      FROM invest_transactions
                                             INNER JOIN invest_assets ON invest_assets.asset_id = invest_assets_asset_id
                                      WHERE users_user_id = ${userId}
@@ -104,7 +115,8 @@ const updateTransaction = async (
   note: string,
   totalPrice: number,
   units: number,
-  fees: number,
+  feesAmount: number,
+  feesUnits: number,
   type: invest_transactions_type,
   dbClient = undefined
 ) => {
@@ -121,7 +133,8 @@ const updateTransaction = async (
       data: {
         date_timestamp: dateTimestamp,
         units,
-        fees_taxes: ConvertUtils.convertFloatToBigInteger(fees),
+        fees_taxes_amount: ConvertUtils.convertFloatToBigInteger(feesAmount),
+        fees_taxes_units: feesUnits,
         total_price: ConvertUtils.convertFloatToBigInteger(totalPrice),
         note,
         type,
@@ -156,15 +169,9 @@ const createTransaction = async (
   note: string,
   totalPrice: number,
   units: number,
-  fees: number,
+  feesAmount: number,
+  feesUnits: number,
   type: invest_transactions_type,
-  isSplit: boolean,
-  splitData?: {
-    totalPrice?: number;
-    units?: number;
-    type?: invest_transactions_type;
-    note?: string;
-  },
   dbClient = undefined
 ) =>
   performDatabaseRequest(async (prismaTx) => {
@@ -172,11 +179,18 @@ const createTransaction = async (
       throw APIError.notAuthorized();
     }
 
+    if (type === MYFIN.INVEST.TRX_TYPE.INCOME && units > 0 && totalPrice > 0) {
+      throw APIError.notAcceptable(
+        'Income transactions cannot have both units and total price set.'
+      );
+    }
+
     await prismaTx.invest_transactions.create({
       data: {
         date_timestamp: dateTimestamp,
         units,
-        fees_taxes: ConvertUtils.convertFloatToBigInteger(fees),
+        fees_taxes_amount: ConvertUtils.convertFloatToBigInteger(feesAmount),
+        fees_taxes_units: feesUnits,
         total_price: ConvertUtils.convertFloatToBigInteger(totalPrice),
         note,
         type,
@@ -202,23 +216,6 @@ const createTransaction = async (
         units: latestSnapshot.units,
       },
     });
-
-    // SPLIT HANDLING
-    if (isSplit) {
-      await createTransaction(
-        userId,
-        assetId,
-        dateTimestamp,
-        splitData.note,
-        splitData.totalPrice,
-        splitData.units,
-        0,
-        splitData.type,
-        false,
-        null,
-        prismaTx
-      );
-    }
   }, dbClient);
 
 const deleteTransaction = async (userId: bigint, trxId: bigint, dbClient = undefined) => {
@@ -261,6 +258,37 @@ LEFT JOIN invest_assets ON invest_assets.asset_id = invest_transactions.invest_a
 WHERE users_user_id = ${userId}`;
 };
 
+/**
+ * Get all invest transactions for a user between two timestamps
+ * Used for accurate MWR calculations with actual transaction dates
+ *
+ * @param userId User ID
+ * @param fromTimestamp Start timestamp (inclusive)
+ * @param toTimestamp End timestamp (inclusive)
+ * @param dbClient Database client
+ * @returns Array of transactions with date_timestamp, type, total_price, fees_taxes_amount, fees_taxes_units, and asset_id
+ */
+const getAllTransactionsForUserBetweenDates = async (
+  userId: bigint,
+  fromTimestamp: bigint | number,
+  toTimestamp: bigint | number,
+  dbClient = prisma
+) =>
+  dbClient.$queryRaw`SELECT 
+    transaction_id, 
+    date_timestamp, 
+    invest_transactions.type as trx_type, 
+    total_price, 
+    fees_taxes_amount,
+    fees_taxes_units,
+    invest_assets_asset_id as asset_id
+  FROM invest_transactions 
+  INNER JOIN invest_assets ON invest_assets.asset_id = invest_assets_asset_id
+  WHERE users_user_id = ${userId} 
+    AND date_timestamp >= ${fromTimestamp} 
+    AND date_timestamp <= ${toTimestamp}
+  ORDER BY date_timestamp ASC`;
+
 export default {
   getAllTransactionsForUser,
   getFilteredTrxByPage,
@@ -268,4 +296,5 @@ export default {
   createTransaction,
   deleteTransaction,
   deleteAllTransactionsForUser,
+  getAllTransactionsForUserBetweenDates,
 };

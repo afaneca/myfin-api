@@ -57,6 +57,8 @@ const MYFIN = {
     TRX_TYPE: {
       BUY: 'B',
       SELL: 'S',
+      INCOME: 'I',
+      COST: 'C',
     },
     ASSET_TYPE: {
       PPR: 'ppr',

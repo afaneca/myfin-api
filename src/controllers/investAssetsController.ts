@@ -58,7 +58,7 @@ const updateAsset = async (req: Request, res: Response, next: NextFunction) => {
       assetId: assetId,
       ...input,
     });
-    res.json(`Account updated!`);
+    res.json('Account updated!');
   } catch (err) {
     Logger.addLog(err);
     next(err || APIError.internalServerError());
@@ -121,22 +121,6 @@ const deleteAsset = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-const getAssetDetailsForUser = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const sessionData = await CommonsController.checkAuthSessionValidity(req);
-    const assetId = req.params.id;
-
-    const data = await InvestAssetService.getAssetDetailsForUser(
-      sessionData.userId,
-      BigInt(assetId)
-    );
-    res.json(data);
-  } catch (err) {
-    Logger.addLog(err);
-    next(err || APIError.internalServerError());
-  }
-};
-
 export default {
   getAllAssetsForUser,
   createAsset,
@@ -145,5 +129,4 @@ export default {
   getAssetStatsForUser,
   getAllAssetsSummaryForUser,
   deleteAsset,
-  getAssetDetailsForUser,
 };

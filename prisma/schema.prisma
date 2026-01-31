@@ -114,6 +114,9 @@ model invest_asset_evo_snapshot {
   created_at             BigInt
   updated_at             BigInt
   withdrawn_amount       BigInt
+  income_amount          BigInt        @default(0)
+  cost_amount            BigInt        @default(0)
+  fees_taxes             BigInt        @default(0)
   invest_assets          invest_assets @relation(fields: [invest_assets_asset_id], references: [asset_id], onDelete: NoAction, onUpdate: NoAction, map: "invest_asset_evo_snapshot_invest_assets_asset_id_fk")
 
   @@id([month, year, invest_assets_asset_id])
@@ -156,7 +159,8 @@ model invest_transactions {
   note                   String?                  @db.VarChar(100)
   total_price            BigInt
   units                  Decimal                  @db.Decimal(16, 6)
-  fees_taxes             BigInt?                  @default(0)
+  fees_taxes_amount      BigInt?                  @default(0)
+  fees_taxes_units       Decimal?                 @db.Decimal(16, 6)
   invest_assets_asset_id BigInt
   created_at             BigInt
   updated_at             BigInt
@@ -272,4 +276,6 @@ model otp_codes {
 enum invest_transactions_type {
   B
   S
+  I
+  C
 }

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import UserService from '../../src/services/userService.js';
-import AccountService from '../../src/services/accountService.js';
 import { MYFIN } from '../../src/consts.js';
+import AccountService from '../../src/services/accountService.js';
+import UserService from '../../src/services/userService.js';
 
 describe('Account tests', () => {
   let user: { user_id: bigint; username: string };
@@ -24,7 +24,7 @@ describe('Account tests', () => {
         current_balance: 0,
         users_user_id: user.user_id,
       },
-      user.user_id,
+      user.user_id
     );
 
     const accounts = await AccountService.getAccountsForUserWithAmounts(user.user_id, false);

@@ -138,7 +138,6 @@ const router = (app: Express) => {
   investAssetRoutes.put('/:id/value', InvestAssetsController.updateCurrentAssetValue);
   investAssetRoutes.get('/summary', InvestAssetsController.getAllAssetsSummaryForUser);
   investAssetRoutes.get('/stats', InvestAssetsController.getAssetStatsForUser);
-  investAssetRoutes.get('/:id', InvestAssetsController.getAssetDetailsForUser);
   //endregion
 
   //region INVEST TRANSACTION ROUTES

@@ -1,10 +1,13 @@
 import type { Prisma } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library.js';
 import { performDatabaseRequest, prisma } from '../config/prisma.js';
 import { MYFIN } from '../consts.js';
 import APIError from '../errorHandling/apiError.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
 import Logger from '../utils/Logger.js';
+import MWRCalculator, { type TransactionFlowData } from '../utils/MWRCalculator.js';
 import ConvertUtils from '../utils/convertUtils.js';
+import InvestTransactionsService from './investTransactionsService.js';
 
 interface CalculatedAssetAmounts {
   invested_value?: number;
@@ -15,9 +18,11 @@ interface CalculatedAssetAmounts {
   relative_roi_percentage?: number | string;
   price_per_unit?: number;
   fees_taxes?: number;
+  income_amount?: number;
+  cost_amount?: number;
 }
 
-type InvestAssetWithCalculatedAmounts = CalculatedAssetAmounts & {
+export type InvestAssetWithCalculatedAmounts = CalculatedAssetAmounts & {
   asset_id?: bigint;
   name?: string;
   ticker?: string;
@@ -26,29 +31,72 @@ type InvestAssetWithCalculatedAmounts = CalculatedAssetAmounts & {
   broker?: string;
 };
 
-interface CalculatedAssetStats extends CalculatedAssetAmounts {
-  total_invested_value?: number;
-  total_current_value?: number;
-  global_roi_value?: number;
-  global_roi_percentage?: number | string;
-  current_year_roi_value?: number;
-  current_year_roi_percentage?: number;
-  monthly_snapshots?: Array<any>;
-  current_value_distribution?: Array<any>;
-  top_performing_assets?: Array<any>;
-  combined_roi_by_year?: number;
+interface CalculatedAssetStats {
+  // Global portfolio metrics
+  global_roi_value: number;
+  global_roi_percentage: number | string;
+  total_current_value: number;
+  total_currently_invested_value: number;
+
+  // Current year metrics (using MWR)
+  current_year_roi_value: number;
+  current_year_roi_percentage: number;
+  current_year_annualized_roi_percentage: number;
+
+  // Historical data
+  monthly_snapshots: Array<MonthlySnapshot>;
+  current_value_distribution: Array<AssetTypeDistribution>;
+  combined_roi_by_year: Record<number, YearlyROI>;
+  top_performing_assets: Array<InvestAssetWithCalculatedAmounts>;
+}
+
+interface MonthlySnapshot {
+  month: number;
+  year: number;
+  units: number;
+  invested_amount: number;
+  current_value: number;
+  withdrawn_amount: number;
+  income_amount: number;
+  cost_amount: number;
+  fees_taxes: number;
+  asset_id: bigint;
+  asset_name: string;
+  asset_ticker: string;
+  asset_broker: string;
+}
+
+interface AssetTypeDistribution {
+  type: string;
+  percentage: number | string;
+  value: number;
+}
+
+interface YearlyROI {
+  roi_percentage: number;
+  roi_value: number;
+  annualized_roi_percentage: number;
+  beginning_value: number;
+  ending_value: number;
+  total_net_flows: number;
+  total_inflow: number;
+  total_outflow: number;
+  value_total_amount: number;
 }
 
 interface InvestAssetEvoSnapshot {
   month: number;
   year: number;
-  units: number | string;
+  units: Decimal;
   invested_amount: bigint | number;
   current_value: bigint | number;
   invest_assets_asset_id: bigint | number;
   created_at: bigint | number;
   updated_at: bigint | number;
   withdrawn_amount: bigint | number;
+  income_amount: bigint | number;
+  cost_amount: bigint | number;
+  fees_taxes?: bigint | number;
 }
 
 interface Asset {
@@ -59,7 +107,6 @@ interface Asset {
   type: string;
   broker: string;
 }
-
 class InvestAssetService {
   static async getLatestSnapshotForAsset(
     assetId: bigint,
@@ -78,12 +125,31 @@ class InvestAssetService {
     return result[0];
   }
 
-  static async getTotalFessAndTaxesForAsset(assetId: bigint, dbClient = prisma) {
-    const result = await dbClient.$queryRaw`SELECT sum(fees_taxes / 100) as fees_taxes
+  static async getTotalFeesAndTaxesForAsset(assetId: bigint, dbClient = prisma) {
+    const result = await dbClient.$queryRaw`SELECT sum(
+                                              (COALESCE(fees_taxes_amount, 0) + 
+                                              (CASE WHEN type = ${MYFIN.INVEST.TRX_TYPE.COST} THEN total_price ELSE 0 END)) / 100
+                                              ) as fees_taxes
                                               FROM invest_transactions
                                               WHERE invest_assets_asset_id = ${assetId}`;
 
     return result[0].fees_taxes ?? 0;
+  }
+
+  /**
+   * Get external fees on income transactions for an asset
+   * External fees are those where fees_taxes_units <= 0 (not deducted from units)
+   */
+  static async getExternalFeesOnIncomeForAsset(assetId: bigint, dbClient = prisma) {
+    const result =
+      await dbClient.$queryRaw`SELECT COALESCE(sum(fees_taxes_amount / 100), 0) as fees_taxes
+                                              FROM invest_transactions
+                                              WHERE invest_assets_asset_id = ${assetId}
+                                                AND type = 'I'
+                                                AND (fees_taxes_units <= 0 OR fees_taxes_units IS NULL)`;
+
+    if (!result || !Array.isArray(result) || result.length < 1) return 0;
+    return Number(result[0].fees_taxes) || 0;
   }
 
   static async getAverageBuyingPriceForAsset(assetId: bigint, dbClient = prisma) {
@@ -95,16 +161,32 @@ class InvestAssetService {
     return result[0].avg_price;
   }
 
-  static async calculateAssetAmounts(
+  /**
+   * Calculate asset amounts with MWR-based ROI using actual transaction dates
+   * This matches the calculation used in getAssetStatsForUser
+   *
+   * @param asset Asset to calculate amounts for
+   * @param allSnapshots All snapshots for the user (for filtering by asset)
+   * @param allTransactions All transactions for the user (for filtering by asset)
+   * @param dbClient Database client
+   * @returns Asset with calculated amounts including MWR-based ROI
+   */
+  private static async calculateAssetAmountsWithMWR(
     asset: Prisma.invest_assetsCreateInput,
+    allSnapshots: Array<MonthlySnapshot>,
+    allTransactions: TransactionFlowData[],
     dbClient = prisma
   ): Promise<InvestAssetWithCalculatedAmounts> {
-    const snapshot = await this.getLatestSnapshotForAsset(
-      asset.asset_id as bigint,
+    const assetId = asset.asset_id as bigint;
+    const enableLogging = false; //asset.asset_id == 59;
+    // Get latest snapshot for basic amounts
+    const snapshot = await InvestAssetService.getLatestSnapshotForAsset(
+      assetId,
       undefined,
       undefined,
       dbClient
     );
+
     const investedValue = ConvertUtils.convertBigIntegerToFloat(
       BigInt(snapshot?.invested_amount ?? 0)
     );
@@ -114,24 +196,59 @@ class InvestAssetService {
     const currentValue = ConvertUtils.convertBigIntegerToFloat(
       BigInt(snapshot?.current_value ?? 0)
     );
-    const feesAndTaxes = Number.parseFloat(
-      await this.getTotalFessAndTaxesForAsset(asset.asset_id as bigint, dbClient)
+    const incomeAmount = ConvertUtils.convertBigIntegerToFloat(
+      BigInt(snapshot?.income_amount ?? 0)
     );
+    const costAmount = ConvertUtils.convertBigIntegerToFloat(BigInt(snapshot?.cost_amount ?? 0));
+    const feesAndTaxes = Number.parseFloat(
+      await InvestAssetService.getTotalFeesAndTaxesForAsset(assetId, dbClient)
+    );
+    if (enableLogging) Logger.addLog(`invested value = ${investedValue}`);
+    if (enableLogging) Logger.addLog(`withdrawn value = ${withdrawnAmount}`);
+    if (enableLogging) Logger.addLog(`current value = ${currentValue}`);
+    if (enableLogging) Logger.addLog(`income value = ${incomeAmount}`);
+    if (enableLogging) Logger.addLog(`cost value = ${costAmount}`);
+    if (enableLogging) Logger.addLog(`fees/taxes value = ${feesAndTaxes}`);
 
-    let currentlyInvestedValue = investedValue - withdrawnAmount;
-    if (currentlyInvestedValue < 0) currentlyInvestedValue = 0;
-    const roiValue = currentValue + withdrawnAmount - (investedValue + feesAndTaxes);
-    const roiPercentage =
-      investedValue == 0 ? '∞' : (roiValue / (investedValue + feesAndTaxes)) * 100;
-    const pricePerUnit = await this.getAverageBuyingPriceForAsset(
-      asset.asset_id as bigint,
+    // Get external fees on income to calculate net income
+    // Net income = gross income - external fees on income
+    const externalFeesOnIncome = await InvestAssetService.getExternalFeesOnIncomeForAsset(
+      assetId,
       dbClient
     );
-    /*Logger.addLog(
-                          `ASSET: (${asset.asset_id}) ${asset.name} | investedValue: ${investedValue} | withdrawnAmount: ${withdrawnAmount} | currentValue: ${currentValue} | feesAndTaxes: ${feesAndTaxes} | roiValue: ${roiValue} | roiPercentage: ${roiPercentage} | pricePerUnit: ${pricePerUnit}`
-                      );*/
+    const netIncome = incomeAmount - externalFeesOnIncome;
+
+    // Currently invested = invested - withdrawn - net income received
+    let currentlyInvestedValue = investedValue - withdrawnAmount - netIncome;
+    if (currentlyInvestedValue < 0) currentlyInvestedValue = 0;
+
+    const pricePerUnit = await InvestAssetService.getAverageBuyingPriceForAsset(assetId, dbClient);
+
+    if (enableLogging) Logger.addLog(`external fees on income = ${externalFeesOnIncome}`);
+    if (enableLogging) Logger.addLog(`net income: ${netIncome}`);
+    if (enableLogging) Logger.addLog(`currently Invested Value: ${currentlyInvestedValue}`);
+    if (enableLogging) Logger.addLog(`price per unit: ${pricePerUnit}`);
+
+    // Filter snapshots and transactions for this asset
+    const assetSnapshots = allSnapshots.filter(
+      (s) => s.asset_id?.toString() === assetId.toString()
+    );
+    const assetTransactions = allTransactions.filter(
+      (t) =>
+        (t as TransactionFlowData & { asset_id?: bigint }).asset_id?.toString() ===
+        assetId.toString()
+    );
+
+    // Calculate MWR-based ROI (same logic as enrichAssetsWithMWR)
+    const mwr = InvestAssetService.calculateSingleAssetMWR(
+      assetTransactions,
+      currentValue,
+      enableLogging
+    );
+    if (enableLogging) Logger.addLog(`mwr result: ${JSON.stringify(mwr)}`);
+
     return {
-      asset_id: asset.asset_id as bigint,
+      asset_id: assetId,
       name: asset.name,
       ticker: asset.ticker,
       type: asset.type,
@@ -141,10 +258,12 @@ class InvestAssetService {
       currently_invested_value: currentlyInvestedValue,
       withdrawn_amount: withdrawnAmount,
       current_value: currentValue,
-      absolute_roi_value: roiValue,
-      relative_roi_percentage: roiPercentage,
+      absolute_roi_value: mwr.value,
+      relative_roi_percentage: mwr.percentage,
       price_per_unit: pricePerUnit,
       fees_taxes: feesAndTaxes,
+      income_amount: incomeAmount,
+      cost_amount: costAmount,
     };
   }
 
@@ -152,23 +271,56 @@ class InvestAssetService {
     userId: bigint,
     dbClient = prisma
   ): Promise<Array<InvestAssetWithCalculatedAmounts>> {
-    const assets = await dbClient.invest_assets.findMany({
-      where: {
-        users_user_id: userId,
-      },
-    });
+    return performDatabaseRequest(async (prismaTx) => {
+      const assets = await prismaTx.invest_assets.findMany({
+        where: {
+          users_user_id: userId,
+        },
+      });
 
-    const calculatedAmountPromises = [];
-    for (const asset of assets) {
-      calculatedAmountPromises.push(this.calculateAssetAmounts(asset, dbClient));
-    }
-    return (
-      ((await Promise.all(calculatedAmountPromises)) as Array<InvestAssetWithCalculatedAmounts>)
-        // Sort assets array by current value (DESC)
-        .sort((a, b) => {
-          return b.current_value - a.current_value;
-        })
-    );
+      // Fetch snapshots and transactions once for all assets (performance optimization)
+      const monthlySnapshots = await InvestAssetService.getAllAssetSnapshotsForUser(
+        userId,
+        prismaTx
+      );
+
+      const yearOfFirstSnapshot =
+        monthlySnapshots.length > 0
+          ? monthlySnapshots[0].year
+          : DateTimeUtils.getYearFromTimestamp();
+
+      const periodStartTimestamp = DateTimeUtils.getUnixTimestampFromDate(
+        new Date(yearOfFirstSnapshot, 0, 1)
+      );
+      const periodEndTimestamp = DateTimeUtils.getCurrentUnixTimestamp();
+      const allTransactions =
+        (await InvestTransactionsService.getAllTransactionsForUserBetweenDates(
+          userId,
+          periodStartTimestamp,
+          periodEndTimestamp,
+          prismaTx
+        )) as TransactionFlowData[];
+
+      const calculatedAmountPromises = [];
+      for (const asset of assets) {
+        calculatedAmountPromises.push(
+          InvestAssetService.calculateAssetAmountsWithMWR(
+            asset,
+            monthlySnapshots,
+            allTransactions,
+            prismaTx
+          )
+        );
+      }
+
+      return (
+        ((await Promise.all(calculatedAmountPromises)) as Array<InvestAssetWithCalculatedAmounts>)
+          // Sort assets array by current value (DESC)
+          .sort((a, b) => {
+            return b.current_value - a.current_value;
+          })
+      );
+    }, dbClient);
   }
 
   static async createAsset(userId: bigint, asset: Asset, dbClient = prisma) {
@@ -223,10 +375,15 @@ class InvestAssetService {
     newValue: number,
     dbClient = prisma
   ) {
-    const latestSnapshot = await this.getLatestSnapshotForAsset(assetId, month, year, dbClient);
+    const latestSnapshot = await InvestAssetService.getLatestSnapshotForAsset(
+      assetId,
+      month,
+      year,
+      dbClient
+    );
     return dbClient.$queryRaw`INSERT INTO invest_asset_evo_snapshot (month, year, units, invested_amount, current_value,
                                                                        invest_assets_asset_id, created_at, updated_at,
-                                                                       withdrawn_amount)
+                                                                       withdrawn_amount, income_amount, cost_amount)
                                 VALUES (${month}, ${year}, ${units}, ${
                                   latestSnapshot?.invested_amount ?? 0
                                 },
@@ -241,7 +398,9 @@ class InvestAssetService {
                                                 Number(withdrawnAmount)
                                               )
                                             : 0
-                                        })
+                                        },
+                                        ${latestSnapshot?.income_amount ?? 0},
+                                        ${latestSnapshot?.cost_amount ?? 0})
                                 ON DUPLICATE KEY UPDATE current_value = ${ConvertUtils.convertFloatToBigInteger(
                                   newValue
                                 )},
@@ -263,10 +422,11 @@ class InvestAssetService {
         select: { units: true },
       })
     ).units;
-    const withdrawnAmount =
-      (await this.getLatestSnapshotForAsset(assetId, month, year, dbClient))?.withdrawn_amount ?? 0;
-
-    await this.performUpdateAssetValue(
+    const withdrawnAmountRaw =
+      (await InvestAssetService.getLatestSnapshotForAsset(assetId, month, year, dbClient))
+        ?.withdrawn_amount ?? 0;
+    const withdrawnAmount = ConvertUtils.convertBigIntegerToFloat(withdrawnAmountRaw as bigint);
+    await InvestAssetService.performUpdateAssetValue(
       month,
       year,
       assetId,
@@ -283,7 +443,7 @@ class InvestAssetService {
       for (let i = 0; i < 6; i++) {
         nextMonth = DateTimeUtils.incrementMonthByX(month, year, i + 1);
         bufferPromises.push(
-          this.performUpdateAssetValue(
+          InvestAssetService.performUpdateAssetValue(
             nextMonth.month,
             nextMonth.year,
             assetId,
@@ -306,10 +466,10 @@ class InvestAssetService {
     dbClient = undefined
   ) {
     return performDatabaseRequest(async (prismaTx) => {
-      if (!(await this.doesAssetBelongToUser(userId, assetId, prismaTx))) {
+      if (!(await InvestAssetService.doesAssetBelongToUser(userId, assetId, prismaTx))) {
         throw APIError.notAuthorized();
       }
-      await this.updateAssetValue(
+      await InvestAssetService.updateAssetValue(
         userId,
         assetId,
         newValue,
@@ -320,31 +480,19 @@ class InvestAssetService {
       );
     }, dbClient);
   }
-
-  static async getCombinedInvestedBalanceBetweenDatesForUser(
+  static async getAllAssetSnapshotsForUser(
     userId: bigint,
-    beginTimestamp: bigint,
-    endTimestamp: bigint,
     dbClient = prisma
-  ) {
-    const result = await dbClient.$queryRaw`SELECT (SUM(CASE
-                                                              WHEN invest_transactions.type = 'S' THEN total_price * -1
-                                                              ELSE total_price END) / 100) as 'invested_balance'
-                                              FROM invest_transactions
-                                                       INNER JOIN invest_assets ON invest_assets_asset_id = asset_id
-                                              WHERE users_user_id = ${userId}
-                                                AND date_timestamp BETWEEN ${beginTimestamp} and ${endTimestamp}`;
-
-    if (!result || !Array.isArray(result) || (result as Array<any>).length < 1) return null;
-    return Number.parseFloat(result[0].invested_balance);
-  }
-
-  static async getAllAssetSnapshotsForUser(userId: bigint, dbClient = prisma): Promise<Array<any>> {
+  ): Promise<Array<MonthlySnapshot>> {
     return dbClient.$queryRaw`SELECT month,
                                 year,
                                 invest_asset_evo_snapshot.units,
                                 (invested_amount / 100) as 'invested_amount',
                                 (current_value / 100)   as 'current_value',
+                                (withdrawn_amount / 100) as 'withdrawn_amount',
+                                (income_amount / 100) as 'income_amount',
+                                (cost_amount / 100) as 'cost_amount',
+                                (fees_taxes / 100) as 'fees_taxes',
                                 invest_assets_asset_id  as 'asset_id',
                                 name                    as 'asset_name',
                                 ticker                  as 'asset_ticker',
@@ -373,192 +521,366 @@ class InvestAssetService {
     if (!result || !Array.isArray(result) || (result as Array<any>).length < 1) return null;
     return result[0].current_value;
   }
-
-  static async getCombinedFeesAndTaxesBetweenDates(
+  /**
+   * Calculate ROI by year using the Money-Weighted Return (Modified Dietz) method
+   * Uses actual transaction dates for precise time-weighting
+   *
+   * @param userId User ID
+   * @param initialYear First year to calculate from
+   * @param dbClient Database client
+   * @returns Record of yearly ROI data
+   */
+  static async getCombinedROIByYear(
     userId: bigint,
-    beginTimestamp: bigint,
-    endTimestamp: bigint,
-    dbClient = prisma
-  ) {
-    const result = await dbClient.$queryRaw`SELECT (SUM(fees_taxes)/100) as 'invested_fees'
-              FROM invest_transactions
-              INNER JOIN invest_assets ON invest_assets_asset_id = asset_id
-              WHERE users_user_id = ${userId} AND date_timestamp BETWEEN ${beginTimestamp} and ${endTimestamp}`;
-
-    if (!result || !Array.isArray(result) || (result as Array<any>).length < 1) return null;
-    return Number.parseFloat(result[0].invested_fees);
-  }
-
-  static async getCombinedRoiByYear(userId: bigint, initialYear: number, dbClient = undefined) {
+    initialYear: number,
+    dbClient = undefined
+  ): Promise<Record<number, YearlyROI>> {
     return performDatabaseRequest(async (prismaTx) => {
-      const roiByYear = {}; //ex: ["2021" => ["invested_in_year"=>"123.23", "value_total_amount"=>"123.23", "roi_amount"=> "123.12", "roi_percentage"=> "12.34 % "]
+      const roiByYear: Record<number, YearlyROI> = {};
       const currentYear = DateTimeUtils.getYearFromTimestamp();
 
-      // 2 - loop through each year
+      // Fetch all transactions for the entire period once (more efficient than per-year queries)
+      const periodStartTimestamp = DateTimeUtils.getUnixTimestampFromDate(
+        new Date(initialYear, 0, 1)
+      );
+      const periodEndTimestamp = DateTimeUtils.getCurrentUnixTimestamp();
+      const allTransactions =
+        (await InvestTransactionsService.getAllTransactionsForUserBetweenDates(
+          userId,
+          periodStartTimestamp,
+          periodEndTimestamp,
+          prismaTx
+        )) as TransactionFlowData[];
+
       let yearInLoop = initialYear;
-      let lastYearsTotalValue = 0;
       while (yearInLoop <= currentYear) {
-        // 3 - if current year, limit by current month
-        const fromDate = DateTimeUtils.getUnixTimestampFromDate(new Date(yearInLoop, 0, 1));
-        let toDate = -1n;
-        let maxDate = -1;
-        if (yearInLoop == currentYear) {
-          toDate = DateTimeUtils.getCurrentUnixTimestamp();
-          maxDate = DateTimeUtils.getMonthNumberFromTimestamp();
-        } else {
-          toDate = DateTimeUtils.getUnixTimestampFromDate(new Date(yearInLoop, 11, 31));
-          maxDate = 12;
-        }
+        const isCurrentYear = yearInLoop === currentYear;
+        const maxMonth = isCurrentYear ? DateTimeUtils.getMonthNumberFromTimestamp() : 12;
 
-        // 4 - extract data
-        const investedInYearAmount = await this.getCombinedInvestedBalanceBetweenDatesForUser(
+        // Get beginning value (end of previous year)
+        const prevYearValue = await InvestAssetService.getTotalInvestmentValueAtDate(
           userId,
-          fromDate,
-          toDate,
+          12,
+          yearInLoop - 1,
           prismaTx
         );
-        const fullCurrentValue = ConvertUtils.convertBigIntegerToFloat(
-          await this.getTotalInvestmentValueAtDate(userId, maxDate, yearInLoop, prismaTx)
-        );
-        const feesAndTaxes = await this.getCombinedFeesAndTaxesBetweenDates(
+        const beginningValue = ConvertUtils.convertBigIntegerToFloat(prevYearValue || 0n);
+
+        // Get ending value (end of current period)
+        const currentValue = await InvestAssetService.getTotalInvestmentValueAtDate(
           userId,
-          fromDate,
-          toDate,
+          maxMonth,
+          yearInLoop,
           prismaTx
         );
+        const endingValue = ConvertUtils.convertBigIntegerToFloat(currentValue || 0n);
 
-        const expectedBreakEvenValue = lastYearsTotalValue + investedInYearAmount + feesAndTaxes; // If the user had a 0% profit, this would be the current portfolio value
+        // Calculate period timestamps for this year
+        const yearStartTimestamp = DateTimeUtils.getUnixTimestampFromDate(
+          new Date(yearInLoop, 0, 1)
+        );
+        const yearEndTimestamp = isCurrentYear
+          ? DateTimeUtils.getCurrentUnixTimestamp()
+          : DateTimeUtils.getUnixTimestampFromDate(new Date(yearInLoop, 11, 31, 23, 59, 59));
 
-        const roiAmount = fullCurrentValue - expectedBreakEvenValue;
-        const roiPercentage =
-          expectedBreakEvenValue != 0 ? (roiAmount / expectedBreakEvenValue) * 100 : '-';
+        // Filter transactions for this year
+        const yearTransactions = allTransactions.filter((trx) => {
+          const timestamp = Number(trx.date_timestamp);
+          return timestamp >= yearStartTimestamp && timestamp <= yearEndTimestamp;
+        });
 
+        // Calculate MWR using Modified Dietz with actual transaction dates
+        const { mwr, totalNetFlows, totalMoneyIn, totalMoneyOut } =
+          MWRCalculator.calculateModifiedDietzWithTransactions(
+            beginningValue,
+            endingValue,
+            yearTransactions,
+            yearStartTimestamp,
+            yearEndTimestamp
+          );
         roiByYear[yearInLoop] = {
-          invested_in_year_amount: investedInYearAmount,
-          value_total_amount: fullCurrentValue,
-          roi_amount: roiAmount,
-          roi_percentage: roiPercentage,
-          fees_taxes: feesAndTaxes,
-          LAST_YEARS_TOTAL_VALUE: lastYearsTotalValue,
-          EXPECTED_BREAKEVEN_VALUE: expectedBreakEvenValue,
+          roi_percentage: mwr * 100,
+          roi_value: endingValue - beginningValue - totalNetFlows,
+          annualized_roi_percentage: isCurrentYear
+            ? MWRCalculator.annualizeMWR(mwr, maxMonth) * 100
+            : mwr * 100,
+          beginning_value: beginningValue,
+          ending_value: endingValue,
+          total_net_flows: totalNetFlows,
+          total_inflow: totalMoneyOut,
+          total_outflow: totalMoneyIn,
+          value_total_amount: endingValue,
         };
-        lastYearsTotalValue = fullCurrentValue;
+
         yearInLoop++;
       }
+
       return roiByYear;
     }, dbClient);
   }
-
+  /**
+   * Get comprehensive investment statistics for a user using MWR (Modified Dietz) method
+   *
+   * @param userId User ID
+   * @param dbClient Database client
+   * @returns Calculated asset statistics
+   */
   static async getAssetStatsForUser(
     userId: bigint,
     dbClient = undefined
   ): Promise<CalculatedAssetStats> {
     return performDatabaseRequest(async (prismaTx) => {
-      const userAssets = await this.getAllAssetsForUser(userId, prismaTx);
+      // Fetch all data upfront for performance
+      const userAssets: Array<InvestAssetWithCalculatedAmounts> =
+        await InvestAssetService.getAllAssetsForUser(userId, prismaTx);
+      const monthlySnapshots: Array<MonthlySnapshot> =
+        await InvestAssetService.getAllAssetSnapshotsForUser(userId, prismaTx);
 
-      const currentValuesByAssetType = new Map<string, number>();
-      let fullInvestedValue = 0;
-      let fullCurrentValue = 0;
-      let fullWithdrawnAmount = 0;
-      let fullFeesAndTaxes = 0;
-      let lastYearsValue = 0; // the value of all assets combined at last day of previous year
+      // Calculate totals and distribution in a single pass
+      const { totalCurrentValue, totalCurrentlyInvestedValue, currentValueDistribution } =
+        InvestAssetService.calculatePortfolioTotals(userAssets);
 
-      for (const asset of userAssets) {
-        fullInvestedValue += asset.invested_value;
-        fullCurrentValue += asset.current_value;
-        fullWithdrawnAmount += asset.withdrawn_amount;
-        fullFeesAndTaxes += asset.fees_taxes;
+      // Determine first year of data
+      const yearOfFirstSnapshot =
+        monthlySnapshots.length > 0
+          ? monthlySnapshots[0].year
+          : DateTimeUtils.getYearFromTimestamp();
 
-        const lastYearsSnapshot = await this.getLatestSnapshotForAsset(
-          asset.asset_id,
-          12,
-          DateTimeUtils.getYearFromTimestamp() - 1,
+      // Fetch all transactions for MWR calculations (used by both combined ROI and per-asset)
+      const periodStartTimestamp = DateTimeUtils.getUnixTimestampFromDate(
+        new Date(yearOfFirstSnapshot, 0, 1)
+      );
+      const periodEndTimestamp = DateTimeUtils.getCurrentUnixTimestamp();
+      const allTransactions =
+        (await InvestTransactionsService.getAllTransactionsForUserBetweenDates(
+          userId,
+          periodStartTimestamp,
+          periodEndTimestamp,
           prismaTx
-        );
-        if (lastYearsSnapshot) {
-          lastYearsValue += Number(lastYearsSnapshot.current_value);
-        }
-        // Add key and value to array (if already exists, accumulate value for specific type
-        currentValuesByAssetType.set(
-          asset.type,
-          (currentValuesByAssetType.get(asset.type) ?? 0) + asset.current_value
-        );
-      }
+        )) as TransactionFlowData[];
 
-      const totalInvestedValue = fullInvestedValue - fullWithdrawnAmount;
-      const totalCurrentValue = fullCurrentValue;
-      const globalRoiValue =
-        fullCurrentValue - fullInvestedValue + fullWithdrawnAmount - fullFeesAndTaxes;
-      const globalRoiPercentage =
-        totalInvestedValue + fullFeesAndTaxes != 0
-          ? (globalRoiValue / (totalInvestedValue + fullFeesAndTaxes)) * 100
-          : '-';
-
-      const yearStart = DateTimeUtils.getUnixTimestampFromDate(
-        new Date(DateTimeUtils.getYearFromTimestamp(), 0, 1)
-      );
-      // the amount invested in the current year
-      const currentYearInvestedBalance = await this.getCombinedInvestedBalanceBetweenDatesForUser(
+      // Calculate ROI by year (pass snapshots to avoid re-fetching)
+      const combinedRoiByYear = await InvestAssetService.getCombinedROIByYear(
         userId,
-        yearStart,
-        DateTimeUtils.getCurrentUnixTimestamp(),
+        yearOfFirstSnapshot,
         prismaTx
       );
-      const feesAndTaxes = await this.getCombinedFeesAndTaxesBetweenDates(
-        userId,
-        yearStart,
-        DateTimeUtils.getCurrentUnixTimestamp(),
-        prismaTx
+
+      // Extract current year metrics
+      const currentYear = DateTimeUtils.getYearFromTimestamp();
+      const currentYearROI = combinedRoiByYear[currentYear];
+
+      // Calculate global ROI (all-time)
+      const globalROI = InvestAssetService.calculateGlobalROI(combinedRoiByYear);
+
+      // Enrich assets with per-asset MWR using transaction dates
+      const assetsWithMWR = InvestAssetService.enrichAssetsWithMWR(
+        userAssets,
+        monthlySnapshots,
+        allTransactions
       );
-      // If the user had a 0% profit, this would be the current portfolio value
-      const expectedBreakEvenValue =
-        ConvertUtils.convertBigIntegerToFloat(BigInt(lastYearsValue)) +
-        currentYearInvestedBalance +
-        feesAndTaxes;
-      const currentYearRoiValue = fullCurrentValue - expectedBreakEvenValue;
-      const currentYearRoiPercentage =
-        expectedBreakEvenValue != 0
-          ? (currentYearRoiValue / expectedBreakEvenValue) * 100
-          : globalRoiPercentage;
-      const monthlySnapshots = await this.getAllAssetSnapshotsForUser(userId, prismaTx);
-      const currentValueDistribution = {};
-      for (const [assetType, assetValue] of currentValuesByAssetType) {
-        const totalValue = totalCurrentValue;
-        const percentage = totalValue != 0 ? (assetValue / totalValue) * 100 : '-';
-        const data = {};
-        data[`${assetType}`] = percentage;
-        currentValueDistribution[assetType] = data;
-      }
 
-      // Sort assets array by absolute roi value (DESC)
-      userAssets.sort((a, b) => {
-        return b.absolute_roi_value - a.absolute_roi_value;
-      });
-      const topPerformingAssets = userAssets;
-      let yearOfFirstSnapshotForUser = DateTimeUtils.getYearFromTimestamp();
-      if (monthlySnapshots.length > 0) {
-        yearOfFirstSnapshotForUser = monthlySnapshots[0].year;
-      }
-
-      const roiByYear = await this.getCombinedRoiByYear(
-        userId,
-        yearOfFirstSnapshotForUser,
-        prismaTx
+      // Sort assets by absolute ROI value (descending) for top performers
+      const topPerformingAssets = [...assetsWithMWR].sort(
+        (a, b) => (b.absolute_roi_value ?? 0) - (a.absolute_roi_value ?? 0)
       );
 
       return {
-        total_invested_value: totalInvestedValue,
+        // Global metrics
+        global_roi_value: globalROI.value,
+        global_roi_percentage: globalROI.percentage,
         total_current_value: totalCurrentValue,
-        global_roi_value: globalRoiValue,
-        global_roi_percentage: globalRoiPercentage,
-        current_year_roi_value: currentYearRoiValue,
-        current_year_roi_percentage: currentYearRoiPercentage,
+        total_currently_invested_value: totalCurrentlyInvestedValue,
+
+        // Current year metrics
+        current_year_roi_value: currentYearROI?.roi_value ?? 0,
+        current_year_roi_percentage: currentYearROI?.roi_percentage ?? 0,
+        current_year_annualized_roi_percentage: currentYearROI?.annualized_roi_percentage ?? 0,
+
+        // Historical data
         monthly_snapshots: monthlySnapshots,
-        current_value_distribution: Object.values(currentValueDistribution),
+        current_value_distribution: currentValueDistribution,
+        combined_roi_by_year: combinedRoiByYear,
         top_performing_assets: topPerformingAssets,
-        combined_roi_by_year: roiByYear,
       };
     }, dbClient);
+  }
+
+  /**
+   * Calculate portfolio totals and distribution from user assets
+   */
+  private static calculatePortfolioTotals(userAssets: Array<InvestAssetWithCalculatedAmounts>): {
+    totalCurrentValue: number;
+    totalCurrentlyInvestedValue: number;
+    currentValueDistribution: Array<AssetTypeDistribution>;
+  } {
+    const valuesByType = new Map<string, number>();
+    let totalCurrentValue = 0;
+    let totalCurrentlyInvestedValue = 0;
+
+    for (const asset of userAssets) {
+      totalCurrentValue += asset.current_value ?? 0;
+      totalCurrentlyInvestedValue += asset.currently_invested_value ?? 0;
+
+      // Aggregate by asset type
+      const currentTypeValue = valuesByType.get(asset.type) ?? 0;
+      valuesByType.set(asset.type, currentTypeValue + (asset.current_value ?? 0));
+    }
+
+    // Build distribution array
+    const currentValueDistribution: Array<AssetTypeDistribution> = [];
+    for (const [type, value] of valuesByType) {
+      currentValueDistribution.push({
+        type,
+        value,
+        percentage: totalCurrentValue !== 0 ? (value / totalCurrentValue) * 100 : 0,
+      });
+    }
+
+    return { totalCurrentValue, totalCurrentlyInvestedValue, currentValueDistribution };
+  }
+
+  /**
+   * Calculate global (all-time) ROI from yearly ROI data
+   *
+   * Global ROI is calculated by compounding yearly returns:
+   * (1 + r1) * (1 + r2) * ... * (1 + rn) - 1
+   */
+  private static calculateGlobalROI(roiByYear: Record<number, YearlyROI>): {
+    value: number;
+    percentage: number | string;
+  } {
+    const years = Object.keys(roiByYear)
+      .map(Number)
+      .sort((a, b) => a - b);
+
+    if (years.length === 0) {
+      return { value: 0, percentage: 0 };
+    }
+
+    // Calculate total flows and compounded return
+    let totalNetFlows = 0;
+    let compoundedReturn = 1;
+    let firstYearBeginningValue = 0;
+
+    for (let i = 0; i < years.length; i++) {
+      const yearData = roiByYear[years[i]];
+      totalNetFlows += yearData.total_net_flows;
+
+      // Use non-annualized percentage for compounding
+      compoundedReturn *= 1 + yearData.roi_percentage / 100;
+
+      if (i === 0) {
+        firstYearBeginningValue = yearData.beginning_value;
+      }
+    }
+
+    const lastYear = years[years.length - 1];
+    const endingValue = roiByYear[lastYear].ending_value;
+
+    // Global ROI value = ending value - beginning value - all net flows
+    const globalRoiValue = endingValue - firstYearBeginningValue - totalNetFlows;
+
+    // Global ROI percentage from compounded returns
+    const globalRoiPercentage = (compoundedReturn - 1) * 100;
+
+    return {
+      value: globalRoiValue,
+      percentage: firstYearBeginningValue === 0 && totalNetFlows === 0 ? '-' : globalRoiPercentage,
+    };
+  }
+
+  /**
+   * Enrich assets with MWR-based ROI calculations using actual transaction dates
+   *
+   * @param userAssets Array of assets with basic calculated amounts
+   * @param monthlySnapshots All monthly snapshots for the user (for beginning/ending values)
+   * @param allTransactions All transactions for the user (for precise time-weighting)
+   * @returns Assets with absolute_roi_value and relative_roi_percentage using MWR
+   */
+  private static enrichAssetsWithMWR(
+    userAssets: Array<InvestAssetWithCalculatedAmounts>,
+    monthlySnapshots: Array<MonthlySnapshot>,
+    allTransactions: TransactionFlowData[]
+  ): Array<InvestAssetWithCalculatedAmounts> {
+    // Group snapshots by asset_id for O(1) lookup
+    const snapshotsByAsset = new Map<string, Array<MonthlySnapshot>>();
+    for (const snapshot of monthlySnapshots) {
+      const assetIdStr = snapshot.asset_id.toString();
+      if (!snapshotsByAsset.has(assetIdStr)) {
+        snapshotsByAsset.set(assetIdStr, []);
+      }
+      snapshotsByAsset.get(assetIdStr)?.push(snapshot);
+    }
+
+    // Group transactions by asset_id for O(1) lookup
+    const transactionsByAsset = new Map<string, TransactionFlowData[]>();
+    for (const trx of allTransactions) {
+      const assetIdStr = (trx as any).asset_id?.toString() ?? '';
+      if (!transactionsByAsset.has(assetIdStr)) {
+        transactionsByAsset.set(assetIdStr, []);
+      }
+      transactionsByAsset.get(assetIdStr)?.push(trx);
+    }
+
+    // Calculate MWR for each asset and replace ROI values
+    return userAssets.map((asset) => {
+      const assetTransactions = transactionsByAsset.get(asset.asset_id?.toString() ?? '') ?? [];
+      const mwr = InvestAssetService.calculateSingleAssetMWR(
+        assetTransactions,
+        asset.current_value ?? 0
+      );
+
+      return {
+        ...asset,
+        absolute_roi_value: mwr.value,
+        relative_roi_percentage: mwr.percentage,
+      };
+    });
+  }
+
+  /**
+   * Calculate MWR (all-time) for a single asset using actual transaction dates
+   *
+   * @param assetTransactions All transactions for this asset (for precise time-weighting)
+   * @param currentValue Current value of the asset
+   * @returns MWR value and percentage
+   */
+  private static calculateSingleAssetMWR(
+    assetTransactions: TransactionFlowData[],
+    currentValue: number,
+    enableLogging = false
+  ): { value: number; percentage: number | string } {
+    if (assetTransactions.length === 0) {
+      return { value: 0, percentage: 0 };
+    }
+
+    // 1. Define the Global Period
+    const firstTrxTimestamp = Math.min(...assetTransactions.map((t) => Number(t.date_timestamp)));
+    const endTimestamp = DateTimeUtils.getCurrentUnixTimestamp();
+
+    const beginningValue = 0; // Asset starts at 0 before first transaction
+
+    // 2. Use one single Modified Dietz calculation for the WHOLE history
+    const { mwr, totalNetFlows } = MWRCalculator.calculateModifiedDietzWithTransactions(
+      beginningValue,
+      currentValue,
+      assetTransactions,
+      firstTrxTimestamp,
+      endTimestamp
+    );
+
+    // 3. Final ROI Value (Profit/Loss in currency)
+    const roiValue = currentValue - totalNetFlows;
+
+    if (enableLogging) {
+      Logger.addLog(`mwr result: value=${roiValue}, percentage=${mwr * 100}`);
+    }
+
+    return {
+      value: roiValue,
+      percentage: Number.isFinite(mwr) ? mwr * 100 : '-',
+    };
   }
 
   static async getAllAssetsSummaryForUser(userId: bigint, dbClient = prisma) {
@@ -579,7 +901,7 @@ class InvestAssetService {
 
   static async deleteAsset(userId: bigint, assetId: bigint, dbClient = undefined) {
     return performDatabaseRequest(async (prismaTx) => {
-      if (!(await this.doesAssetBelongToUser(userId, assetId, prismaTx))) {
+      if (!(await InvestAssetService.doesAssetBelongToUser(userId, assetId, prismaTx))) {
         throw APIError.notAuthorized();
       }
 
@@ -604,50 +926,6 @@ class InvestAssetService {
     }, dbClient);
   }
 
-  static async getAssetDetailsForUser(
-    userId: bigint,
-    assetId: bigint,
-    dbClient = undefined
-  ): Promise<InvestAssetWithCalculatedAmounts> {
-    return performDatabaseRequest(async (prismaTx) => {
-      if (!(await this.doesAssetBelongToUser(userId, assetId, prismaTx))) {
-        throw APIError.notAuthorized();
-      }
-
-      /*const asset = (await this.getAllAssetsForUser(userId, prismaTx)).find(
-        (assetItem) => assetItem.asset_id == assetId
-    );*/
-
-      const asset = await prismaTx.invest_assets.findUniqueOrThrow({
-        where: {
-          users_user_id: userId,
-          asset_id: assetId,
-        },
-      });
-
-      return this.calculateAssetAmounts(asset, prismaTx);
-      /*const month = DateTimeUtils.getMonthNumberFromTimestamp();
-    const year = DateTimeUtils.getYearFromTimestamp();
-    const snapshot = await this.getLatestSnapshotForAsset(assetId, null, null, prismaTx);
-    const investedValue = ConvertUtils.convertBigIntegerToFloat(
-      BigInt(snapshot?.invested_amount ?? 0)
-    );
-    const withdrawnAmount = ConvertUtils.convertBigIntegerToFloat(
-      BigInt(snapshot?.withdrawn_amount ?? 0)
-    );
-    const currentValue = ConvertUtils.convertBigIntegerToFloat(BigInt(snapshot?.current_value ?? 0));
-    const feesAndTaxes = parseFloat(
-      await this.getTotalFessAndTaxesForAsset(asset.asset_id as bigint, dbClient)
-    );
-
-    let currentlyInvestedValue = investedValue - withdrawnAmount;
-    if (currentlyInvestedValue < 0) currentlyInvestedValue = 0;
-    const roiValue = currentValue + withdrawnAmount - (investedValue + feesAndTaxes);
-    const roiPercentage =
-      investedValue == 0 ? '∞' : (roiValue / (investedValue + feesAndTaxes)) * 100;*/
-    }, dbClient);
-  }
-
   static async addCustomBalanceSnapshot(
     assetId: bigint,
     month: number,
@@ -656,12 +934,15 @@ class InvestAssetService {
     investedAmount: number,
     currentAmount: number,
     withdrawnAmount: number,
+    incomeAmount: number,
+    costAmount: number,
+    feesTaxes: number,
     dbClient = prisma
   ) {
     const currentTimestamp = DateTimeUtils.getCurrentUnixTimestamp();
-    return dbClient.$queryRaw`INSERT INTO invest_asset_evo_snapshot (month, year, units, invested_amount, current_value, invest_assets_asset_id, created_at, updated_at, withdrawn_amount)
-                                    VALUES (${month}, ${year}, ${units}, ${investedAmount}, ${currentAmount}, ${assetId}, ${currentTimestamp}, ${currentTimestamp}, ${withdrawnAmount})
-                                    ON DUPLICATE KEY UPDATE units = ${units}, invested_amount = ${investedAmount}, updated_at = ${currentTimestamp}, withdrawn_amount = ${withdrawnAmount};`;
+    return dbClient.$queryRaw`INSERT INTO invest_asset_evo_snapshot (month, year, units, invested_amount, current_value, invest_assets_asset_id, created_at, updated_at, withdrawn_amount, income_amount, cost_amount, fees_taxes)
+                                    VALUES (${month}, ${year}, ${units}, ${investedAmount}, ${currentAmount}, ${assetId}, ${currentTimestamp}, ${currentTimestamp}, ${withdrawnAmount}, ${incomeAmount}, ${costAmount}, ${feesTaxes})
+                                    ON DUPLICATE KEY UPDATE units = ${units}, invested_amount = ${investedAmount}, updated_at = ${currentTimestamp}, withdrawn_amount = ${withdrawnAmount}, income_amount = ${incomeAmount}, cost_amount = ${costAmount}, fees_taxes = ${feesTaxes};`;
   }
 
   static async getAllTransactionsForAssetBetweenDates(
@@ -669,7 +950,7 @@ class InvestAssetService {
     fromDate: bigint | number,
     toDate: bigint | number,
     dbClient = prisma
-  ) {
+  ): Promise<Array<Prisma.Invest_transactionsMaxAggregateOutputType>> {
     return performDatabaseRequest(async (prismaTx) => {
       return prismaTx.$queryRaw`SELECT * FROM invest_transactions 
               WHERE date_timestamp BETWEEN ${fromDate} AND ${toDate}
@@ -690,15 +971,13 @@ class InvestAssetService {
        * Given that I'm unable to know the invested/current amounts of an asset at any specific time (only at the end of each month),
        * I will need to recalculate from the beginning of the month relative to $fromDate all the way to the end of
        * month associated with $toDate.
-       *
-       * Will update units, current_amount & invested_amount
        */
 
       let beginMonth = DateTimeUtils.getMonthNumberFromTimestamp(originalFromDate);
       let beginYear = DateTimeUtils.getYearFromTimestamp(originalFromDate);
       Logger.addLog(`Begin month: ${beginMonth} | original from date: ${originalFromDate}`);
       // Get snapshot from 2 months prior of begin date
-      let priorMonthsSnapshot = await this.getLatestSnapshotForAsset(
+      let priorMonthsSnapshot = await InvestAssetService.getLatestSnapshotForAsset(
         assetId,
         beginMonth > 2 ? beginMonth - 2 : 12 - 2 + beginMonth,
         beginMonth > 2 ? beginYear : beginYear - 1,
@@ -707,19 +986,22 @@ class InvestAssetService {
 
       if (!priorMonthsSnapshot) {
         priorMonthsSnapshot = {
-          units: 0,
+          units: Decimal(0),
           current_value: 0,
           invested_amount: 0,
           year: -1,
           month: -1,
           invest_assets_asset_id: assetId,
           withdrawn_amount: 0,
+          income_amount: 0,
+          cost_amount: 0,
+          fees_taxes: 0,
           updated_at: -1,
           created_at: -1,
         };
       }
 
-      await this.addCustomBalanceSnapshot(
+      await InvestAssetService.addCustomBalanceSnapshot(
         assetId,
         beginMonth,
         beginYear,
@@ -727,33 +1009,42 @@ class InvestAssetService {
         Number(priorMonthsSnapshot.invested_amount),
         Number(priorMonthsSnapshot.current_value),
         Number(priorMonthsSnapshot.withdrawn_amount),
+        Number(priorMonthsSnapshot.income_amount ?? 0),
+        Number(priorMonthsSnapshot.cost_amount ?? 0),
+        Number(priorMonthsSnapshot.fees_taxes ?? 0),
         prismaTx
       );
 
       // Reset snapshots for next 2 months (in case there are no transactions in these months and the balance doesn't get recalculated
       let addCustomBalanceSnapshotsPromises = [];
       addCustomBalanceSnapshotsPromises.push(
-        this.addCustomBalanceSnapshot(
+        InvestAssetService.addCustomBalanceSnapshot(
           assetId,
-          DateTimeUtils.incrementMonthByX(beginMonth, beginYear, 1).month, //beginMonth < 12 ? beginMonth + 1 : 1,
-          DateTimeUtils.incrementMonthByX(beginMonth, beginYear, 1).year, //beginMonth < 12 ? beginYear : beginYear + 1,
+          DateTimeUtils.incrementMonthByX(beginMonth, beginYear, 1).month,
+          DateTimeUtils.incrementMonthByX(beginMonth, beginYear, 1).year,
           Number(priorMonthsSnapshot.units),
           Number(priorMonthsSnapshot.invested_amount),
           Number(priorMonthsSnapshot.current_value),
           Number(priorMonthsSnapshot.withdrawn_amount),
+          Number(priorMonthsSnapshot.income_amount ?? 0),
+          Number(priorMonthsSnapshot.cost_amount ?? 0),
+          Number(priorMonthsSnapshot.fees_taxes ?? 0),
           prismaTx
         )
       );
 
       addCustomBalanceSnapshotsPromises.push(
-        this.addCustomBalanceSnapshot(
+        InvestAssetService.addCustomBalanceSnapshot(
           assetId,
-          DateTimeUtils.incrementMonthByX(beginMonth, beginYear, 2).month, //beginMonth < 11 ? beginMonth + 2 : 1,
-          DateTimeUtils.incrementMonthByX(beginMonth, beginYear, 2).year, //beginMonth < 11 ? beginYear : beginYear + 1,
+          DateTimeUtils.incrementMonthByX(beginMonth, beginYear, 2).month,
+          DateTimeUtils.incrementMonthByX(beginMonth, beginYear, 2).year,
           Number(priorMonthsSnapshot.units),
           Number(priorMonthsSnapshot.invested_amount),
           Number(priorMonthsSnapshot.current_value),
           Number(priorMonthsSnapshot.withdrawn_amount),
+          Number(priorMonthsSnapshot.income_amount ?? 0),
+          Number(priorMonthsSnapshot.cost_amount ?? 0),
+          Number(priorMonthsSnapshot.fees_taxes ?? 0),
           prismaTx
         )
       );
@@ -780,25 +1071,27 @@ class InvestAssetService {
       );
       const toDate = DateTimeUtils.getUnixTimestampFromDate(new Date(endYear, endMonth - 1, 1));
 
-      const trxList = await this.getAllTransactionsForAssetBetweenDates(
+      const trxList = await InvestAssetService.getAllTransactionsForAssetBetweenDates(
         assetId,
         fromDate,
         toDate,
         prismaTx
       );
-      Logger.addLog(`----- dates between ${fromDate} & ${toDate}`);
+      /*Logger.addLog(`----- dates between ${fromDate} & ${toDate}`);
       Logger.addStringifiedLog(trxList);
-      Logger.addLog('-----');
+      Logger.addLog('-----');*/
       let initialSnapshot = priorMonthsSnapshot;
       if (!initialSnapshot) {
         initialSnapshot = {
-          units: 0,
+          units: Decimal(0),
           current_value: 0,
           invested_amount: 0,
           year: -1,
           month: -1,
           invest_assets_asset_id: assetId,
           withdrawn_amount: 0,
+          income_amount: 0,
+          cost_amount: 0,
           updated_at: -1,
           created_at: -1,
         };
@@ -811,24 +1104,55 @@ class InvestAssetService {
 
         const trxType = trx.type;
         const changeInAmounts = trx.total_price;
-        let changeInUnits = trx.units;
-
-        if (trxType == MYFIN.INVEST.TRX_TYPE.SELL) {
-          changeInUnits *= -1;
-          initialSnapshot.withdrawn_amount =
-            Number(initialSnapshot.withdrawn_amount) + Number.parseFloat(changeInAmounts);
-        } else {
-          initialSnapshot.invested_amount =
-            Number(initialSnapshot.invested_amount) + Number.parseFloat(changeInAmounts);
+        const changeInUnits = trx.units;
+        if (trx.fees_taxes_amount > 0 && trx.fees_taxes_units <= Decimal(0)) {
+          initialSnapshot.fees_taxes =
+            BigInt(initialSnapshot.fees_taxes) + BigInt(trx.fees_taxes_amount);
+        } else if (trx.fees_taxes_units > Decimal(0)) {
+          initialSnapshot.units = Decimal(initialSnapshot.units).minus(trx.fees_taxes_units);
         }
+        switch (trxType) {
+          case MYFIN.INVEST.TRX_TYPE.BUY:
+            // BUY: +units, +invested_amount, +fees_taxes
+            initialSnapshot.invested_amount =
+              BigInt(initialSnapshot.invested_amount) + BigInt(changeInAmounts);
+            initialSnapshot.units = Decimal(initialSnapshot.units).add(changeInUnits);
+            break;
 
-        initialSnapshot.units = Number(initialSnapshot.units) + Number.parseFloat(changeInUnits);
+          case MYFIN.INVEST.TRX_TYPE.SELL:
+            // SELL: -units, +withdrawn_amount, +fees_taxes
+            initialSnapshot.withdrawn_amount =
+              BigInt(initialSnapshot.withdrawn_amount) + BigInt(changeInAmounts);
+            initialSnapshot.units = Decimal(initialSnapshot.units).minus(changeInUnits);
+            break;
+
+          case MYFIN.INVEST.TRX_TYPE.INCOME:
+            // INCOME: +units (if > 0), +income_amount (if total_price > 0)
+            if (changeInUnits > Decimal(0)) {
+              initialSnapshot.units = Decimal(initialSnapshot.units).add(changeInUnits);
+            }
+            if (BigInt(changeInAmounts) > 0) {
+              initialSnapshot.income_amount =
+                BigInt(initialSnapshot.income_amount ?? 0) + BigInt(changeInAmounts);
+            }
+            break;
+
+          case MYFIN.INVEST.TRX_TYPE.COST:
+            // COST: -units (if > 0), +cost_amount (if total_price > 0)
+            if (changeInUnits > Decimal(0)) {
+              initialSnapshot.units = Decimal(initialSnapshot.units).minus(changeInUnits);
+            } else if (BigInt(changeInAmounts) > 0) {
+              initialSnapshot.cost_amount =
+                BigInt(initialSnapshot.cost_amount ?? 0) + BigInt(changeInAmounts);
+            }
+            break;
+        }
 
         /* Automatically add snapshots for current & next 6 months in order to create a buffer*/
         addCustomBalanceSnapshotsPromises = [];
 
         addCustomBalanceSnapshotsPromises.push(
-          this.addCustomBalanceSnapshot(
+          InvestAssetService.addCustomBalanceSnapshot(
             assetId,
             month,
             year,
@@ -836,13 +1160,16 @@ class InvestAssetService {
             Number(initialSnapshot.invested_amount),
             Number(initialSnapshot.current_value),
             Number(initialSnapshot.withdrawn_amount),
+            Number(initialSnapshot.income_amount ?? 0),
+            Number(initialSnapshot.cost_amount ?? 0),
+            Number(initialSnapshot.fees_taxes ?? 0),
             prismaTx
           )
         );
 
         for (let i = 1; i <= 6; i++) {
           addCustomBalanceSnapshotsPromises.push(
-            this.addCustomBalanceSnapshot(
+            InvestAssetService.addCustomBalanceSnapshot(
               assetId,
               DateTimeUtils.incrementMonthByX(month, year, i).month,
               DateTimeUtils.incrementMonthByX(month, year, i).year,
@@ -850,6 +1177,9 @@ class InvestAssetService {
               Number(initialSnapshot.invested_amount),
               Number(initialSnapshot.current_value),
               Number(initialSnapshot.withdrawn_amount),
+              Number(initialSnapshot.income_amount ?? 0),
+              Number(initialSnapshot.cost_amount ?? 0),
+              Number(initialSnapshot.fees_taxes ?? 0),
               prismaTx
             )
           );

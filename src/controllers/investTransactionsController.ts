@@ -13,18 +13,20 @@ const createTransactionSchema = joi.object({
   note: joi.string().allow('').optional(),
   total_price: joi.number().required(),
   units: joi.number().required(),
-  fees: joi.number().required(),
+  // for external fees (e.g. charged to separate account)
+  fees_amount: joi.number().required(),
+  // for internal fees (deducted from units)
+  fees_units: joi.number().required(),
   asset_id: joi.number().required(),
-  type: joi.string().allow(MYFIN.INVEST.TRX_TYPE.BUY, MYFIN.INVEST.TRX_TYPE.SELL).required(),
-  /* SPLIT TRX - FOR DEDUCTED FEES */
-  is_split: joi.boolean().default(false),
-  split_total_price: joi.number().empty('').optional(),
-  split_units: joi.number().empty('').optional(),
-  split_note: joi.string().empty('').trim().optional(),
-  split_type: joi
+  type: joi
     .string()
-    .allow(MYFIN.INVEST.TRX_TYPE.BUY, MYFIN.INVEST.TRX_TYPE.SELL, '')
-    .optional(),
+    .allow(
+      MYFIN.INVEST.TRX_TYPE.BUY,
+      MYFIN.INVEST.TRX_TYPE.SELL,
+      MYFIN.INVEST.TRX_TYPE.COST,
+      MYFIN.INVEST.TRX_TYPE.INCOME
+    )
+    .required(),
 });
 
 const createTransaction = async (req: Request, res: Response, next: NextFunction) => {
@@ -38,17 +40,11 @@ const createTransaction = async (req: Request, res: Response, next: NextFunction
       input.note,
       input.total_price,
       input.units,
-      input.fees,
-      input.type,
-      input.is_split,
-      {
-        totalPrice: input.split_total_price,
-        units: input.split_units,
-        type: input.split_type,
-        note: input.split_note,
-      }
+      input.fees_amount,
+      input.fees_units,
+      input.type
     );
-    res.json(`Transaction successfully created!`);
+    res.json('Transaction successfully created!');
   } catch (err) {
     Logger.addLog(err);
     next(err || APIError.internalServerError());
@@ -97,9 +93,20 @@ const updateTransactionSchema = joi.object({
   note: joi.string().empty('').allow(''),
   total_price: joi.number().required(),
   units: joi.number().required(),
-  fees: joi.number().required(),
+  // for external fees (e.g. charged to separate account)
+  fees_amount: joi.number().required(),
+  // for internal fees (deducted from units)
+  fees_units: joi.number().required(),
   asset_id: joi.number().required(),
-  type: joi.string().allow(MYFIN.INVEST.TRX_TYPE.BUY, MYFIN.INVEST.TRX_TYPE.SELL).required(),
+  type: joi
+    .string()
+    .allow(
+      MYFIN.INVEST.TRX_TYPE.BUY,
+      MYFIN.INVEST.TRX_TYPE.SELL,
+      MYFIN.INVEST.TRX_TYPE.INCOME,
+      MYFIN.INVEST.TRX_TYPE.COST
+    )
+    .required(),
 });
 const updateTransaction = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -114,10 +121,11 @@ const updateTransaction = async (req: Request, res: Response, next: NextFunction
       input.note,
       input.total_price,
       input.units,
-      input.fees,
+      input.fees_amount,
+      input.fees_units,
       input.type
     );
-    res.json(`Transaction successfully updated!`);
+    res.json('Transaction successfully updated!');
   } catch (err) {
     Logger.addLog(err);
     next(err || APIError.internalServerError());
@@ -130,7 +138,7 @@ const deleteTransaction = async (req: Request, res: Response, next: NextFunction
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
     const trxId = req.params.id;
     await InvestTransactionsService.deleteTransaction(sessionData.userId, BigInt(trxId));
-    res.json(`Transaction successfully deleted!`);
+    res.json('Transaction successfully deleted!');
   } catch (err) {
     Logger.addLog(err);
     next(err || APIError.internalServerError());
