@@ -13,7 +13,7 @@ vi.mock('../../src/services/investTransactionsService.js', () => ({
 }));
 
 /**
- * Investment Asset Service Tests - ROI Calculations using MWR (Modified Dietz)
+ * Investment Asset Service Tests - ROI Calculations using Simple ROI
  */
 describe('investAssetService', () => {
   beforeEach(() => {
@@ -23,7 +23,7 @@ describe('investAssetService', () => {
       []
     );
   });
-  describe('getAssetStatsForUser - MWR ROI Calculations', () => {
+  describe('getAssetStatsForUser - Simple ROI Calculations', () => {
     test('Should return correct stats with no assets', async () => {
       const userId = 1n;
       mockedPrisma.invest_assets.findMany.mockResolvedValue([]);
@@ -77,7 +77,6 @@ describe('investAssetService', () => {
         2024: {
           roi_percentage: 18.81,
           roi_value: 190,
-          annualized_roi_percentage: 18.81,
           beginning_value: 0,
           ending_value: 1200,
           total_net_flows: 1010,
@@ -90,7 +89,7 @@ describe('investAssetService', () => {
       expect(result.total_current_value).toBe(1200);
       expect(result.total_currently_invested_value).toBe(1000);
     });
-    test('Should use MWR-based ROI from getCombinedROIByYear', async () => {
+    test('Should use simple ROI from getCombinedROIByYear', async () => {
       const userId = 1n;
       const currentYear = new Date().getFullYear();
       mockedPrisma.invest_assets.findMany.mockResolvedValue([]);
@@ -115,7 +114,6 @@ describe('investAssetService', () => {
         [currentYear]: {
           roi_percentage: 8.91,
           roi_value: 90,
-          annualized_roi_percentage: 15.5,
           beginning_value: 0,
           ending_value: 1100,
           total_net_flows: 1010,
@@ -127,7 +125,6 @@ describe('investAssetService', () => {
       const result = await InvestAssetService.getAssetStatsForUser(userId, mockedPrisma);
       expect(result.current_year_roi_value).toBe(90);
       expect(result.current_year_roi_percentage).toBe(8.91);
-      expect(result.current_year_annualized_roi_percentage).toBe(15.5);
     });
     test('Should calculate compounded global ROI from yearly values', async () => {
       const userId = 1n;
@@ -153,18 +150,16 @@ describe('investAssetService', () => {
         2023: {
           roi_percentage: 10,
           roi_value: 100,
-          annualized_roi_percentage: 10,
           beginning_value: 0,
           ending_value: 1100,
           total_net_flows: 1000,
-          total_inflow: 0,
+          total_inflow: 1000,
           total_outflow: 0,
           value_total_amount: 0,
         },
         2024: {
           roi_percentage: 20,
           roi_value: 220,
-          annualized_roi_percentage: 20,
           beginning_value: 1100,
           ending_value: 1320,
           total_net_flows: 0,
@@ -174,6 +169,10 @@ describe('investAssetService', () => {
         },
       });
       const result = await InvestAssetService.getAssetStatsForUser(userId, mockedPrisma);
+      // Simple ROI:
+      // globalRoiValue = endingValue - firstYearBeginningValue - totalNetFlows = 1320 - 0 - 1000 = 320
+      // costBasis = firstYearBeginningValue + totalNetFlows = 0 + 1000 = 1000
+      // globalRoiPercentage = 320 / 1000 = 32%
       expect(result.global_roi_percentage).toBeCloseTo(32, 0);
       expect(result.global_roi_value).toBe(320);
     });

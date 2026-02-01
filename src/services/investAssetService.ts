@@ -5,7 +5,7 @@ import { MYFIN } from '../consts.js';
 import APIError from '../errorHandling/apiError.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
 import Logger from '../utils/Logger.js';
-import MWRCalculator, { type TransactionFlowData } from '../utils/MWRCalculator.js';
+import ROICalculator, { type TransactionFlowData } from '../utils/ROICalculator.js';
 import ConvertUtils from '../utils/convertUtils.js';
 import InvestTransactionsService from './investTransactionsService.js';
 
@@ -38,10 +38,9 @@ interface CalculatedAssetStats {
   total_current_value: number;
   total_currently_invested_value: number;
 
-  // Current year metrics (using MWR)
+  // Current year metrics (using simple ROI)
   current_year_roi_value: number;
   current_year_roi_percentage: number;
-  current_year_annualized_roi_percentage: number;
 
   // Historical data
   monthly_snapshots: Array<MonthlySnapshot>;
@@ -75,7 +74,6 @@ interface AssetTypeDistribution {
 interface YearlyROI {
   roi_percentage: number;
   roi_value: number;
-  annualized_roi_percentage: number;
   beginning_value: number;
   ending_value: number;
   total_net_flows: number;
@@ -162,23 +160,23 @@ class InvestAssetService {
   }
 
   /**
-   * Calculate asset amounts with MWR-based ROI using actual transaction dates
+   * Calculate asset amounts with ROI using transaction data
    * This matches the calculation used in getAssetStatsForUser
    *
    * @param asset Asset to calculate amounts for
    * @param allSnapshots All snapshots for the user (for filtering by asset)
    * @param allTransactions All transactions for the user (for filtering by asset)
    * @param dbClient Database client
-   * @returns Asset with calculated amounts including MWR-based ROI
+   * @returns Asset with calculated amounts including ROI
    */
-  private static async calculateAssetAmountsWithMWR(
+  private static async calculateAssetAmountsWithROI(
     asset: Prisma.invest_assetsCreateInput,
     allSnapshots: Array<MonthlySnapshot>,
     allTransactions: TransactionFlowData[],
     dbClient = prisma
   ): Promise<InvestAssetWithCalculatedAmounts> {
     const assetId = asset.asset_id as bigint;
-    const enableLogging = false; //asset.asset_id == 59;
+    const enableLogging = false;
     // Get latest snapshot for basic amounts
     const snapshot = await InvestAssetService.getLatestSnapshotForAsset(
       assetId,
@@ -229,23 +227,16 @@ class InvestAssetService {
     if (enableLogging) Logger.addLog(`currently Invested Value: ${currentlyInvestedValue}`);
     if (enableLogging) Logger.addLog(`price per unit: ${pricePerUnit}`);
 
-    // Filter snapshots and transactions for this asset
-    const assetSnapshots = allSnapshots.filter(
-      (s) => s.asset_id?.toString() === assetId.toString()
-    );
+    // Filter transactions for this asset
     const assetTransactions = allTransactions.filter(
       (t) =>
         (t as TransactionFlowData & { asset_id?: bigint }).asset_id?.toString() ===
         assetId.toString()
     );
 
-    // Calculate MWR-based ROI (same logic as enrichAssetsWithMWR)
-    const mwr = InvestAssetService.calculateSingleAssetMWR(
-      assetTransactions,
-      currentValue,
-      enableLogging
-    );
-    if (enableLogging) Logger.addLog(`mwr result: ${JSON.stringify(mwr)}`);
+    // Calculate ROI
+    const roi = InvestAssetService.calculateSingleAssetROI(assetTransactions, currentValue);
+    if (enableLogging) Logger.addLog(`roi result: ${JSON.stringify(roi)}`);
 
     return {
       asset_id: assetId,
@@ -258,8 +249,8 @@ class InvestAssetService {
       currently_invested_value: currentlyInvestedValue,
       withdrawn_amount: withdrawnAmount,
       current_value: currentValue,
-      absolute_roi_value: mwr.value,
-      relative_roi_percentage: mwr.percentage,
+      absolute_roi_value: roi.value,
+      relative_roi_percentage: roi.percentage,
       price_per_unit: pricePerUnit,
       fees_taxes: feesAndTaxes,
       income_amount: incomeAmount,
@@ -304,7 +295,7 @@ class InvestAssetService {
       const calculatedAmountPromises = [];
       for (const asset of assets) {
         calculatedAmountPromises.push(
-          InvestAssetService.calculateAssetAmountsWithMWR(
+          InvestAssetService.calculateAssetAmountsWithROI(
             asset,
             monthlySnapshots,
             allTransactions,
@@ -484,7 +475,7 @@ class InvestAssetService {
     userId: bigint,
     dbClient = prisma
   ): Promise<Array<MonthlySnapshot>> {
-    return dbClient.$queryRaw`SELECT month,
+    const rawSnapshots = (await dbClient.$queryRaw`SELECT month,
                                 year,
                                 invest_asset_evo_snapshot.units,
                                 (invested_amount / 100) as 'invested_amount',
@@ -501,7 +492,51 @@ class InvestAssetService {
                                   INNER JOIN invest_assets ON invest_assets.asset_id = invest_assets_asset_id
                          WHERE users_user_id = ${userId}
                            AND (year < ${DateTimeUtils.getYearFromTimestamp()} OR (year = ${DateTimeUtils.getYearFromTimestamp()} AND month <= ${DateTimeUtils.getMonthNumberFromTimestamp()}))
-                         ORDER BY year ASC, month ASC;`;
+                         ORDER BY year ASC, month ASC;`) as Array<MonthlySnapshot>;
+
+    if (!rawSnapshots || rawSnapshots.length === 0) return [];
+
+    const filledSnapshots: MonthlySnapshot[] = [];
+    const lastKnownAssetStates = new Map<string, MonthlySnapshot>();
+
+    const firstSnapshot = rawSnapshots[0];
+    let loopMonth = firstSnapshot.month;
+    let loopYear = firstSnapshot.year;
+
+    const currentYear = DateTimeUtils.getYearFromTimestamp();
+    const currentMonth = DateTimeUtils.getMonthNumberFromTimestamp();
+
+    let rawIndex = 0;
+
+    // Loop through every month from first snapshot's date up to current date
+    while (loopYear < currentYear || (loopYear === currentYear && loopMonth <= currentMonth)) {
+      // 1. Update states with any actual snapshots for this month
+      while (
+        rawIndex < rawSnapshots.length &&
+        rawSnapshots[rawIndex].year === loopYear &&
+        rawSnapshots[rawIndex].month === loopMonth
+      ) {
+        const snap = rawSnapshots[rawIndex];
+        lastKnownAssetStates.set(snap.asset_id.toString(), snap);
+        rawIndex++;
+      }
+
+      // 2. Add carried-over (or fresh) states for this month
+      for (const snap of lastKnownAssetStates.values()) {
+        filledSnapshots.push({
+          ...snap,
+          month: loopMonth,
+          year: loopYear,
+        });
+      }
+
+      // Move to next month
+      const nextDate = DateTimeUtils.incrementMonthByX(loopMonth, loopYear, 1);
+      loopMonth = nextDate.month;
+      loopYear = nextDate.year;
+    }
+
+    return filledSnapshots;
   }
 
   static async getTotalInvestmentValueAtDate(
@@ -510,20 +545,29 @@ class InvestAssetService {
     maxYear = DateTimeUtils.getYearFromTimestamp(),
     dbClient = prisma
   ) {
-    const result =
-      await dbClient.$queryRaw`SELECT month, year, SUM(current_value) as 'current_value' FROM invest_asset_evo_snapshot
-              INNER JOIN invest_assets ON invest_assets.asset_id = invest_assets_asset_id
-              WHERE users_user_id = ${userId}
-              AND (year < ${maxYear} or (year = ${maxYear} and month <= ${maxMonth}))
-              GROUP BY month, year
-              ORDER BY YEAR DESC, MONTH DESC LIMIT 1`;
+    const userAssets = await dbClient.invest_assets.findMany({
+      where: { users_user_id: userId },
+      select: { asset_id: true },
+    });
 
-    if (!result || !Array.isArray(result) || (result as Array<any>).length < 1) return null;
-    return result[0].current_value;
+    const snapshots = await Promise.all(
+      userAssets.map((asset) =>
+        InvestAssetService.getLatestSnapshotForAsset(asset.asset_id, maxMonth, maxYear, dbClient)
+      )
+    );
+
+    let totalValue = BigInt(0);
+    for (const snapshot of snapshots) {
+      if (snapshot?.current_value) {
+        totalValue += BigInt(snapshot.current_value);
+      }
+    }
+
+    return totalValue;
   }
   /**
-   * Calculate ROI by year using the Money-Weighted Return (Modified Dietz) method
-   * Uses actual transaction dates for precise time-weighting
+   * Calculate ROI by year using simple ROI formula
+   * ROI = (Current Value - Money Out + Money In) / Money Out
    *
    * @param userId User ID
    * @param initialYear First year to calculate from
@@ -557,6 +601,8 @@ class InvestAssetService {
         const isCurrentYear = yearInLoop === currentYear;
         const maxMonth = isCurrentYear ? DateTimeUtils.getMonthNumberFromTimestamp() : 12;
 
+        const enableLogging = isCurrentYear;
+
         // Get beginning value (end of previous year)
         const prevYearValue = await InvestAssetService.getTotalInvestmentValueAtDate(
           userId,
@@ -565,7 +611,7 @@ class InvestAssetService {
           prismaTx
         );
         const beginningValue = ConvertUtils.convertBigIntegerToFloat(prevYearValue || 0n);
-
+        if (enableLogging) Logger.addLog(`Beginning value 2026: ${beginningValue}`);
         // Get ending value (end of current period)
         const currentValue = await InvestAssetService.getTotalInvestmentValueAtDate(
           userId,
@@ -574,7 +620,7 @@ class InvestAssetService {
           prismaTx
         );
         const endingValue = ConvertUtils.convertBigIntegerToFloat(currentValue || 0n);
-
+        if (enableLogging) Logger.addLog(`Ending value ${maxMonth}/${yearInLoop}: ${endingValue}`);
         // Calculate period timestamps for this year
         const yearStartTimestamp = DateTimeUtils.getUnixTimestampFromDate(
           new Date(yearInLoop, 0, 1)
@@ -589,26 +635,24 @@ class InvestAssetService {
           return timestamp >= yearStartTimestamp && timestamp <= yearEndTimestamp;
         });
 
-        // Calculate MWR using Modified Dietz with actual transaction dates
-        const { mwr, totalNetFlows, totalMoneyIn, totalMoneyOut } =
-          MWRCalculator.calculateModifiedDietzWithTransactions(
-            beginningValue,
-            endingValue,
-            yearTransactions,
-            yearStartTimestamp,
-            yearEndTimestamp
-          );
+        // Calculate simple ROI for this year
+        const yearlyROI = InvestAssetService.calculateYearlyROI(
+          beginningValue,
+          endingValue,
+          yearTransactions
+        );
+        if (enableLogging) Logger.addLog('Transactions in year:');
+        if (enableLogging) Logger.addStringifiedLog(yearTransactions);
+        if (enableLogging) Logger.addLog('mwr result: ');
+        if (enableLogging) Logger.addStringifiedLog(yearlyROI);
         roiByYear[yearInLoop] = {
-          roi_percentage: mwr * 100,
-          roi_value: endingValue - beginningValue - totalNetFlows,
-          annualized_roi_percentage: isCurrentYear
-            ? MWRCalculator.annualizeMWR(mwr, maxMonth) * 100
-            : mwr * 100,
+          roi_percentage: yearlyROI.roiPercentage * 100,
+          roi_value: yearlyROI.roiValue,
           beginning_value: beginningValue,
           ending_value: endingValue,
-          total_net_flows: totalNetFlows,
-          total_inflow: totalMoneyOut,
-          total_outflow: totalMoneyIn,
+          total_net_flows: yearlyROI.totalNetFlows,
+          total_inflow: yearlyROI.totalMoneyOut,
+          total_outflow: yearlyROI.totalMoneyIn,
           value_total_amount: endingValue,
         };
 
@@ -618,8 +662,43 @@ class InvestAssetService {
       return roiByYear;
     }, dbClient);
   }
+
   /**
-   * Get comprehensive investment statistics for a user using MWR (Modified Dietz) method
+   * Calculate yearly ROI considering beginning value, ending value, and transactions
+   * ROI Value = Ending Value + Income - Beginning Value - Net Flows
+   * ROI Percentage = ROI Value / (Beginning Value + Money Out)
+   */
+  private static calculateYearlyROI(
+    beginningValue: number,
+    endingValue: number,
+    transactions: TransactionFlowData[]
+  ): {
+    roiPercentage: number;
+    roiValue: number;
+    totalNetFlows: number;
+    totalMoneyOut: number;
+    totalMoneyIn: number;
+  } {
+    const { totalNetFlows, totalMoneyOut, totalMoneyIn, totalIncome } = ROICalculator.calculateROI(
+      0,
+      transactions
+    );
+
+    // ROI Value = Ending + Income - Beginning - Net Flows
+    // Income is added because it's a return that was received externally (not in endingValue)
+    const roiValue = endingValue + totalIncome - beginningValue - totalNetFlows;
+
+    // Cost basis for ROI percentage = Beginning Value + New Money Invested
+    const costBasis = beginningValue + totalMoneyOut;
+
+    // ROI Percentage = ROI Value / Cost Basis
+    const roiPercentage = costBasis > 0 ? roiValue / costBasis : 0;
+
+    return { roiPercentage, roiValue, totalNetFlows, totalMoneyOut, totalMoneyIn };
+  }
+
+  /**
+   * Get comprehensive investment statistics for a user
    *
    * @param userId User ID
    * @param dbClient Database client
@@ -630,13 +709,13 @@ class InvestAssetService {
     dbClient = undefined
   ): Promise<CalculatedAssetStats> {
     return performDatabaseRequest(async (prismaTx) => {
-      // Fetch all data upfront for performance
+      // Fetch all base data upfront
       const userAssets: Array<InvestAssetWithCalculatedAmounts> =
         await InvestAssetService.getAllAssetsForUser(userId, prismaTx);
       const monthlySnapshots: Array<MonthlySnapshot> =
         await InvestAssetService.getAllAssetSnapshotsForUser(userId, prismaTx);
 
-      // Calculate totals and distribution in a single pass
+      // Calculate totals and distribution
       const { totalCurrentValue, totalCurrentlyInvestedValue, currentValueDistribution } =
         InvestAssetService.calculatePortfolioTotals(userAssets);
 
@@ -646,20 +725,7 @@ class InvestAssetService {
           ? monthlySnapshots[0].year
           : DateTimeUtils.getYearFromTimestamp();
 
-      // Fetch all transactions for MWR calculations (used by both combined ROI and per-asset)
-      const periodStartTimestamp = DateTimeUtils.getUnixTimestampFromDate(
-        new Date(yearOfFirstSnapshot, 0, 1)
-      );
-      const periodEndTimestamp = DateTimeUtils.getCurrentUnixTimestamp();
-      const allTransactions =
-        (await InvestTransactionsService.getAllTransactionsForUserBetweenDates(
-          userId,
-          periodStartTimestamp,
-          periodEndTimestamp,
-          prismaTx
-        )) as TransactionFlowData[];
-
-      // Calculate ROI by year (pass snapshots to avoid re-fetching)
+      // Calculate ROI by year (for historical chart data)
       const combinedRoiByYear = await InvestAssetService.getCombinedROIByYear(
         userId,
         yearOfFirstSnapshot,
@@ -670,18 +736,12 @@ class InvestAssetService {
       const currentYear = DateTimeUtils.getYearFromTimestamp();
       const currentYearROI = combinedRoiByYear[currentYear];
 
-      // Calculate global ROI (all-time)
+      // Calculate global ROI from yearly data
       const globalROI = InvestAssetService.calculateGlobalROI(combinedRoiByYear);
 
-      // Enrich assets with per-asset MWR using transaction dates
-      const assetsWithMWR = InvestAssetService.enrichAssetsWithMWR(
-        userAssets,
-        monthlySnapshots,
-        allTransactions
-      );
-
       // Sort assets by absolute ROI value (descending) for top performers
-      const topPerformingAssets = [...assetsWithMWR].sort(
+      // Note: userAssets already have ROI calculated by getAllAssetsForUser
+      const topPerformingAssets = [...userAssets].sort(
         (a, b) => (b.absolute_roi_value ?? 0) - (a.absolute_roi_value ?? 0)
       );
 
@@ -695,7 +755,6 @@ class InvestAssetService {
         // Current year metrics
         current_year_roi_value: currentYearROI?.roi_value ?? 0,
         current_year_roi_percentage: currentYearROI?.roi_percentage ?? 0,
-        current_year_annualized_roi_percentage: currentYearROI?.annualized_roi_percentage ?? 0,
 
         // Historical data
         monthly_snapshots: monthlySnapshots,
@@ -743,8 +802,7 @@ class InvestAssetService {
   /**
    * Calculate global (all-time) ROI from yearly ROI data
    *
-   * Global ROI is calculated by compounding yearly returns:
-   * (1 + r1) * (1 + r2) * ... * (1 + rn) - 1
+   * Simple ROI = Total Gain / Total Money Invested (initial investment)
    */
   private static calculateGlobalROI(roiByYear: Record<number, YearlyROI>): {
     value: number;
@@ -758,17 +816,14 @@ class InvestAssetService {
       return { value: 0, percentage: 0 };
     }
 
-    // Calculate total flows and compounded return
     let totalNetFlows = 0;
-    let compoundedReturn = 1;
+    let totalMoneyOut = 0;
     let firstYearBeginningValue = 0;
 
     for (let i = 0; i < years.length; i++) {
       const yearData = roiByYear[years[i]];
       totalNetFlows += yearData.total_net_flows;
-
-      // Use non-annualized percentage for compounding
-      compoundedReturn *= 1 + yearData.roi_percentage / 100;
+      totalMoneyOut += yearData.total_inflow; // total_inflow stores totalMoneyOut
 
       if (i === 0) {
         firstYearBeginningValue = yearData.beginning_value;
@@ -778,108 +833,41 @@ class InvestAssetService {
     const lastYear = years[years.length - 1];
     const endingValue = roiByYear[lastYear].ending_value;
 
-    // Global ROI value = ending value - beginning value - all net flows
+    // Global ROI value = ending value - beginning value - net flows
     const globalRoiValue = endingValue - firstYearBeginningValue - totalNetFlows;
 
-    // Global ROI percentage from compounded returns
-    const globalRoiPercentage = (compoundedReturn - 1) * 100;
+    // Cost basis = beginning value + total money invested (not net flows)
+    const costBasis = firstYearBeginningValue + totalMoneyOut;
+    const globalRoiPercentage = costBasis > 0 ? (globalRoiValue / costBasis) * 100 : 0;
 
     return {
       value: globalRoiValue,
-      percentage: firstYearBeginningValue === 0 && totalNetFlows === 0 ? '-' : globalRoiPercentage,
+      percentage: costBasis <= 0 ? '-' : globalRoiPercentage,
     };
   }
 
   /**
-   * Enrich assets with MWR-based ROI calculations using actual transaction dates
+   * Calculate simple ROI for a single asset
+   * ROI = Net Return / Total Money Invested (initial investment)
    *
-   * @param userAssets Array of assets with basic calculated amounts
-   * @param monthlySnapshots All monthly snapshots for the user (for beginning/ending values)
-   * @param allTransactions All transactions for the user (for precise time-weighting)
-   * @returns Assets with absolute_roi_value and relative_roi_percentage using MWR
-   */
-  private static enrichAssetsWithMWR(
-    userAssets: Array<InvestAssetWithCalculatedAmounts>,
-    monthlySnapshots: Array<MonthlySnapshot>,
-    allTransactions: TransactionFlowData[]
-  ): Array<InvestAssetWithCalculatedAmounts> {
-    // Group snapshots by asset_id for O(1) lookup
-    const snapshotsByAsset = new Map<string, Array<MonthlySnapshot>>();
-    for (const snapshot of monthlySnapshots) {
-      const assetIdStr = snapshot.asset_id.toString();
-      if (!snapshotsByAsset.has(assetIdStr)) {
-        snapshotsByAsset.set(assetIdStr, []);
-      }
-      snapshotsByAsset.get(assetIdStr)?.push(snapshot);
-    }
-
-    // Group transactions by asset_id for O(1) lookup
-    const transactionsByAsset = new Map<string, TransactionFlowData[]>();
-    for (const trx of allTransactions) {
-      const assetIdStr = (trx as any).asset_id?.toString() ?? '';
-      if (!transactionsByAsset.has(assetIdStr)) {
-        transactionsByAsset.set(assetIdStr, []);
-      }
-      transactionsByAsset.get(assetIdStr)?.push(trx);
-    }
-
-    // Calculate MWR for each asset and replace ROI values
-    return userAssets.map((asset) => {
-      const assetTransactions = transactionsByAsset.get(asset.asset_id?.toString() ?? '') ?? [];
-      const mwr = InvestAssetService.calculateSingleAssetMWR(
-        assetTransactions,
-        asset.current_value ?? 0
-      );
-
-      return {
-        ...asset,
-        absolute_roi_value: mwr.value,
-        relative_roi_percentage: mwr.percentage,
-      };
-    });
-  }
-
-  /**
-   * Calculate MWR (all-time) for a single asset using actual transaction dates
-   *
-   * @param assetTransactions All transactions for this asset (for precise time-weighting)
+   * @param assetTransactions All transactions for this asset
    * @param currentValue Current value of the asset
-   * @returns MWR value and percentage
+   * @returns ROI value and percentage
    */
-  private static calculateSingleAssetMWR(
+  private static calculateSingleAssetROI(
     assetTransactions: TransactionFlowData[],
-    currentValue: number,
-    enableLogging = false
+    currentValue: number
   ): { value: number; percentage: number | string } {
     if (assetTransactions.length === 0) {
       return { value: 0, percentage: 0 };
     }
 
-    // 1. Define the Global Period
-    const firstTrxTimestamp = Math.min(...assetTransactions.map((t) => Number(t.date_timestamp)));
-    const endTimestamp = DateTimeUtils.getCurrentUnixTimestamp();
-
-    const beginningValue = 0; // Asset starts at 0 before first transaction
-
-    // 2. Use one single Modified Dietz calculation for the WHOLE history
-    const { mwr, totalNetFlows } = MWRCalculator.calculateModifiedDietzWithTransactions(
-      beginningValue,
-      currentValue,
-      assetTransactions,
-      firstTrxTimestamp,
-      endTimestamp
-    );
-
-    // 3. Final ROI Value (Profit/Loss in currency)
-    const roiValue = currentValue - totalNetFlows;
-
-    if (enableLogging) {
-      Logger.addLog(`mwr result: value=${roiValue}, percentage=${mwr * 100}`);
-    }
+    // Calculate ROI using the centralized calculator
+    const { roiValue, totalMoneyOut } = ROICalculator.calculateROI(currentValue, assetTransactions);
 
     return {
       value: roiValue,
-      percentage: Number.isFinite(mwr) ? mwr * 100 : '-',
+      percentage: totalMoneyOut > 0 ? (roiValue / totalMoneyOut) * 100 : '-',
     };
   }
 

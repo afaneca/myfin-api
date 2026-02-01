@@ -14,12 +14,10 @@ import UserService from '../../src/services/userService.js';
 
 import DateTimeUtils from '../../src/utils/DateTimeUtils.js';
 
-import Logger from '../../src/utils/Logger.js';
-
 describe('Invest Transaction tests', () => {
   let user: { user_id: bigint; username: string };
 
-  let simpleSavingsAsset: { asset_id: bigint; name: string; type: string };
+  let simpleAsset: { asset_id: bigint; name: string; type: string };
 
   beforeEach(async () => {
     vi.useFakeTimers();
@@ -27,21 +25,15 @@ describe('Invest Transaction tests', () => {
 
     user = await UserService.createUser({
       username: 'demo',
-
       password: '123',
-
       email: 'demo@myfinbudget.com',
     });
 
-    simpleSavingsAsset = await InvestAssetService.createAsset(user.user_id, {
+    simpleAsset = await InvestAssetService.createAsset(user.user_id, {
       name: 'Simple Savings',
-
       type: MYFIN.INVEST.ASSET_TYPE.FIXED_INCOME,
-
       ticker: 'EUR',
-
       units: 0,
-
       broker: 'BROKER1',
     });
   });
@@ -50,7 +42,462 @@ describe('Invest Transaction tests', () => {
     vi.useRealTimers();
   });
 
-  test('Simple savings account', async () => {
+  test('Internal tax - withheld as BTC by the exchange', async () => {
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 0, 15)),
+      'trx 1',
+      50_000,
+      1,
+      100,
+      0,
+      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
+    );
+
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 5, 15)),
+      'trx 2',
+      0,
+      0.01,
+      120,
+      0.02,
+      MYFIN.INVEST.TRX_TYPE.INCOME as invest_transactions_type
+    );
+
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 60_480, 6, 2025);
+
+    const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
+    const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
+
+    // Global
+    expect(assetResults.current_value).toBe(60_480);
+    expect(assetResults.absolute_roi_value).toBe(10_380);
+    expect(assetResults.relative_roi_percentage).toBeCloseTo(20.72, 2);
+    expect(assetResults.currently_invested_value).toBe(50_000);
+  });
+
+  test('External tax - paid from your bank account', async () => {
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 0, 15)),
+      'trx 1',
+      50_000,
+      1,
+      100,
+      0,
+      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
+    );
+
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 5, 15)),
+      'trx 2',
+      0,
+      0.01,
+      120,
+      0,
+      MYFIN.INVEST.TRX_TYPE.INCOME as invest_transactions_type
+    );
+
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 60_600, 6, 2025);
+
+    const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
+    const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
+
+    // Global
+    expect(assetResults.current_value).toBe(60_600);
+    expect(assetResults.absolute_roi_value).toBe(10_380);
+    expect(assetResults.relative_roi_percentage).toBeCloseTo(20.67, 2);
+    expect(assetResults.currently_invested_value).toBe(50_120);
+  });
+
+  test('Savings account with compounding interest', async () => {
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 0, 15)),
+      'trx 1',
+      10_000,
+      10_000,
+      0,
+      0,
+      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
+    );
+
+    for (let month = 1; month <= 11; month++) {
+      await InvestTransactionsService.createTransaction(
+        user.user_id,
+        simpleAsset.asset_id,
+        DateTimeUtils.getUnixTimestampFromDate(new Date(2025, month, 15)),
+        'trx',
+        0,
+        100,
+        28,
+        28,
+        MYFIN.INVEST.TRX_TYPE.INCOME as invest_transactions_type
+      );
+    }
+
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_524, 12, 2025);
+
+    const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
+    const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
+
+    // Global
+    expect(assetResults.current_value).toBe(10_524);
+    expect(assetResults.absolute_roi_value).toBe(524);
+    expect(assetResults.relative_roi_percentage).toBeCloseTo(5.24, 2);
+    expect(assetResults.currently_invested_value).toBe(10_000);
+  });
+
+  test('One income in current year', async () => {
+    // Previous year
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 5, 15)),
+      'trx 1',
+      10_000,
+      10_000,
+      0,
+      0,
+      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
+    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_000, 6, 2025);
+
+    // Current year
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2026, 0, 15)),
+      'trx 2',
+      0,
+      100,
+      0,
+      0,
+      MYFIN.INVEST.TRX_TYPE.INCOME as invest_transactions_type
+    );
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2026, 0, 15)),
+      'trx 3',
+      900,
+      900,
+      0,
+      0,
+      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
+    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 11_000, 1, 2026);
+    const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
+    const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
+
+    // Global
+    expect(assetResults.current_value).toBe(11_000);
+    expect(assetResults.absolute_roi_value).toBe(100);
+    expect(assetResults.relative_roi_percentage).toBeCloseTo(0.92, 2);
+    expect(assetResults.currently_invested_value).toBe(10_900);
+  });
+
+  test('One buy with internal income', async () => {
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 5, 15)),
+      'trx 1',
+      1000,
+      1000,
+      0,
+      0,
+      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
+    );
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 5, 15)),
+      'trx 2',
+      0,
+      100,
+      28, // the FIAT value equivalent to the units deducted as fees
+      28, // fee is internal, since it was charged in the form of units
+      MYFIN.INVEST.TRX_TYPE.INCOME as invest_transactions_type
+    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 1072, 6, 2025);
+
+    const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
+    const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
+
+    // Global
+    expect(assetResults.current_value).toBe(1072);
+    expect(assetResults.absolute_roi_value).toBe(72);
+    expect(assetResults.relative_roi_percentage).toBeCloseTo(7.2, 2);
+    expect(assetResults.currently_invested_value).toBe(1000);
+  });
+
+  test('One buy with external income', async () => {
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 5, 15)),
+      'trx 1',
+      1000,
+      1000,
+      0,
+      0,
+      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
+    );
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 5, 15)),
+      'trx 2',
+      100,
+      0,
+      28,
+      0,
+      MYFIN.INVEST.TRX_TYPE.INCOME as invest_transactions_type
+    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 1000, 6, 2025);
+
+    const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
+    const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
+
+    // Global
+    expect(assetResults.current_value).toBe(1000);
+    expect(assetResults.absolute_roi_value).toBe(72);
+    expect(assetResults.relative_roi_percentage).toBeCloseTo(7.2, 2);
+    expect(assetResults.currently_invested_value).toBe(928);
+  });
+
+  test('No amount remaining - all sold', async () => {
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 5, 15)),
+      'trx 1',
+      1000,
+      1000,
+      0,
+      0,
+      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
+    );
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 5, 15)),
+      'trx 2',
+      100,
+      0,
+      0,
+      0,
+      MYFIN.INVEST.TRX_TYPE.INCOME as invest_transactions_type
+    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 1000, 6, 2025);
+
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 11, 15)),
+      'trx 1',
+      1000,
+      1000,
+      0,
+      0,
+      MYFIN.INVEST.TRX_TYPE.SELL as invest_transactions_type
+    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 0, 12, 2025);
+    const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
+    const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
+
+    // Global
+    expect(assetResults.current_value).toBe(0);
+    expect(assetResults.absolute_roi_value).toBe(100);
+    expect(assetResults.relative_roi_percentage).toBe(10);
+    expect(assetResults.currently_invested_value).toBe(0);
+  });
+
+  test('Simple savings account - no fees', async () => {
+    // Year 2025 - just a single buy transaction, no income, no sells
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 5, 15)),
+      'trx 1',
+      10_000,
+      10_000,
+      0,
+      0,
+      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
+    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_000, 12, 2025);
+
+    // Year 2026 -  1 buy + 1 sell
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2026, 0, 10)),
+      'trx 2',
+      500,
+      500,
+      0,
+      0,
+      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
+    );
+
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2026, 0, 15)),
+      'trx 3',
+      200,
+      200,
+      0,
+      0,
+      MYFIN.INVEST.TRX_TYPE.SELL as invest_transactions_type
+    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_300, 1, 2026);
+
+    /**
+     * Global Inflow = 10000 + 500 = 10500
+     * Global Outflow = 200
+     * Global ROI = 0
+     *
+     * Inflow 2025 = 10000
+     * Outflow 2025 = 0
+     * ROI 2025 = 0
+     *
+     * Inflow 2026 = 500
+     * Outflow 2026 = 200
+     * ROI 2026 = 0
+     */
+    const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
+    const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
+    const combinedRoiByYear = statResults.combined_roi_by_year;
+
+    // Global
+    expect(assetResults.current_value).toBe(10_300);
+    expect(assetResults.absolute_roi_value).toBe(0);
+    expect(assetResults.relative_roi_percentage).toBe(0);
+    expect(assetResults.currently_invested_value).toBe(10_300);
+
+    // 2025
+    expect(combinedRoiByYear[2025].roi_value).toBe(0);
+    expect(combinedRoiByYear[2025].roi_percentage).toBe(0);
+    expect(combinedRoiByYear[2025].total_inflow).toBe(10_000);
+    expect(combinedRoiByYear[2025].total_outflow).toBe(0);
+    expect(combinedRoiByYear[2025].total_net_flows).toBe(10_000);
+    expect(combinedRoiByYear[2025].beginning_value).toBe(0);
+    expect(combinedRoiByYear[2025].ending_value).toBe(10_000);
+
+    // 2026
+    expect(combinedRoiByYear[2026].roi_value).toBe(0);
+    expect(combinedRoiByYear[2026].roi_percentage).toBe(0);
+    expect(combinedRoiByYear[2026].total_inflow).toBe(500);
+    expect(combinedRoiByYear[2026].total_outflow).toBe(200);
+    expect(combinedRoiByYear[2026].total_net_flows).toBe(300);
+    expect(combinedRoiByYear[2026].beginning_value).toBe(10_000);
+    expect(combinedRoiByYear[2026].ending_value).toBe(10_300);
+  });
+
+  test('Simple savings account - with fees', async () => {
+    // Year 2025 - just a single buy transaction, no income, no sells
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 5, 15)),
+      'trx 1',
+      10_000,
+      10_000,
+      100,
+      0,
+      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
+    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_000, 12, 2025);
+
+    // Year 2026 -  1 buy + 1 sell
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2026, 0, 10)),
+      'trx 2',
+      500,
+      500,
+      50,
+      0,
+      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
+    );
+
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2026, 0, 15)),
+      'trx 3',
+      200,
+      200,
+      20,
+      0,
+      MYFIN.INVEST.TRX_TYPE.SELL as invest_transactions_type
+    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_300, 1, 2026);
+
+    /**
+     * Global Inflow = 10000 + 500 = 10500
+     * Global Outflow = 200
+     * Global External Fees = 100 + 50 + 20
+     * Global Internal Fees = 0
+     * Global ROI = -170
+     *
+     * Inflow 2025 = 10000
+     * Outflow 2025 = 0
+     * External Fees 2025 = 100
+     * Internal Fees 2025 = 0
+     * ROI 2025 = -100
+     *
+     * Inflow 2026 = 500
+     * Outflow 2026 = 200
+     * External Fees 2026 = 50 + 20
+     * Internal Fees 2026 = 0
+     * ROI 2026 = -70
+     */
+    const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
+    const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
+    const combinedRoiByYear = statResults.combined_roi_by_year;
+
+    // Global
+    expect(assetResults.current_value).toBe(10_300);
+    expect(statResults.global_roi_value).toBe(-170);
+    // ROI % = -170 / 10670 (total money out) = -1.59%
+    expect(statResults.global_roi_percentage).toBeCloseTo(-1.59, 2);
+    expect(assetResults.absolute_roi_value).toBe(-170);
+    expect(assetResults.relative_roi_percentage).toBeCloseTo(-1.59, 2);
+    expect(assetResults.currently_invested_value).toBe(10_300);
+
+    // 2025
+    expect(combinedRoiByYear[2025].roi_percentage).toBeCloseTo(-0.99, 2);
+    expect(combinedRoiByYear[2025].roi_value).toBe(-100);
+    expect(combinedRoiByYear[2025].roi_percentage).toBeCloseTo(-0.99, 2);
+    expect(combinedRoiByYear[2025].total_inflow).toBe(10_100);
+    expect(combinedRoiByYear[2025].total_outflow).toBe(0);
+    expect(combinedRoiByYear[2025].total_net_flows).toBe(10_100);
+    expect(combinedRoiByYear[2025].beginning_value).toBe(0);
+    expect(combinedRoiByYear[2025].ending_value).toBe(10_000);
+
+    // 2026
+    expect(combinedRoiByYear[2026].roi_value).toBe(-70);
+    expect(combinedRoiByYear[2026].roi_percentage).toBeCloseTo(-0.66, 2);
+    expect(combinedRoiByYear[2026].total_inflow).toBe(570);
+    expect(combinedRoiByYear[2026].total_outflow).toBe(200);
+    expect(combinedRoiByYear[2026].total_net_flows).toBe(370);
+    expect(combinedRoiByYear[2026].beginning_value).toBe(10_000);
+    expect(combinedRoiByYear[2026].ending_value).toBe(10_300);
+  });
+
+  test('Simple savings account - many transactions', async () => {
     const YEAR = 2024;
 
     // ====== JANUARY 15, 2024 ======
@@ -59,30 +506,18 @@ describe('Invest Transaction tests', () => {
 
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 0, 15)),
       'trx 1',
       10_000,
       10_000,
       0,
       0,
-      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type,
-      false
+      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
     );
 
     // UPDATE CURRENT VALUE: Set January value to 10,000€
-
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-
-      simpleSavingsAsset.asset_id,
-
-      10_000,
-
-      1,
-
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_000, 1, YEAR);
 
     // ====== FEBRUARY 15, 2024 ======
 
@@ -91,7 +526,7 @@ describe('Invest Transaction tests', () => {
     await InvestTransactionsService.createTransaction(
       user.user_id,
 
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
 
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 1, 15)),
       'trx 2',
@@ -109,7 +544,7 @@ describe('Invest Transaction tests', () => {
     await InvestAssetService.updateAssetValue(
       user.user_id,
 
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
 
       10_072,
 
@@ -124,7 +559,7 @@ describe('Invest Transaction tests', () => {
 
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 2, 15)),
       'trx 3',
       0,
@@ -138,13 +573,7 @@ describe('Invest Transaction tests', () => {
 
     // 10,072 + 101 - 28 = 10,145
 
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      10_145,
-      3,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_145, 3, YEAR);
 
     // ====== APRIL 15, 2024 ======
 
@@ -152,7 +581,7 @@ describe('Invest Transaction tests', () => {
 
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 3, 15)),
       'trx 4',
       0,
@@ -164,19 +593,13 @@ describe('Invest Transaction tests', () => {
 
     // UPDATE CURRENT VALUE: 10,218 EUR = 10,218€
     // 10,145 + 101 - 28 = 10,218
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      10_218,
-      4,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_218, 4, YEAR);
 
     // ====== MAY 15, 2024 ======
     // Transaction: Monthly interest
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 4, 15)),
       'trx 5',
       0,
@@ -188,19 +611,13 @@ describe('Invest Transaction tests', () => {
 
     // UPDATE CURRENT VALUE: 10,291 EUR = 10,291€
     // 10,218 + 102 - 29 = 10,291
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      10_291,
-      5,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_291, 5, YEAR);
 
     // ====== JUNE 15, 2024 ======
     // Transaction: Withdraw half
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 5, 15)),
       'trx 6',
       5_000,
@@ -212,19 +629,13 @@ describe('Invest Transaction tests', () => {
 
     // UPDATE CURRENT VALUE: 5,291 EUR = 5,291€
     // 10,291 - 5,000 = 5,291
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      5_291,
-      6,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 5_291, 6, YEAR);
 
     // ====== JULY 15, 2024 ======
     // Transaction: Monthly interest (on remaining balance)
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 6, 15)),
       'trx 7',
       0,
@@ -236,19 +647,13 @@ describe('Invest Transaction tests', () => {
 
     // UPDATE CURRENT VALUE: 5,329 EUR = 5,329€
     // 5,291 + 53 - 15 = 5,329
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      5_329,
-      7,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 5_329, 7, YEAR);
 
     // ====== AUGUST 15, 2024 ======
     // Transaction: Monthly interest (on remaining balance)
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 7, 15)),
       'trx 8',
       0,
@@ -260,19 +665,13 @@ describe('Invest Transaction tests', () => {
 
     // UPDATE CURRENT VALUE: 5,367 EUR = 5,367€
     // 5,329 + 53 - 15 = 5,367
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      5_367,
-      8,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 5_367, 8, YEAR);
 
     // ====== SEPTEMBER 15, 2024 ======
     // Transaction: Monthly interest (on remaining balance)
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 8, 15)),
       'trx 9',
       0,
@@ -284,19 +683,13 @@ describe('Invest Transaction tests', () => {
 
     // UPDATE CURRENT VALUE: 5,406 EUR = 5,406€
     // 5,367 + 54 - 15 = 5,406
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      5_406,
-      9,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 5_406, 9, YEAR);
 
     // ====== OCTOBER 15, 2024 ======
     // Transaction: Monthly interest (on remaining balance)
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 9, 15)),
       'trx 10',
       0,
@@ -308,19 +701,13 @@ describe('Invest Transaction tests', () => {
 
     // UPDATE CURRENT VALUE: 5,445 EUR = 5,445€
     // 5,406 + 54 - 15 = 5,445
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      5_445,
-      10,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 5_445, 10, YEAR);
 
     // ====== NOVEMBER 15, 2024 ======
     // Transaction: Monthly interest (on remaining balance)
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 10, 15)),
       'trx 11',
       0,
@@ -332,19 +719,13 @@ describe('Invest Transaction tests', () => {
 
     // UPDATE CURRENT VALUE: 5,484 EUR = 5,484€
     // 5,445 + 54 - 15 = 5,484
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      5_484,
-      11,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 5_484, 11, YEAR);
 
     // ====== DECEMBER 15, 2024 ======
     // Transaction: Monthly interest (on remaining balance)
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 11, 15)),
       'trx 12',
       0,
@@ -356,13 +737,7 @@ describe('Invest Transaction tests', () => {
 
     // UPDATE CURRENT VALUE: 5,524 EUR = 5,524€
     // 5,484 + 55 - 15 = 5,524
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      5_524,
-      12,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 5_524, 12, YEAR);
 
     const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
 
@@ -377,8 +752,9 @@ describe('Invest Transaction tests', () => {
     // Formula: Ending Value (5524) - Net Flows (5000)
     expect(assetResults.absolute_roi_value).toBe(524);
 
-    // 3. Check the MWR Percentage
-    expect(assetResults.relative_roi_percentage).toBeCloseTo(8.71, 2);
+    // 3. Check the ROI Percentage
+    // Simple ROI = ROI Value / Total Money Invested = 524 / 10000 = 5.24%
+    expect(assetResults.relative_roi_percentage).toBeCloseTo(5.24, 2);
 
     // 4. Check the Total Invested Value (Net Basis)
     // This is the $10,000 deposit minus the $5,000 withdrawal
@@ -392,7 +768,7 @@ describe('Invest Transaction tests', () => {
     // Buy 100 shares at $50 each = $5,000
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 0, 15)),
       'Initial purchase',
       5_000,
@@ -403,33 +779,15 @@ describe('Invest Transaction tests', () => {
     );
 
     // Set January value to $5,000
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      5_000,
-      1,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 5_000, 1, YEAR);
 
     // ====== JUNE 15, 2024 ======
     // Value increased to $6,000 (20% gain)
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      6_000,
-      6,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 6_000, 6, YEAR);
 
     // ====== DECEMBER 15, 2024 ======
     // Value increased to $7,000 (40% gain from original)
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      7_000,
-      12,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 7_000, 12, YEAR);
 
     const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
     const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
@@ -457,7 +815,7 @@ describe('Invest Transaction tests', () => {
     // Buy at $10,000
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 0, 15)),
       'Buy at peak',
       10_000,
@@ -467,33 +825,15 @@ describe('Invest Transaction tests', () => {
       MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
     );
 
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      10_000,
-      1,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_000, 1, YEAR);
 
     // ====== JUNE 15, 2024 ======
     // Market crash - value drops to $7,000
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      7_000,
-      6,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 7_000, 6, YEAR);
 
     // ====== DECEMBER 15, 2024 ======
     // Partial recovery to $8,000 (still 20% loss)
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      8_000,
-      12,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 8_000, 12, YEAR);
 
     const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
     const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
@@ -507,8 +847,7 @@ describe('Invest Transaction tests', () => {
     expect(assetResults.absolute_roi_value).toBe(-2_050);
 
     // 3. ROI percentage should be negative
-    expect(assetResults.relative_roi_percentage).toBeLessThan(0);
-    expect(assetResults.relative_roi_percentage).toBeGreaterThan(-30);
+    expect(assetResults.relative_roi_percentage).toBeCloseTo(-20.4, 2);
   });
 
   test('Dollar cost averaging - multiple buys', async () => {
@@ -518,7 +857,7 @@ describe('Invest Transaction tests', () => {
     // First purchase: $1,000
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 0, 15)),
       'DCA Buy 1',
       1_000,
@@ -528,19 +867,13 @@ describe('Invest Transaction tests', () => {
       MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
     );
 
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      1_000,
-      1,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 1_000, 1, YEAR);
 
     // ====== APRIL 15, 2024 ======
     // Second purchase: $1,000 (market down, value now $1,800)
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 3, 15)),
       'DCA Buy 2',
       1_000,
@@ -550,19 +883,13 @@ describe('Invest Transaction tests', () => {
       MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
     );
 
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      1_800,
-      4,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 1_800, 4, YEAR);
 
     // ====== JULY 15, 2024 ======
     // Third purchase: $1,000 (market up, value now $3,500)
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 6, 15)),
       'DCA Buy 3',
       1_000,
@@ -572,23 +899,11 @@ describe('Invest Transaction tests', () => {
       MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
     );
 
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      3_500,
-      7,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 3_500, 7, YEAR);
 
     // ====== DECEMBER 15, 2024 ======
     // End of year value: $4,000
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      4_000,
-      12,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 4_000, 12, YEAR);
 
     const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
     const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
@@ -604,8 +919,7 @@ describe('Invest Transaction tests', () => {
     // ROI = 4,000 - 3,015 = 985
     expect(assetResults.absolute_roi_value).toBe(985);
 
-    // 4. MWR should account for timing of investments
-    // Later investments had less time to grow, so MWR should be higher than simple ROI
+    // 4. Simple ROI = 985 / 3015 = ~32.67%
     expect(assetResults.relative_roi_percentage).toBeGreaterThan(20);
   });
 
@@ -616,7 +930,7 @@ describe('Invest Transaction tests', () => {
     // Buy $10,000 worth
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 0, 15)),
       'Initial buy',
       10_000,
@@ -626,27 +940,15 @@ describe('Invest Transaction tests', () => {
       MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
     );
 
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      10_000,
-      1,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_000, 1, YEAR);
 
     // ====== JUNE 15, 2024 ======
     // Value doubled to $20,000 - sell half to take profits
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      20_000,
-      5,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 20_000, 5, YEAR);
 
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 5, 15)),
       'Take profits - sell half',
       10_000,
@@ -656,23 +958,11 @@ describe('Invest Transaction tests', () => {
       MYFIN.INVEST.TRX_TYPE.SELL as invest_transactions_type
     );
 
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      10_000,
-      6,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_000, 6, YEAR);
 
     // ====== DECEMBER 15, 2024 ======
     // Remaining position grows to $12,000
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      12_000,
-      12,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 12_000, 12, YEAR);
 
     const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
     const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
@@ -701,7 +991,7 @@ describe('Invest Transaction tests', () => {
     // Buy $5,000 worth
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 0, 15)),
       'Initial buy',
       5_000,
@@ -711,19 +1001,13 @@ describe('Invest Transaction tests', () => {
       MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
     );
 
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      5_000,
-      1,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 5_000, 1, YEAR);
 
     // ====== JUNE 15, 2024 ======
     // Management fee of $100 (paid externally)
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 5, 15)),
       'Annual management fee',
       100,
@@ -733,23 +1017,11 @@ describe('Invest Transaction tests', () => {
       MYFIN.INVEST.TRX_TYPE.COST as invest_transactions_type
     );
 
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      5_500,
-      6,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 5_500, 6, YEAR);
 
     // ====== DECEMBER 15, 2024 ======
     // Value at end of year
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      6_000,
-      12,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 6_000, 12, YEAR);
 
     const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
     const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
@@ -774,7 +1046,7 @@ describe('Invest Transaction tests', () => {
     // Buy dividend stock for $10,000
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 0, 15)),
       'Buy dividend stock',
       10_000,
@@ -784,19 +1056,13 @@ describe('Invest Transaction tests', () => {
       MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
     );
 
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      10_000,
-      1,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_000, 1, YEAR);
 
     // ====== MARCH 15, 2024 ======
     // Q1 Dividend: $250 paid as cash (not reinvested)
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 2, 15)),
       'Q1 Dividend',
       250,
@@ -806,19 +1072,13 @@ describe('Invest Transaction tests', () => {
       MYFIN.INVEST.TRX_TYPE.INCOME as invest_transactions_type
     );
 
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      10_200,
-      3,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_200, 3, YEAR);
 
     // ====== JUNE 15, 2024 ======
     // Q2 Dividend: $250 paid as cash
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 5, 15)),
       'Q2 Dividend',
       250,
@@ -828,23 +1088,11 @@ describe('Invest Transaction tests', () => {
       MYFIN.INVEST.TRX_TYPE.INCOME as invest_transactions_type
     );
 
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      10_500,
-      6,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_500, 6, YEAR);
 
     // ====== DECEMBER 15, 2024 ======
     // Stock price unchanged at $10,500
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      10_500,
-      12,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 10_500, 12, YEAR);
 
     const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
     const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
@@ -868,7 +1116,7 @@ describe('Invest Transaction tests', () => {
     // Buy and hold from previous year
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(PREV_YEAR, 11, 15)),
       'Previous year buy',
       5_000,
@@ -880,7 +1128,7 @@ describe('Invest Transaction tests', () => {
 
     await InvestAssetService.updateAssetValue(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       5_000,
       12,
       PREV_YEAR
@@ -908,7 +1156,7 @@ describe('Invest Transaction tests', () => {
     // Buy $5,000
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 0, 15)),
       'Initial buy',
       5_000,
@@ -918,28 +1166,16 @@ describe('Invest Transaction tests', () => {
       MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
     );
 
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      5_000,
-      1,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 5_000, 1, YEAR);
 
     // ====== JUNE 15, 2024 ======
     // Value grows to $6,000
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      6_000,
-      5,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 6_000, 5, YEAR);
 
     // Sell everything
     await InvestTransactionsService.createTransaction(
       user.user_id,
-      simpleSavingsAsset.asset_id,
+      simpleAsset.asset_id,
       DateTimeUtils.getUnixTimestampFromDate(new Date(YEAR, 5, 15)),
       'Liquidate position',
       6_000,
@@ -949,23 +1185,11 @@ describe('Invest Transaction tests', () => {
       MYFIN.INVEST.TRX_TYPE.SELL as invest_transactions_type
     );
 
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      0,
-      6,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 0, 6, YEAR);
 
     // ====== DECEMBER 15, 2024 ======
     // Position remains at 0
-    await InvestAssetService.updateAssetValue(
-      user.user_id,
-      simpleSavingsAsset.asset_id,
-      0,
-      12,
-      YEAR
-    );
+    await InvestAssetService.updateAssetValue(user.user_id, simpleAsset.asset_id, 0, 12, YEAR);
 
     const statResults = await InvestAssetService.getAssetStatsForUser(user.user_id);
     const assetResults = statResults.top_performing_assets[0] as InvestAssetWithCalculatedAmounts;
@@ -1041,7 +1265,7 @@ describe('Invest Transaction tests', () => {
     // ROI = 60,480 - 50,100 = 10,380 EUR
     expect(assetResults.current_value).toBe(60_480);
     expect(assetResults.absolute_roi_value).toBe(10_380);
-    // MWR percentage using actual transaction dates
+    // Simple ROI percentage: 10,380 / 50,100 = 20.72%
     expect(assetResults.relative_roi_percentage).toBeCloseTo(20.72, 2);
   });
 
@@ -1137,10 +1361,9 @@ describe('Invest Transaction tests', () => {
     expect(externalResults.absolute_roi_value).toBe(10_380);
 
     // But different ROI percentages due to different MONEY_OUT
-    // Using actual transaction dates for precise time-weighting
-    // Internal: ~21.54% (internal fees not counted in money out)
-    // External: ~21.51% (external fees counted in money out, so slightly lower)
+    // Internal: 10,380 / 50,100 = 20.72% (internal fees not counted in money out)
+    // External: 10,380 / 50,220 = 20.67% (external fees counted in money out)
     expect(internalResults.relative_roi_percentage).toBeCloseTo(20.72, 2);
-    expect(externalResults.relative_roi_percentage).toBeCloseTo(20.68, 2);
+    expect(externalResults.relative_roi_percentage).toBeCloseTo(20.67, 2);
   });
 });

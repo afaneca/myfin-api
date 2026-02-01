@@ -260,7 +260,7 @@ WHERE users_user_id = ${userId}`;
 
 /**
  * Get all invest transactions for a user between two timestamps
- * Used for accurate MWR calculations with actual transaction dates
+ * Used for accurate ROI calculations with actual transaction dates
  *
  * @param userId User ID
  * @param fromTimestamp Start timestamp (inclusive)
@@ -278,7 +278,8 @@ const getAllTransactionsForUserBetweenDates = async (
     transaction_id, 
     date_timestamp, 
     invest_transactions.type as trx_type, 
-    total_price, 
+    total_price,
+    invest_transactions.units,
     fees_taxes_amount,
     fees_taxes_units,
     invest_assets_asset_id as asset_id
