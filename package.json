@@ -23,7 +23,7 @@
     "test:integration": "sh -c 'FILES=${1:-__tests__/integration/*.test.ts}; dotenv -e .env.test -- docker compose -f docker-compose.tests.yml up -d && dotenv -e .env.test -- npm run db:deploy && dotenv -e .env.test -- vitest --run --config vitest.config.integration.ts $FILES && docker compose -f docker-compose.tests.yml down -v' --"
   },
   "name": "myfin-api",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "NodeJS API for Myfin",
   "main": "src/server.js",
   "devDependencies": {
