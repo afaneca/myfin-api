@@ -1,18 +1,18 @@
-import i18next from "i18next";
-import * as middleware from "i18next-http-middleware";
-import en from "../locales/en.json" with { type: "json" };
-import pt from "../locales/pt.json" with { type: "json" };
+import i18next from 'i18next';
+import * as middleware from 'i18next-http-middleware';
+import en from '../locales/en.json' with { type: 'json' };
+import pt from '../locales/pt.json' with { type: 'json' };
 
 i18next.use(middleware.LanguageDetector).init({
   resources: {
     en: { translation: en },
-    pt: { translation: pt }
+    pt: { translation: pt },
   },
-  fallbackLng: "en", // Default language
-  preload: ["en", "pt"], // Preload languages
+  fallbackLng: 'en', // Default language
+  preload: ['en', 'pt'], // Preload languages
   detection: {
-    order: ["header"], // Detection priority
-  caches: ['cookie']
+    order: ['header'], // Detection priority
+    caches: ['cookie'],
   },
 });
 
@@ -22,4 +22,4 @@ export const i18n = {
   t: i18next.t.bind(i18next),
 };
 
-export type Translator = typeof i18next.t
+export type Translator = typeof i18next.t;

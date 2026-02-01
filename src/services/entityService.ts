@@ -1,12 +1,11 @@
-import {prisma} from "../config/prisma.js";
-import {Prisma} from "@prisma/client";
-import DateTimeUtils from "../utils/DateTimeUtils.js";
-
+import type { Prisma } from '@prisma/client';
+import { prisma } from '../config/prisma.js';
+import DateTimeUtils from '../utils/DateTimeUtils.js';
 
 export interface Entity {
-    entity_id?: bigint;
-    name?: string;
-    users_user_id?: bigint;
+  entity_id?: bigint;
+  name?: string;
+  users_user_id?: bigint;
 }
 
 /**
@@ -16,87 +15,92 @@ export interface Entity {
  * @param dbClient - the db client
  */
 const getAllEntitiesForUser = async (
-    userId: bigint,
-    selectAttributes = undefined,
-    dbClient = prisma
+  userId: bigint,
+  selectAttributes = undefined,
+  dbClient = prisma
 ): Promise<Array<Prisma.entitiesWhereInput>> =>
-    dbClient.entities.findMany({
-        where: {users_user_id: userId},
-        select: selectAttributes,
-    });
+  dbClient.entities.findMany({
+    where: { users_user_id: userId },
+    select: selectAttributes,
+  });
 
 const createEntity = async (entity: Entity, dbClient = prisma) => {
-    return dbClient.entities.create({
-        data: {name: entity.name, users_user_id: entity.users_user_id}
-    });
+  return dbClient.entities.create({
+    data: { name: entity.name, users_user_id: entity.users_user_id },
+  });
 };
 
 const deleteEntity = async (userId: bigint, entityId: number, dbClient = prisma) =>
-    dbClient.entities.delete({
-        where: {
-            users_user_id: userId,
-            entity_id: entityId,
-        },
-    });
+  dbClient.entities.delete({
+    where: {
+      users_user_id: userId,
+      entity_id: entityId,
+    },
+  });
 
-const updateEntity = async (userId: bigint, entityId: number, entity: Prisma.entitiesUpdateInput, dbClient = prisma) =>
-    dbClient.entities.update({
-        where: {
-            users_user_id: userId,
-            entity_id: entityId,
-        },
-        data: {name: entity.name},
-    });
+const updateEntity = async (
+  userId: bigint,
+  entityId: number,
+  entity: Prisma.entitiesUpdateInput,
+  dbClient = prisma
+) =>
+  dbClient.entities.update({
+    where: {
+      users_user_id: userId,
+      entity_id: entityId,
+    },
+    data: { name: entity.name },
+  });
 
 const getCountOfUserEntities = async (userId, dbClient = prisma) =>
-    dbClient.entities.count({
-        where: {users_user_id: userId},
-    });
+  dbClient.entities.count({
+    where: { users_user_id: userId },
+  });
 
 const buildSqlForExcludedAccountsList = (excludedAccs) => {
-    if (!excludedAccs || excludedAccs.length === 0) {
-        return ' 1 == 1';
-    }
-    let sql = ' (';
-    for (let cnt = 0; cnt < excludedAccs.length; cnt++) {
-        const acc = excludedAccs[cnt].account_id;
-        sql += ` '${acc}' `;
+  if (!excludedAccs || excludedAccs.length === 0) {
+    return ' 1 == 1';
+  }
+  let sql = ' (';
+  for (let cnt = 0; cnt < excludedAccs.length; cnt++) {
+    const acc = excludedAccs[cnt].account_id;
+    sql += ` '${acc}' `;
 
-        if (cnt !== excludedAccs.length - 1) {
-            sql += ', ';
-        }
+    if (cnt !== excludedAccs.length - 1) {
+      sql += ', ';
     }
-    sql += ') ';
-    return sql;
+  }
+  sql += ') ';
+  return sql;
 };
 
 const getAmountForEntityInPeriod = async (
-    entityId: number | bigint,
-    fromDate: number,
-    toDate: number,
-    includeTransfers = true,
-    dbClient = prisma
+  entityId: number | bigint,
+  fromDate: number,
+  toDate: number,
+  includeTransfers = true,
+  dbClient = prisma
 ): Promise<{ entity_balance_credit: number; entity_balance_debit: number }> => {
-    /*  Logger.addLog(
+  /*  Logger.addLog(
            `Entity: ${entityId} | fromDate: ${fromDate} | toDate: ${toDate} | includeTransfers: ${includeTransfers}`); */
-    let accsExclusionSqlExcerptAccountsTo = '';
-    let accsExclusionSqlExcerptAccountsFrom = '';
-    let accountsToExcludeListInSQL = '';
+  let accsExclusionSqlExcerptAccountsTo = '';
+  let accsExclusionSqlExcerptAccountsFrom = '';
+  let accountsToExcludeListInSQL = '';
 
-    const listOfAccountsToExclude = await dbClient.accounts.findMany({
-        where: {exclude_from_budgets: true},
-    });
-    if (!listOfAccountsToExclude || listOfAccountsToExclude.length < 1) {
-        accsExclusionSqlExcerptAccountsTo = ' 1 = 1 ';
-        accsExclusionSqlExcerptAccountsFrom = ' 1 = 1 ';
-    } else {
-        accountsToExcludeListInSQL = buildSqlForExcludedAccountsList(listOfAccountsToExclude);
-        accsExclusionSqlExcerptAccountsTo = `accounts_account_to_id NOT IN ${accountsToExcludeListInSQL} `;
-        accsExclusionSqlExcerptAccountsFrom = `accounts_account_from_id NOT IN ${accountsToExcludeListInSQL} `;
-    }
+  const listOfAccountsToExclude = await dbClient.accounts.findMany({
+    where: { exclude_from_budgets: true },
+  });
+  if (!listOfAccountsToExclude || listOfAccountsToExclude.length < 1) {
+    accsExclusionSqlExcerptAccountsTo = ' 1 = 1 ';
+    accsExclusionSqlExcerptAccountsFrom = ' 1 = 1 ';
+  } else {
+    accountsToExcludeListInSQL = buildSqlForExcludedAccountsList(listOfAccountsToExclude);
+    accsExclusionSqlExcerptAccountsTo = `accounts_account_to_id NOT IN ${accountsToExcludeListInSQL} `;
+    accsExclusionSqlExcerptAccountsFrom = `accounts_account_from_id NOT IN ${accountsToExcludeListInSQL} `;
+  }
 
-    if (includeTransfers) {
-        return dbClient.$queryRaw`SELECT sum(if(type = 'I' OR
+  if (includeTransfers) {
+    return dbClient.$queryRaw`SELECT sum(if(type = 'I' OR
                                                 (type = 'T' AND ${accsExclusionSqlExcerptAccountsTo}),
                                                 amount,
                                                 0)) as 'entity_balance_credit',
@@ -107,9 +111,9 @@ const getAmountForEntityInPeriod = async (
                                   FROM transactions
                                   WHERE date_timestamp between ${fromDate} AND ${toDate}
                                     AND entities_entity_id = ${entityId} `;
-    }
+  }
 
-    return dbClient.$queryRaw`SELECT sum(if(type = 'I', amount, 0)) as 'entity_balance_credit',
+  return dbClient.$queryRaw`SELECT sum(if(type = 'I', amount, 0)) as 'entity_balance_credit',
                                    sum(if(type = 'E', amount, 0)) as 'entity_balance_debit'
                             FROM transactions
                             WHERE date_timestamp between ${fromDate} AND ${toDate}
@@ -117,60 +121,60 @@ const getAmountForEntityInPeriod = async (
 };
 
 export interface CalculatedEntityAmounts {
-    entity_balance_credit: number;
-    entity_balance_debit: number;
+  entity_balance_credit: number;
+  entity_balance_debit: number;
 }
 
 const getAmountForEntityInMonth = async (
-    entityId: bigint,
-    month: number,
-    year: number,
-    includeTransfers = true,
-    dbClient = prisma
+  entityId: bigint,
+  month: number,
+  year: number,
+  includeTransfers = true,
+  dbClient = prisma
 ): Promise<CalculatedEntityAmounts> => {
-    const nextMonth = month < 12 ? month + 1 : 1;
-    const nextMonthsYear = month < 12 ? year : year + 1;
-    const maxDate = DateTimeUtils.getUnixTimestampFromDate(
-        new Date(nextMonthsYear, nextMonth - 1, 1)
-    );
-    const minDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 1));
-    /* Logger.addLog(`cat id: ${categoryId} | month: ${month} | year: ${year} | minDate: ${minDate} | maxDate: ${maxDate}`); */
-    const amounts = await getAmountForEntityInPeriod(
-        entityId,
-        minDate,
-        maxDate,
-        includeTransfers,
-        dbClient
-    );
-    return amounts[0];
+  const nextMonth = month < 12 ? month + 1 : 1;
+  const nextMonthsYear = month < 12 ? year : year + 1;
+  const maxDate = DateTimeUtils.getUnixTimestampFromDate(
+    new Date(nextMonthsYear, nextMonth - 1, 1)
+  );
+  const minDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 1));
+  /* Logger.addLog(`cat id: ${categoryId} | month: ${month} | year: ${year} | minDate: ${minDate} | maxDate: ${maxDate}`); */
+  const amounts = await getAmountForEntityInPeriod(
+    entityId,
+    minDate,
+    maxDate,
+    includeTransfers,
+    dbClient
+  );
+  return amounts[0];
 };
 
 const getAmountForEntityInYear = async (
-    entityId: bigint,
-    year: number,
-    includeTransfers = true,
-    dbClient = prisma
+  entityId: bigint,
+  year: number,
+  includeTransfers = true,
+  dbClient = prisma
 ): Promise<CalculatedEntityAmounts> => {
-    const maxDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, 11, 31));
-    const minDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, 0, 1));
+  const maxDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, 11, 31));
+  const minDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, 0, 1));
 
-    /* Logger.addLog(`cat id: ${categoryId} | month: ${month} | year: ${year} | minDate: ${minDate} | maxDate: ${maxDate}`); */
-    const amounts = await getAmountForEntityInPeriod(
-        entityId,
-        minDate,
-        maxDate,
-        includeTransfers,
-        dbClient
-    );
-    return amounts[0];
+  /* Logger.addLog(`cat id: ${categoryId} | month: ${month} | year: ${year} | minDate: ${minDate} | maxDate: ${maxDate}`); */
+  const amounts = await getAmountForEntityInPeriod(
+    entityId,
+    minDate,
+    maxDate,
+    includeTransfers,
+    dbClient
+  );
+  return amounts[0];
 };
 
 export default {
-    getAllEntitiesForUser,
-    createEntity,
-    deleteEntity,
-    updateEntity,
-    getCountOfUserEntities,
-    getAmountForEntityInMonth,
-    getAmountForEntityInYear,
+  getAllEntitiesForUser,
+  createEntity,
+  deleteEntity,
+  updateEntity,
+  getCountOfUserEntities,
+  getAmountForEntityInMonth,
+  getAmountForEntityInYear,
 };

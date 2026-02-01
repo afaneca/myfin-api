@@ -1,12 +1,12 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'vitest';
-import UserService from '../../src/services/userService.js';
-import { expectThrowErrorCode } from './utils/testUtils.js';
-import DemoDataManager from '../../src/utils/demoDataManager.js';
 import AccountService from '../../src/services/accountService.js';
 import StatsService from '../../src/services/statsService.js';
+import UserService from '../../src/services/userService.js';
 import BackupManager from '../../src/utils/backupManager.js';
+import DemoDataManager from '../../src/utils/demoDataManager.js';
 import userBackupMock from './mock/user-backup.mock.json';
 import userBackupHugeVersionMock from './mock/user-backup_999999_major_version.mock.json';
+import { expectThrowErrorCode } from './utils/testUtils.js';
 
 describe('User tests', () => {
   let user: { user_id: bigint; username: string };
@@ -71,7 +71,10 @@ describe('User tests', () => {
 
     test('If backup file is from different major version, an error should be thrown', async () => {
       // @ts-ignore
-      await expectThrowErrorCode(() => BackupManager.restoreBackup(user.user_id, userBackupHugeVersionMock), 406);
+      await expectThrowErrorCode(
+        () => BackupManager.restoreBackup(user.user_id, userBackupHugeVersionMock),
+        406
+      );
     });
   });
 

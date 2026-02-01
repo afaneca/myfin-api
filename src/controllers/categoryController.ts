@@ -1,10 +1,10 @@
+import type { NextFunction, Request, Response } from 'express';
 import joi from 'joi';
-import {MYFIN} from '../consts.js';
-import CommonsController from './commonsController.js';
-import Logger from '../utils/Logger.js';
+import { MYFIN } from '../consts.js';
 import APIError from '../errorHandling/apiError.js';
 import CategoryService from '../services/categoryService.js';
-import {NextFunction, Request, Response} from "express";
+import Logger from '../utils/Logger.js';
+import CommonsController from './commonsController.js';
 
 // READ
 const getAllCategoriesForUser = async (req: Request, res: Response, next: NextFunction) => {

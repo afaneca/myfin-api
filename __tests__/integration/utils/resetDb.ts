@@ -1,4 +1,4 @@
-import { prisma } from "../../../src/config/prisma.js";
+import { prisma } from '../../../src/config/prisma.js';
 
 export default async () => {
   await prisma.$transaction([
@@ -17,6 +17,6 @@ export default async () => {
     prisma.transactions.deleteMany(),
     prisma.accounts.deleteMany(),
     prisma.otp_codes.deleteMany(),
-    prisma.users.deleteMany()
-  ])
-}
+    prisma.users.deleteMany(),
+  ]);
+};

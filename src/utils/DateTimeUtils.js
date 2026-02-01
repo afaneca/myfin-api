@@ -1,7 +1,7 @@
 /* const dayjs = require('dayjs'); */
 
 const DateTimeUtils = {
-  getCurrentUnixTimestamp: () => parseInt(Math.floor(Date.now() / 1000), 10),
+  getCurrentUnixTimestamp: () => Number.parseInt(Math.floor(Date.now() / 1000), 10),
   sleep: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
   getMonthNumberFromTimestamp: (unixTimestamp = DateTimeUtils.getCurrentUnixTimestamp()) => {
     const date = new Date(unixTimestamp * 1000);
@@ -25,11 +25,10 @@ const DateTimeUtils = {
     return {
       month: futureDate.getMonth() + 1,
       year: futureDate.getFullYear(),
-    }
+    };
   },
   getFullMonthsBetweenDates: (date1, date2) => {
-    return (date2.getFullYear() - date1.getFullYear()) * 12
-        + (date2.getMonth() - date1.getMonth());
+    return (date2.getFullYear() - date1.getFullYear()) * 12 + (date2.getMonth() - date1.getMonth());
   },
   getCurrentYear: () => {
     return new Date().getFullYear();

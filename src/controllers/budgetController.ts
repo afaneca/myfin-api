@@ -1,15 +1,17 @@
-import joi from "joi";
-import Logger from "../utils/Logger.js";
-import APIError from "../errorHandling/apiError.js";
-import CommonsController from "./commonsController.js";
-import BudgetService from "../services/budgetService.js";
-import { MYFIN } from "../consts.js";
-import { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, Response } from 'express';
+import joi from 'joi';
+import { MYFIN } from '../consts.js';
+import APIError from '../errorHandling/apiError.js';
+import BudgetService from '../services/budgetService.js';
+import Logger from '../utils/Logger.js';
+import CommonsController from './commonsController.js';
 
 // READ
-const getAllBudgetsForUserSchema = joi.object({
-  status: joi.string().allow('C', 'O').empty('').optional(),
-}).unknown(true);
+const getAllBudgetsForUserSchema = joi
+  .object({
+    status: joi.string().allow('C', 'O').empty('').optional(),
+  })
+  .unknown(true);
 
 const getAllBudgetsForUser = async (req, res, next) => {
   try {
