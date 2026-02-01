@@ -1,5 +1,5 @@
-import { describe, expect, test } from "vitest";
-import { isSameMajorVersion, isVersionOlder } from "../../src/utils/textUtils.js";
+import { describe, expect, test } from 'vitest';
+import { isSameMajorVersion, isVersionOlder } from '../../src/utils/textUtils.js';
 
 describe('textUtils', () => {
   describe('isVersionOlder', () => {

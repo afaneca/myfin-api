@@ -1,10 +1,10 @@
 import { prisma } from '../config/prisma.js';
+import { MYFIN } from '../consts.js';
 import Logger from '../utils/Logger.js';
 import ConvertUtils from '../utils/convertUtils.js';
 import AccountService from './accountService.js';
-import EntityService from './entityService.js';
 import CategoryService from './categoryService.js';
-import { MYFIN } from '../consts.js';
+import EntityService from './entityService.js';
 import { getBestFuzzyMatch } from './fuzzyMatchingService.js';
 
 interface Rule {
@@ -154,7 +154,7 @@ const calculateMatchScore = (
   ruleValue: string | number | bigint,
   ruleOperator: string
 ): number => {
-  let typeMultiplier = MATCH_TYPE_WEIGHTS[ruleOperator] || 0;
+  const typeMultiplier = MATCH_TYPE_WEIGHTS[ruleOperator] || 0;
   let specificityLength = 0;
 
   // Handle ignore case
@@ -339,7 +339,7 @@ const getRuleForTransaction = async (
 
   const matchedRules: WeightedRule[] = [];
   for (const rule of userRules) {
-    let matchedAttributes: MatchedAttribute[] = [];
+    const matchedAttributes: MatchedAttribute[] = [];
     Logger.addLog('--------- RULE ---------');
     Logger.addStringifiedLog(rule);
     Logger.addLog('--');

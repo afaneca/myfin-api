@@ -1,9 +1,9 @@
-import { NextFunction, Request, Response } from 'express';
-import CommonsController from './commonsController.js';
-import Logger from '../utils/Logger.js';
-import APIError from '../errorHandling/apiError.js';
+import type { NextFunction, Request, Response } from 'express';
 import joi from 'joi';
+import APIError from '../errorHandling/apiError.js';
 import StatsService from '../services/statsService.js';
+import Logger from '../utils/Logger.js';
+import CommonsController from './commonsController.js';
 
 const expensesIncomeDistributionforMonthSchema = joi
   .object({
@@ -73,7 +73,7 @@ const getCategoryEntityTagExpensesEvolution = async (
     let data = undefined;
     if (input.cat_id) {
       data = await StatsService.getCategoryExpensesEvolution(sessionData.userId, input.cat_id);
-    } else if(input.ent_id) {
+    } else if (input.ent_id) {
       data = await StatsService.getEntityExpensesEvolution(sessionData.userId, input.ent_id);
     } else {
       data = await StatsService.getTagExpensesEvolution(sessionData.userId, input.tag_id);
@@ -105,7 +105,7 @@ const getCategoryEntityTagIncomeEvolution = async (
     let data;
     if (input.cat_id) {
       data = await StatsService.getCategoryIncomeEvolution(sessionData.userId, input.cat_id);
-    } else if(input.ent_id) {
+    } else if (input.ent_id) {
       data = await StatsService.getEntityIncomeEvolution(sessionData.userId, input.ent_id);
     } else {
       data = await StatsService.getTagIncomeEvolution(sessionData.userId, input.tag_id);
@@ -148,18 +148,11 @@ const getMonthByMonthDataSchema = joi
   })
   .unknown(true);
 
-const getMonthByMonthData = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+const getMonthByMonthData = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
     const input = await getMonthByMonthDataSchema.validateAsync(req.query);
-    const data = await StatsService.getMonthByMonthData(
-      sessionData.userId,
-      input.limit
-    );
+    const data = await StatsService.getMonthByMonthData(sessionData.userId, input.limit);
     res.json(data);
   } catch (err) {
     Logger.addLog(err);

@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import UserService from '../../src/services/userService.js';
-import RuleService from '../../src/services/ruleService.js';
 import { MYFIN } from '../../src/consts.js';
-import EntityService, { Entity } from '../../src/services/entityService.js';
-import TransactionService from '../../src/services/transactionService.js';
 import CategoryService from '../../src/services/categoryService.js';
+import EntityService, { type Entity } from '../../src/services/entityService.js';
+import RuleService from '../../src/services/ruleService.js';
+import TransactionService from '../../src/services/transactionService.js';
+import UserService from '../../src/services/userService.js';
 
 describe('Rule tests', () => {
   let user: { user_id: bigint; username: string };

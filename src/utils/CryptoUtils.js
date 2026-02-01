@@ -1,5 +1,5 @@
-import bcrypt from 'bcrypt';
 import crypto from 'crypto';
+import bcrypt from 'bcrypt';
 
 const hashPassword = (password) => bcrypt.hashSync(password, 10);
 /**
@@ -29,7 +29,7 @@ const generateUuid = () => {
 function generateNumericOTP(length = 6) {
   const otp = crypto.randomInt(0, Math.pow(10, length)).toString();
   // Ensure the OTP has the desired length
-  return otp.padStart(length, "0");
+  return otp.padStart(length, '0');
 }
 
 export { hashPassword, verifyPassword, generateUuid, generateNumericOTP };

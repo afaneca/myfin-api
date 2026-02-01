@@ -1,11 +1,11 @@
-// READ
-import CommonsController from './commonsController.js';
-import Logger from '../utils/Logger.js';
-import APIError from '../errorHandling/apiError.js';
-import { NextFunction, Request, Response } from 'express';
-import TagService from '../services/tagService.js';
+import type { NextFunction, Request, Response } from 'express';
 import joi from 'joi';
 import { MYFIN } from '../consts.js';
+import APIError from '../errorHandling/apiError.js';
+import TagService from '../services/tagService.js';
+import Logger from '../utils/Logger.js';
+// READ
+import CommonsController from './commonsController.js';
 
 const getFilteredTagsByPageSchema = joi
   .object({
@@ -36,7 +36,7 @@ const getAllTagsForUser = async (req: Request, res: Response, next: NextFunction
 
 const createTagSchema = joi.object({
   name: joi.string().trim().required(),
-  description: joi.string().trim().optional().allow(""),
+  description: joi.string().trim().optional().allow(''),
 });
 
 const createTag = async (req: Request, res: Response, next: NextFunction) => {
@@ -74,7 +74,7 @@ const deleteTag = async (req: Request, res: Response, next: NextFunction) => {
 // UPDATE
 const updateTagSchema = joi.object({
   new_name: joi.string().trim().required(),
-  new_description: joi.string().trim().optional().allow(""),
+  new_description: joi.string().trim().optional().allow(''),
 });
 
 const updateTag = async (req: Request, res: Response, next: NextFunction) => {

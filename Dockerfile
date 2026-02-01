@@ -21,7 +21,7 @@ RUN npx prisma generate && \
 # Production stage
 FROM node:20-alpine
 
-ARG VERSION="3.5.0"
+ARG VERSION="4.0.0"
 
 # Add metadata
 LABEL maintainer="José Valdiviesso <me@zmiguel.me>"
@@ -70,7 +70,8 @@ ENV NODE_ENV=production \
     PORT="3001" \
     LOGGING="false" \
     BYPASS_SESSION_CHECK="false" \
-    ENABLE_USER_SIGNUP="true"
+    ENABLE_USER_SIGNUP="true" \
+    TRUST_PROXY="1"
 
 # Add healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

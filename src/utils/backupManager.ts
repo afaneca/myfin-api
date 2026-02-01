@@ -1,18 +1,18 @@
-import { prisma } from '../config/prisma.js';
-import { Prisma } from '@prisma/client';
 import { createRequire } from 'node:module';
-import { isSameMajorVersion } from './textUtils.js';
-import APIError from '../errorHandling/apiError.js';
+import type { Prisma } from '@prisma/client';
+import { prisma } from '../config/prisma.js';
+import { MYFIN } from '../consts.js';
 import { RestoreUserErrorCodes } from '../controllers/userController.js';
-import UserService from '../services/userService.js';
+import APIError from '../errorHandling/apiError.js';
 import AccountService from '../services/accountService.js';
 import CategoryService from '../services/categoryService.js';
 import EntityService from '../services/entityService.js';
-import TagService from '../services/tagService.js';
 import RuleService from '../services/ruleService.js';
+import TagService from '../services/tagService.js';
+import UserService from '../services/userService.js';
 import Logger from './Logger.js';
-import { MYFIN } from '../consts.js';
 import ConvertUtils from './convertUtils.js';
+import { isSameMajorVersion } from './textUtils.js';
 
 const require = createRequire(import.meta.url);
 const { version } = require('../../package.json');
@@ -163,9 +163,9 @@ class BackupManager {
     const budgetIdMap: Map<bigint, bigint> = new Map(); // <old id, new id>
 
     // Delete all previous records
-    Logger.addLog(`BackupManager > Restore | Deleting all user data...`);
+    Logger.addLog('BackupManager > Restore | Deleting all user data...');
     await UserService.deleteAllUserData(userId, dbClient);
-    Logger.addLog(`BackupManager > Restore | Data successfully deleted!`);
+    Logger.addLog('BackupManager > Restore | Data successfully deleted!');
 
     // region Accounts
     const accountPromises = data.accounts.map(async (account) => {
@@ -318,7 +318,7 @@ class BackupManager {
       return newBudget;
     });
     // endregion
-    Logger.addLog(`BackupManager > Restore | Importing core entities...`);
+    Logger.addLog('BackupManager > Restore | Importing core entities...');
     await Promise.all([
       ...accountPromises,
       ...categoryPromises,
@@ -327,7 +327,7 @@ class BackupManager {
       ...assetPromises,
       ...budgetPromises,
     ]);
-    Logger.addLog(`BackupManager > Restore | Core entities successfully imported!`);
+    Logger.addLog('BackupManager > Restore | Core entities successfully imported!');
 
     // region Rules
     // check if all values are valid
@@ -419,7 +419,8 @@ class BackupManager {
         data: {
           date_timestamp: trx.date_timestamp,
           units: trx.units,
-          fees_taxes: trx.fees_taxes,
+          fees_taxes_amount: trx.fees_taxes_amount,
+          fees_taxes_units: trx.fees_taxes_units,
           total_price: trx.total_price,
           note: trx.note,
           type: trx.type,
@@ -432,9 +433,9 @@ class BackupManager {
     });
     // endregion
 
-    Logger.addLog(`BackupManager > Restore | Importing transactions...`);
+    Logger.addLog('BackupManager > Restore | Importing transactions...');
     await Promise.all([...rulePromises, ...trxPromises, ...assetTrxPromises]);
-    Logger.addLog(`BackupManager > Restore | Transactions successfully imported!`);
+    Logger.addLog('BackupManager > Restore | Transactions successfully imported!');
 
     // region Asset Evolution Snapshots
     const assetEvoSnapshots = data.invest_asset_evo_snapshot.map(async (snapshot) => {
@@ -449,6 +450,8 @@ class BackupManager {
           created_at: snapshot.created_at,
           updated_at: snapshot.updated_at,
           withdrawn_amount: snapshot.withdrawn_amount,
+          income_amount: snapshot.income_amount ?? 0,
+          cost_amount: snapshot.cost_amount ?? 0,
         },
       });
       return newSnapshot;
@@ -471,13 +474,13 @@ class BackupManager {
       return newBudgetCategory;
     });
     // endregion
-    Logger.addLog(`BackupManager > Restore | Recalculating balances...`);
+    Logger.addLog('BackupManager > Restore | Recalculating balances...');
     await Promise.all([
       AccountService.recalculateAllUserAccountsBalances(userId, dbClient),
       ...budgetCategoriesPromises,
       ...assetEvoSnapshots,
     ]);
-    Logger.addLog(`BackupManager > Restore | Balances successfully recalculated!`);
+    Logger.addLog('BackupManager > Restore | Balances successfully recalculated!');
 
     return Promise.resolve('ok');
   }

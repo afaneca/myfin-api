@@ -1,5 +1,5 @@
 {
-  "apiVersion": "3.0.1",
+  "apiVersion": "4.0.1",
   "accounts": [
     {
       "account_id": 1713,
@@ -1088,7 +1088,8 @@
       "note": "Initial investment",
       "total_price": 150000,
       "units": "1500",
-      "fees_taxes": "0",
+      "fees_taxes_amount": "0",
+      "fees_taxes_units": "0",
       "invest_assets_asset_id": 752,
       "created_at": 1751760595,
       "updated_at": 1751760595
@@ -1100,7 +1101,8 @@
       "note": "Yield",
       "total_price": "0",
       "units": "2.3",
-      "fees_taxes": "0",
+      "fees_taxes_amount": "0",
+      "fees_taxes_units": "0",
       "invest_assets_asset_id": 752,
       "created_at": 1751760595,
       "updated_at": 1751760595
@@ -1112,7 +1114,8 @@
       "note": "Initial investment",
       "total_price": 80000,
       "units": "800",
-      "fees_taxes": "0",
+      "fees_taxes_amount": "0",
+      "fees_taxes_units": "0",
       "invest_assets_asset_id": 753,
       "created_at": 1751760595,
       "updated_at": 1751760595
@@ -1124,7 +1127,8 @@
       "note": "Initial investment",
       "total_price": 1235000,
       "units": "0.5",
-      "fees_taxes": "0",
+      "fees_taxes_amount": "0",
+      "fees_taxes_units": "0",
       "invest_assets_asset_id": 754,
       "created_at": 1751760595,
       "updated_at": 1751760595

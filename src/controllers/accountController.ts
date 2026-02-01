@@ -1,9 +1,9 @@
-import joi from "joi";
-import APIError from "../errorHandling/apiError.js";
-import Logger from "../utils/Logger.js";
-import CommonsController from "./commonsController.js";
-import AccountService from "../services/accountService.js";
-import {NextFunction, Request, Response} from "express";
+import type { NextFunction, Request, Response } from 'express';
+import joi from 'joi';
+import APIError from '../errorHandling/apiError.js';
+import AccountService from '../services/accountService.js';
+import Logger from '../utils/Logger.js';
+import CommonsController from './commonsController.js';
 
 // CREATE
 const createAccountSchema = joi.object({
@@ -71,19 +71,21 @@ const deleteAccount = async (req, res, next) => {
 };
 
 // UPDATE
-const updateAccountSchema = joi.object({
-  account_id: joi.number().required(),
-  new_name: joi.string().trim().required(),
-  new_type: joi
-    .string()
-    .valid('CHEAC', 'SAVAC', 'INVAC', 'CREAC', 'OTHAC', 'WALLET', 'MEALAC')
-    .trim()
-    .required(),
-  new_description: joi.string().allow('').default(''),
-  new_status: joi.string().valid('Ativa', 'Inativa').trim().required(),
-  exclude_from_budgets: joi.boolean().required(),
-  color_gradient: joi.string().trim().optional(),
-}).unknown(true);
+const updateAccountSchema = joi
+  .object({
+    account_id: joi.number().required(),
+    new_name: joi.string().trim().required(),
+    new_type: joi
+      .string()
+      .valid('CHEAC', 'SAVAC', 'INVAC', 'CREAC', 'OTHAC', 'WALLET', 'MEALAC')
+      .trim()
+      .required(),
+    new_description: joi.string().allow('').default(''),
+    new_status: joi.string().valid('Ativa', 'Inativa').trim().required(),
+    exclude_from_budgets: joi.boolean().required(),
+    color_gradient: joi.string().trim().optional(),
+  })
+  .unknown(true);
 
 const updateAccount = async (req, res, next) => {
   try {

@@ -1,8 +1,8 @@
 import { performDatabaseRequest, prisma } from '../config/prisma.js';
-import TransactionService from './transactionService.js';
 import APIError from '../errorHandling/apiError.js';
-import { CalculatedEntityAmounts } from "./entityService.js";
-import DateTimeUtils from "../utils/DateTimeUtils.js";
+import DateTimeUtils from '../utils/DateTimeUtils.js';
+import type { CalculatedEntityAmounts } from './entityService.js';
+import TransactionService from './transactionService.js';
 
 export interface Tag {
   tag_id?: bigint;
@@ -226,19 +226,19 @@ export interface CalculatedTagAmounts {
   tag_balance_debit: number;
 }
 
-const getAmountForTagInPeriod = async(
+const getAmountForTagInPeriod = async (
   tagId: bigint,
   fromDate: number,
   toDate: number,
   includeTransfers = true,
   dbClient = prisma
-) : Promise<CalculatedTagAmounts> => {
+): Promise<CalculatedTagAmounts> => {
   let accsExclusionSqlExcerptAccountsTo = '';
   let accsExclusionSqlExcerptAccountsFrom = '';
   let accountsToExcludeListInSQL = '';
 
   const listOfAccountsToExclude = await dbClient.accounts.findMany({
-    where: {exclude_from_budgets: true},
+    where: { exclude_from_budgets: true },
   });
   if (!listOfAccountsToExclude || listOfAccountsToExclude.length < 1) {
     accsExclusionSqlExcerptAccountsTo = ' 1 = 1 ';
@@ -274,7 +274,7 @@ const getAmountForTagInPeriod = async(
                                                             ON transactions.transaction_id = transaction_has_tags.transactions_transaction_id
                                         WHERE transaction_has_tags.tags_tag_id = ${tagId}
                                           AND date_timestamp between ${fromDate} AND ${toDate}) as transactions_tags`;
-}
+};
 
 const getAmountForTagInMonth = async (
   tagId: bigint,
@@ -282,7 +282,7 @@ const getAmountForTagInMonth = async (
   year: number,
   includeTransfers = true,
   dbClient = prisma
-) : Promise<CalculatedEntityAmounts> => {
+): Promise<CalculatedEntityAmounts> => {
   const nextMonth = month < 12 ? month + 1 : 1;
   const nextMonthsYear = month < 12 ? year : year + 1;
   const maxDate = DateTimeUtils.getUnixTimestampFromDate(
@@ -298,7 +298,7 @@ const getAmountForTagInMonth = async (
     dbClient
   );
   return amounts[0];
-}
+};
 
 const getAmountForTagInYear = async (
   tagId: bigint,
