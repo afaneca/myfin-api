@@ -76,7 +76,7 @@ const getFilteredTrxByPage = async (req: Request, res: Response, next: NextFunct
     const input = await getFilteredTrxByPageSchema.validateAsync(req.query);
     const data = await InvestTransactionsService.getFilteredTrxByPage(
       sessionData.userId,
-      Number.parseInt(req.params.page),
+      Number.parseInt(req.params.page as string),
       input.page_size,
       input.query
     );
@@ -112,7 +112,7 @@ const updateTransaction = async (req: Request, res: Response, next: NextFunction
   try {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
     const input = await updateTransactionSchema.validateAsync(req.body);
-    const trxId = req.params.id;
+    const trxId = req.params.id as string;
     await InvestTransactionsService.updateTransaction(
       sessionData.userId,
       BigInt(trxId),
@@ -136,7 +136,7 @@ const updateTransaction = async (req: Request, res: Response, next: NextFunction
 const deleteTransaction = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
-    const trxId = req.params.id;
+    const trxId = req.params.id as string;
     await InvestTransactionsService.deleteTransaction(sessionData.userId, BigInt(trxId));
     res.json('Transaction successfully deleted!');
   } catch (err) {
