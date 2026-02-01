@@ -32,7 +32,7 @@ const createAsset = async (req: Request, res: Response, next: NextFunction) => {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
     const input = await createAssetSchema.validateAsync(req.body);
     await InvestAssetService.createAsset(sessionData.userId, input);
-    res.json(`New account added!`);
+    res.json('New account added!');
   } catch (err) {
     Logger.addLog(err);
     next(err || APIError.internalServerError());
@@ -73,7 +73,7 @@ const updateCurrentAssetValue = async (req: Request, res: Response, next: NextFu
   try {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
     const input = await updateCurrentAssetValueSchema.validateAsync(req.body);
-    const assetId = req.params.id;
+    const assetId = req.params.id as string;
     await InvestAssetService.updateCurrentAssetValue(
       sessionData.userId,
       BigInt(assetId),
@@ -111,7 +111,7 @@ const getAllAssetsSummaryForUser = async (req: Request, res: Response, next: Nex
 const deleteAsset = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
-    const assetId = req.params.id;
+    const assetId = req.params.id as string;
 
     await InvestAssetService.deleteAsset(sessionData.userId, BigInt(assetId));
     res.json('Asset successfully deleted!');

@@ -60,7 +60,7 @@ const createTag = async (req: Request, res: Response, next: NextFunction) => {
 const deleteTag = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
-    const tagId = req.params.id;
+    const tagId = req.params.id as string;
 
     await TagService.deleteTag(sessionData.userId, BigInt(tagId));
 
@@ -81,7 +81,7 @@ const updateTag = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
     const input = await updateTagSchema.validateAsync(req.body);
-    const tagId = req.params.id;
+    const tagId = req.params.id as string;
 
     await TagService.updateTag(sessionData.userId, BigInt(tagId), {
       name: input.new_name,
