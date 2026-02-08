@@ -934,19 +934,42 @@ const createMockAssetTransactions = async (userId: bigint, dbClient = undefined)
     );
 
     promises.push(
-      InvestAssetService.updateCurrentAssetValue(userId, BigInt(ASSET_FIXED_INC1), 1502.3, prismaTx)
+      InvestAssetService.updateCurrentAssetValue(
+        userId,
+        BigInt(ASSET_FIXED_INC1),
+        1502.3,
+        undefined,
+        undefined,
+        prismaTx
+      )
     );
     promises.push(
-      InvestAssetService.updateCurrentAssetValue(userId, BigInt(ASSET_FIXED_INC2), 800, prismaTx)
+      InvestAssetService.updateCurrentAssetValue(
+        userId,
+        BigInt(ASSET_FIXED_INC2),
+        800,
+        undefined,
+        undefined,
+        prismaTx
+      )
     );
     promises.push(
-      InvestAssetService.updateCurrentAssetValue(userId, BigInt(ASSET_ETF1), 0, prismaTx)
+      InvestAssetService.updateCurrentAssetValue(
+        userId,
+        BigInt(ASSET_ETF1),
+        0,
+        undefined,
+        undefined,
+        prismaTx
+      )
     );
     promises.push(
       InvestAssetService.updateCurrentAssetValue(
         userId,
         BigInt(ASSET_CRYPTO1),
         12350 - 1200,
+        undefined,
+        undefined,
         prismaTx
       )
     );

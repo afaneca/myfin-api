@@ -67,6 +67,8 @@ const updateAsset = async (req: Request, res: Response, next: NextFunction) => {
 
 const updateCurrentAssetValueSchema = joi.object({
   new_value: joi.number().required(),
+  month: joi.number().optional(),
+  year: joi.number().optional(),
 });
 
 const updateCurrentAssetValue = async (req: Request, res: Response, next: NextFunction) => {
@@ -77,7 +79,9 @@ const updateCurrentAssetValue = async (req: Request, res: Response, next: NextFu
     await InvestAssetService.updateCurrentAssetValue(
       sessionData.userId,
       BigInt(assetId),
-      input.new_value
+      input.new_value,
+      input.month,
+      input.year
     );
     res.json(`Asset value successfully updated!  - ${assetId} - ${input.new_value}`);
   } catch (err) {
