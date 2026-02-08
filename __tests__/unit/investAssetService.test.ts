@@ -3,6 +3,7 @@ import { Decimal } from '@prisma/client/runtime/library.js';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import InvestAssetService from '../../src/services/investAssetService.js';
 import InvestTransactionsService from '../../src/services/investTransactionsService.js';
+import DateTimeUtils from '../../src/utils/DateTimeUtils.js';
 import { mockedPrisma } from './prisma.mock.js';
 
 // Mock InvestTransactionsService
@@ -213,6 +214,77 @@ describe('investAssetService', () => {
       const result = await InvestAssetService.getAssetStatsForUser(userId, mockedPrisma);
       expect(result.total_currently_invested_value).toBe(1000);
       expect(result.total_current_value).toBe(1100);
+    });
+  });
+  describe('updateCurrentAssetValue', () => {
+    test('Should call updateAssetValue with buffer=true when current month matches', async () => {
+      const userId = 1n;
+      const assetId = 100n;
+      const newValue = 500.5;
+      const currentMonth = DateTimeUtils.getMonthNumberFromTimestamp();
+      const currentYear = DateTimeUtils.getYearFromTimestamp();
+
+      vi.spyOn(InvestAssetService, 'doesAssetBelongToUser').mockResolvedValue(true);
+      const spyUpdate = vi
+        .spyOn(InvestAssetService, 'updateAssetValue')
+        .mockResolvedValue(undefined);
+
+      await InvestAssetService.updateCurrentAssetValue(
+        userId,
+        assetId,
+        newValue,
+        currentMonth,
+        currentYear,
+        mockedPrisma
+      );
+
+      expect(spyUpdate).toHaveBeenCalledWith(
+        userId,
+        assetId,
+        newValue,
+        currentMonth,
+        currentYear,
+        true,
+        expect.anything()
+      );
+    });
+
+    test('Should call updateAssetValue with buffer=false when month is different', async () => {
+      const userId = 1n;
+      const assetId = 100n;
+      const newValue = 500.5;
+      const prevMonth =
+        DateTimeUtils.getMonthNumberFromTimestamp() === 1
+          ? 12
+          : DateTimeUtils.getMonthNumberFromTimestamp() - 1;
+      const calcYear =
+        DateTimeUtils.getMonthNumberFromTimestamp() === 1
+          ? DateTimeUtils.getYearFromTimestamp() - 1
+          : DateTimeUtils.getYearFromTimestamp();
+
+      vi.spyOn(InvestAssetService, 'doesAssetBelongToUser').mockResolvedValue(true);
+      const spyUpdate = vi
+        .spyOn(InvestAssetService, 'updateAssetValue')
+        .mockResolvedValue(undefined);
+
+      await InvestAssetService.updateCurrentAssetValue(
+        userId,
+        assetId,
+        newValue,
+        prevMonth,
+        calcYear,
+        mockedPrisma
+      );
+
+      expect(spyUpdate).toHaveBeenCalledWith(
+        userId,
+        assetId,
+        newValue,
+        prevMonth,
+        calcYear,
+        false,
+        expect.anything()
+      );
     });
   });
 });

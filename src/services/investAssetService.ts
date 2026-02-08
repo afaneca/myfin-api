@@ -454,19 +454,25 @@ class InvestAssetService {
     userId: bigint,
     assetId: bigint,
     newValue: number,
+    month = DateTimeUtils.getMonthNumberFromTimestamp(),
+    year = DateTimeUtils.getYearFromTimestamp(),
     dbClient = undefined
   ) {
     return performDatabaseRequest(async (prismaTx) => {
       if (!(await InvestAssetService.doesAssetBelongToUser(userId, assetId, prismaTx))) {
         throw APIError.notAuthorized();
       }
+      const isCurrentDate =
+        month === DateTimeUtils.getMonthNumberFromTimestamp() &&
+        year === DateTimeUtils.getYearFromTimestamp();
+
       await InvestAssetService.updateAssetValue(
         userId,
         assetId,
         newValue,
-        DateTimeUtils.getMonthNumberFromTimestamp(),
-        DateTimeUtils.getYearFromTimestamp(),
-        true,
+        month,
+        year,
+        isCurrentDate,
         prismaTx
       );
     }, dbClient);
@@ -601,7 +607,7 @@ class InvestAssetService {
         const isCurrentYear = yearInLoop === currentYear;
         const maxMonth = isCurrentYear ? DateTimeUtils.getMonthNumberFromTimestamp() : 12;
 
-        const enableLogging = isCurrentYear;
+        const enableLogging = false;
 
         // Get beginning value (end of previous year)
         const prevYearValue = await InvestAssetService.getTotalInvestmentValueAtDate(
@@ -643,7 +649,7 @@ class InvestAssetService {
         );
         if (enableLogging) Logger.addLog('Transactions in year:');
         if (enableLogging) Logger.addStringifiedLog(yearTransactions);
-        if (enableLogging) Logger.addLog('mwr result: ');
+        if (enableLogging) Logger.addLog('roi result: ');
         if (enableLogging) Logger.addStringifiedLog(yearlyROI);
         roiByYear[yearInLoop] = {
           roi_percentage: yearlyROI.roiPercentage * 100,
