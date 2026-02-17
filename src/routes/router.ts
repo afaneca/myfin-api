@@ -4,6 +4,7 @@ import AccountController from '../controllers/accountController.js';
 import BudgetController from '../controllers/budgetController.js';
 import CategoryController from '../controllers/categoryController.js';
 import EntityController from '../controllers/entityController.js';
+import GoalController from '../controllers/goalController.js';
 import InvestAssetsController from '../controllers/investAssetsController.js';
 import InvestTransactionsController from '../controllers/investTransactionsController.js';
 import RuleController from '../controllers/ruleController.js';
@@ -157,6 +158,14 @@ const router = (app: Express) => {
   tagRoutes.put('/:id', TagController.updateTag);
   //endregion
 
+  //region GOAL ROUTES
+  const goalRoutes = express.Router();
+  goalRoutes.get('/', GoalController.getAllGoalsForUser);
+  goalRoutes.post('/', GoalController.createGoal);
+  goalRoutes.put('/:id', GoalController.updateGoal);
+  goalRoutes.delete('/:id', GoalController.deleteGoal);
+  //endregion
+
   //region SETUP ROUTES
   const setupRoutes = express.Router();
   setupRoutes.post('/init', SetupController.initInstance);
@@ -176,6 +185,7 @@ const router = (app: Express) => {
   app.use('/invest/assets', investAssetRoutes);
   app.use('/invest/trx', investTrxRoutes);
   app.use('/tags', tagRoutes);
+  app.use('/goals', goalRoutes);
   app.use('/setup', setupRoutes);
 };
 
