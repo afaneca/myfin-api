@@ -24,6 +24,7 @@ model accounts {
   balances_snapshot                                            balances_snapshot[]
   transactions_transactions_accounts_account_to_idToaccounts   transactions[]      @relation("transactions_accounts_account_to_idToaccounts")
   transactions_transactions_accounts_account_from_idToaccounts transactions[]      @relation("transactions_accounts_account_from_idToaccounts")
+  goal_has_account                                             goal_has_account[]
 
   @@unique([name, users_user_id], map: "name_UNIQUE")
   @@index([users_user_id], map: "fk_accounts_users1_idx")
@@ -236,6 +237,7 @@ model users {
   otp_codes                  otp_codes[]
   rules                      rules[]
   tags                       tags[]
+  goals                      goals[]
   currency                   String                       @default("EUR")
 }
 
@@ -279,3 +281,35 @@ enum invest_transactions_type {
   I
   C
 }
+
+model goals {
+  goal_id          BigInt             @id @unique(map: "goal_id_UNIQUE") @default(autoincrement())
+  name             String             @db.VarChar(255)
+  description      String?            @db.LongText
+  priority         Int
+  amount           BigInt
+  due_date         BigInt?
+  is_archived      Boolean            @default(false)
+  created_at       BigInt
+  updated_at       BigInt?
+  users_user_id    BigInt
+  users            users              @relation(fields: [users_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "goals_users_user_id_fk")
+  goal_has_account goal_has_account[]
+
+  @@unique([name, users_user_id], map: "uq_name_user_id")
+  @@index([users_user_id], map: "fk_goals_users1_idx")
+}
+
+model goal_has_account {
+  goals_goal_id      BigInt
+  accounts_account_id BigInt
+  match_type         String  @db.VarChar(45)
+  match_value        Decimal @db.Decimal(16, 6)
+  goals              goals   @relation(fields: [goals_goal_id], references: [goal_id], onDelete: NoAction, onUpdate: NoAction, map: "goal_has_account_goals_goal_id_fk")
+  accounts           accounts @relation(fields: [accounts_account_id], references: [account_id], onDelete: NoAction, onUpdate: NoAction, map: "goal_has_account_accounts_account_id_fk")
+
+  @@id([goals_goal_id, accounts_account_id])
+  @@index([goals_goal_id], map: "fk_goal_has_account_goals1_idx")
+  @@index([accounts_account_id], map: "fk_goal_has_account_accounts1_idx")
+}
+

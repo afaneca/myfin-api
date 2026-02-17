@@ -168,6 +168,12 @@ const MYFIN = {
       name: '人民币 (Chinese Yuan)',
     },
   },
+  GOALS: {
+    MATCH_TYPE: {
+      RELATIVE: 'relative',
+      ABSOLUTE: 'absolute',
+    },
+  },
 };
 
 const COLOR_GRADIENTS = [
