@@ -15,6 +15,8 @@ export default async () => {
     prisma.entities.deleteMany(),
     prisma.budgets.deleteMany(),
     prisma.transactions.deleteMany(),
+    prisma.goal_has_account.deleteMany(),
+    prisma.goals.deleteMany(),
     prisma.accounts.deleteMany(),
     prisma.otp_codes.deleteMany(),
     prisma.users.deleteMany(),

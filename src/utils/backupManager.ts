@@ -19,19 +19,21 @@ const { version } = require('../../package.json');
 
 export interface BackupData {
   apiVersion: string;
-  accounts?: Prisma.accountsGetPayload<{}>[];
-  balances_snapshot?: Prisma.balances_snapshotGetPayload<{}>[];
-  budgets?: Prisma.budgetsGetPayload<{}>[];
-  budgets_has_categories?: Prisma.budgets_has_categoriesGetPayload<{}>[];
-  categories?: Prisma.categoriesGetPayload<{}>[];
-  entities?: Prisma.entitiesGetPayload<{}>[];
-  tags?: Prisma.tagsGetPayload<{}>[];
-  invest_asset_evo_snapshot?: Prisma.invest_asset_evo_snapshotGetPayload<{}>[];
-  invest_assets?: Prisma.invest_assetsGetPayload<{}>[];
-  invest_desired_allocations?: Prisma.invest_desired_allocationsGetPayload<{}>[];
-  invest_transactions?: Prisma.invest_transactionsGetPayload<{}>[];
-  rules?: Prisma.rulesGetPayload<{}>[];
-  transactions?: Prisma.transactionsGetPayload<{}>[];
+  accounts?: Prisma.accountsGetPayload<object>[];
+  balances_snapshot?: Prisma.balances_snapshotGetPayload<object>[];
+  budgets?: Prisma.budgetsGetPayload<object>[];
+  budgets_has_categories?: Prisma.budgets_has_categoriesGetPayload<object>[];
+  categories?: Prisma.categoriesGetPayload<object>[];
+  entities?: Prisma.entitiesGetPayload<object>[];
+  tags?: Prisma.tagsGetPayload<object>[];
+  invest_asset_evo_snapshot?: Prisma.invest_asset_evo_snapshotGetPayload<object>[];
+  invest_assets?: Prisma.invest_assetsGetPayload<object>[];
+  invest_desired_allocations?: Prisma.invest_desired_allocationsGetPayload<object>[];
+  invest_transactions?: Prisma.invest_transactionsGetPayload<object>[];
+  rules?: Prisma.rulesGetPayload<object>[];
+  goals?: Prisma.goalsGetPayload<object>[];
+  goal_has_accounts?: Prisma.goal_has_accountGetPayload<object>[];
+  transactions?: Prisma.transactionsGetPayload<object>[];
 }
 
 class BackupManager {
@@ -49,6 +51,8 @@ class BackupManager {
       investDesiredAllocations,
       investTransactions,
       rules,
+      goals,
+      goalHasAccounts,
       transactions,
     ] = await Promise.all([
       // Accounts
@@ -117,6 +121,15 @@ class BackupManager {
         where: { users_user_id: userId },
       }),
 
+      // Goals
+      dbClient.goals.findMany({
+        where: { users_user_id: userId },
+      }),
+
+      dbClient.goal_has_account.findMany({
+        where: { goals: { users_user_id: userId } },
+      }),
+
       // Transactions
       dbClient.transactions.findMany({
         where: {
@@ -142,6 +155,8 @@ class BackupManager {
       invest_desired_allocations: investDesiredAllocations,
       invest_transactions: investTransactions,
       rules,
+      goals,
+      goal_has_accounts: goalHasAccounts,
       transactions,
     };
   }
@@ -161,6 +176,7 @@ class BackupManager {
     const tagIdMap: Map<bigint, bigint> = new Map(); // <old id, new id>
     const assetIdMap: Map<bigint, bigint> = new Map(); // <old id, new id>
     const budgetIdMap: Map<bigint, bigint> = new Map(); // <old id, new id>
+    const goalIdMap: Map<bigint, bigint> = new Map(); // <old id, new id>
 
     // Delete all previous records
     Logger.addLog('BackupManager > Restore | Deleting all user data...');
@@ -318,6 +334,27 @@ class BackupManager {
       return newBudget;
     });
     // endregion
+    //region Goals
+    const goalPromises = data.goals.map(async (goal) => {
+      const newGoal = await dbClient.goals.create({
+        data: {
+          name: goal.name,
+          description: goal.description,
+          amount: goal.amount,
+          created_at: goal.created_at,
+          updated_at: goal.updated_at,
+          users_user_id: userId,
+          due_date: goal.due_date,
+          priority: goal.priority,
+          is_archived: goal.is_archived,
+        },
+      });
+
+      // Map old ID to new ID
+      goalIdMap.set(goal.goal_id, newGoal.goal_id);
+      return newGoal;
+    });
+    //endregion
     Logger.addLog('BackupManager > Restore | Importing core entities...');
     await Promise.all([
       ...accountPromises,
@@ -326,6 +363,7 @@ class BackupManager {
       ...tagPromises,
       ...assetPromises,
       ...budgetPromises,
+      ...goalPromises,
     ]);
     Logger.addLog('BackupManager > Restore | Core entities successfully imported!');
 
@@ -474,11 +512,28 @@ class BackupManager {
       return newBudgetCategory;
     });
     // endregion
+
+    // region Goal Accounts
+    const goalAccountsPromises = data.goal_has_accounts.map(async (account) => {
+      const newGoalAccount = await dbClient.goal_has_account.create({
+        data: {
+          accounts_account_id: accountIdMap.get(account.accounts_account_id),
+          goals_goal_id: goalIdMap.get(account.goals_goal_id),
+          match_type: account.match_type,
+          match_value: account.match_value,
+        },
+      });
+
+      return newGoalAccount;
+    });
+    // endregion
+
     Logger.addLog('BackupManager > Restore | Recalculating balances...');
     await Promise.all([
       AccountService.recalculateAllUserAccountsBalances(userId, dbClient),
       ...budgetCategoriesPromises,
       ...assetEvoSnapshots,
+      ...goalAccountsPromises,
     ]);
     Logger.addLog('BackupManager > Restore | Balances successfully recalculated!');
 
