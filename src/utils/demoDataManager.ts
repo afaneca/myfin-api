@@ -4,6 +4,7 @@ import { COLOR_GRADIENTS, MYFIN } from '../consts.js';
 import AccountService from '../services/accountService.js';
 import CategoryService from '../services/categoryService.js';
 import EntityService from '../services/entityService.js';
+import GoalService, { type FundingType } from '../services/goalService.js';
 import InvestAssetService from '../services/investAssetService.js';
 import InvestTransactionsService from '../services/investTransactionsService.js';
 import RuleService from '../services/ruleService.js';
@@ -427,6 +428,32 @@ const createMockAccounts = async (userId: bigint, dbClient = undefined) =>
     ACCOUNT_INVEST1_ID = accounts[2].account_id;
     ACCOUNT_CREDIT1_ID = accounts[3].account_id;
     ACCOUNT_CREDIT2_MORTGAGE_ID = accounts[4].account_id;
+  }, dbClient);
+
+const createMockGoals = async (userId: bigint, dbClient = undefined) =>
+  performDatabaseRequest(async (prismaTx) => {
+    const promises = [];
+    promises.push(
+      GoalService.createGoal(
+        {
+          name: 'Vacations',
+          amount: 5000_00,
+          description: "Wine ain't cheap!",
+          priority: 1,
+          funding_accounts: [
+            {
+              account_id: ACCOUNT_SAVINGS1_ID,
+              funding_type: MYFIN.GOALS.MATCH_TYPE.ABSOLUTE as FundingType,
+              funding_amount: 5000_00,
+            },
+          ],
+        },
+        userId,
+        prismaTx
+      )
+    );
+
+    const goals = await Promise.all(promises);
   }, dbClient);
 
 const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
@@ -1390,6 +1417,9 @@ const createMockData = async (userId: bigint, dbClient = undefined) =>
 
     // Create mock investment transactions
     await createMockAssetTransactions(userId, prismaTx);
+
+    // Create mock goals
+    await createMockGoals(userId, prismaTx);
 
     const userAccounts = await AccountService.getAccountsForUser(
       userId,

@@ -41,6 +41,7 @@ describe('User tests', () => {
       expect(initialCounters.nr_of_categories).toBe(0);
       expect(initialCounters.nr_of_rules).toBe(0);
       expect(initialCounters.nr_of_tags).toBe(0);
+      expect(initialCounters.nr_of_goals).toBe(0);
       expect(initialCounters.nr_of_trx).toBe(0n);
 
       // @ts-ignore
@@ -54,7 +55,8 @@ describe('User tests', () => {
       expect(finalCounters.nr_of_entities).toBe(10);
       expect(finalCounters.nr_of_categories).toBe(9);
       expect(finalCounters.nr_of_rules).toBe(2);
-      expect(finalCounters.nr_of_tags).toBe(0);
+      expect(finalCounters.nr_of_tags).toBe(2);
+      expect(finalCounters.nr_of_goals).toBe(2);
       expect(finalCounters.nr_of_trx).toBe(17n);
 
       // Check account balances are correct
@@ -88,6 +90,7 @@ describe('User tests', () => {
       expect(initialCounters.nr_of_categories).toBe(0);
       expect(initialCounters.nr_of_rules).toBe(0);
       expect(initialCounters.nr_of_tags).toBe(0);
+      expect(initialCounters.nr_of_goals).toBe(0);
       expect(initialCounters.nr_of_trx).toBe(0n);
 
       // @ts-ignore
@@ -102,6 +105,7 @@ describe('User tests', () => {
       expect(finalCounters.nr_of_categories).toBe(9);
       expect(finalCounters.nr_of_rules).toBe(2);
       expect(finalCounters.nr_of_tags).toBe(0);
+      expect(finalCounters.nr_of_goals).toBe(1);
       expect(finalCounters.nr_of_trx).toBe(17n);
 
       // Check account balances are correct

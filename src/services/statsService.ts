@@ -8,6 +8,7 @@ import AccountService from './accountService.js';
 import BudgetService, { BudgetListOrder } from './budgetService.js';
 import CategoryService, { type CalculatedCategoryAmounts } from './categoryService.js';
 import EntityService, { type CalculatedEntityAmounts } from './entityService.js';
+import GoalService from './goalService.js';
 import RuleService from './ruleService.js';
 import TagService, { type CalculatedTagAmounts } from './tagService.js';
 import TransactionService from './transactionService.js';
@@ -89,22 +90,32 @@ export interface UserCounterStats {
   nr_of_budgets: number;
   nr_of_rules: number;
   nr_of_tags: number;
+  nr_of_goals: number;
 }
 
 const getUserCounterStats = async (
   userId: bigint,
   dbClient = prisma
 ): Promise<UserCounterStats> => {
-  const [trxCount, entityCount, categoryCount, accountCount, budgetCount, ruleCount, tagCount] =
-    await Promise.all([
-      TransactionService.getCountOfUserTransactions(userId),
-      CategoryService.getCountOfUserCategories(userId, dbClient),
-      EntityService.getCountOfUserEntities(userId, dbClient),
-      AccountService.getCountOfUserAccounts(userId, dbClient),
-      BudgetService.getCountOfUserBudgets(userId, dbClient),
-      RuleService.getCountOfUserRules(userId, dbClient),
-      TagService.getCountOfUserTags(userId, dbClient),
-    ]);
+  const [
+    trxCount,
+    entityCount,
+    categoryCount,
+    accountCount,
+    budgetCount,
+    ruleCount,
+    tagCount,
+    goalCount,
+  ] = await Promise.all([
+    TransactionService.getCountOfUserTransactions(userId),
+    CategoryService.getCountOfUserCategories(userId, dbClient),
+    EntityService.getCountOfUserEntities(userId, dbClient),
+    AccountService.getCountOfUserAccounts(userId, dbClient),
+    BudgetService.getCountOfUserBudgets(userId, dbClient),
+    RuleService.getCountOfUserRules(userId, dbClient),
+    TagService.getCountOfUserTags(userId, dbClient),
+    GoalService.getCountOfUserGoals(userId, dbClient),
+  ]);
 
   return {
     nr_of_trx: trxCount as number,
@@ -114,6 +125,7 @@ const getUserCounterStats = async (
     nr_of_budgets: budgetCount as number,
     nr_of_rules: ruleCount as number,
     nr_of_tags: tagCount as number,
+    nr_of_goals: goalCount as number,
   };
 };
 

@@ -1,4 +1,4 @@
-import { prisma } from '../config/prisma.js';
+import { performDatabaseRequest, prisma } from '../config/prisma.js';
 import { MYFIN } from '../consts.js';
 import ConvertUtils from '../utils/convertUtils.js';
 
@@ -46,20 +46,21 @@ export type GoalWithFunding = {
 
 class GoalService {
   static async createGoal(goal: CreateGoalType, userId: bigint, dbClient = prisma) {
-    const timestamp = Date.now();
-    const goalObj = {
-      name: goal.name,
-      description: goal.description || null,
-      priority: goal.priority,
-      amount: ConvertUtils.convertFloatToBigInteger(goal.amount),
-      due_date: goal.due_date ? BigInt(goal.due_date) : null,
-      created_at: BigInt(timestamp),
-      updated_at: null,
-      users_user_id: userId,
-    };
+    return performDatabaseRequest(async (prismaTx) => {
 
-    return dbClient.$transaction(async (tx) => {
-      const createdGoal = await tx.goals.create({
+      const timestamp = Date.now();
+      const goalObj = {
+        name: goal.name,
+        description: goal.description || null,
+        priority: goal.priority,
+        amount: ConvertUtils.convertFloatToBigInteger(goal.amount),
+        due_date: goal.due_date ? BigInt(goal.due_date) : null,
+        created_at: BigInt(timestamp),
+        updated_at: BigInt(timestamp),
+        users_user_id: userId,
+      };
+
+      const createdGoal = await prismaTx.goals.create({
         data: goalObj,
       });
 
@@ -71,13 +72,13 @@ class GoalService {
           match_value: fa.funding_amount,
         }));
 
-        await tx.goal_has_account.createMany({
+        await prismaTx.goal_has_account.createMany({
           data: fundingAccountsData,
         });
       }
 
       return createdGoal;
-    });
+    }, dbClient);
   }
 
   static async getGoalsForUser(
@@ -248,6 +249,12 @@ class GoalService {
       }
 
       return updatedGoal;
+    });
+  }
+
+  static async getCountOfUserGoals(userId: bigint, dbClient = prisma) {
+    return dbClient.goals.count({
+      where: { users_user_id: userId },
     });
   }
 }

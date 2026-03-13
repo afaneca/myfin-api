@@ -379,6 +379,21 @@ const userService = {
 
         promises.push(TransactionService.deleteAllTransactionsFromUser(userId, prismaTx));
 
+        // Delete all current goals
+        await prismaTx.goal_has_account.deleteMany({
+          where: {
+            goals: {
+              users_user_id: userId,
+            },
+          },
+        });
+
+        promises.push(
+          prismaTx.goals.deleteMany({
+            where: { users_user_id: userId },
+          })
+        );
+
         // Delete all current categories
         promises.push(
           prismaTx.categories.deleteMany({

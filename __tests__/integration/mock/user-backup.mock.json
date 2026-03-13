@@ -722,7 +722,20 @@
       "users_user_id": 7
     }
   ],
-  "tags": [],
+  "tags": [
+    {
+      "tag_id": 57,
+      "description": "",
+      "name": "Tag 1",
+      "users_user_id": 7
+    },
+    {
+      "tag_id": 58,
+      "description": "",
+      "name": "Tag 2",
+      "users_user_id": 7
+    }
+  ],
   "invest_asset_evo_snapshot": [
     {
       "month": 1,
@@ -1380,6 +1393,40 @@
       "accounts_account_to_id": null,
       "categories_category_id": 1500,
       "is_essential": true
+    }
+  ],
+  "goals": [
+    {
+      "goal_id": 9,
+      "name": "teste",
+      "description": "gdafsgasd",
+      "priority": 1,
+      "amount": 111100,
+      "due_date": null,
+      "is_archived": false,
+      "created_at": 1773438075566,
+      "updated_at": null,
+      "users_user_id": 7
+    },
+    {
+      "goal_id": 10,
+      "name": "teste 2",
+      "description": "121rewrew",
+      "priority": 1,
+      "amount": 111100,
+      "due_date": null,
+      "is_archived": false,
+      "created_at": 1773440105133,
+      "updated_at": null,
+      "users_user_id": 7
+    }
+  ],
+  "goal_has_accounts": [
+    {
+      "goals_goal_id": 10,
+      "accounts_account_id": 1714,
+      "match_type": "relative",
+      "match_value": "100"
     }
   ]
 }
