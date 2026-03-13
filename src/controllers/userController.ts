@@ -196,6 +196,8 @@ const restoreUserSchema = joi.object({
     .required(),
   invest_transactions: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
   rules: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
+  goals: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
+  goal_has_accounts: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
   transactions: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
 });
 
@@ -210,7 +212,7 @@ const restoreUser = async (req: Request, res: Response, next: NextFunction) => {
     const data = await restoreUserSchema.validateAsync(req.body);
 
     await UserService.restoreUser(sessionData.userId, data);
-    res.json(`Restoration was successful!`);
+    res.json('Restoration was successful!');
   } catch (err) {
     Logger.addLog(err);
     next(err || APIError.internalServerError());
