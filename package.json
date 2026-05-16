@@ -69,7 +69,7 @@
     "joi": "^18.0.1",
     "joi-to-swagger": "^6.2.0",
     "mysql2": "^3.11.5",
-    "nodemailer": "^7.0.5",
+    "nodemailer": "8.0.7",
     "swagger-ui-express": "^5.0.1",
     "ts-node": "^10.9.2"
   },
