@@ -223,6 +223,7 @@ model users {
   username                   String                       @unique(map: "username_UNIQUE") @db.VarChar(45)
   password                   String                       @db.MediumText
   email                      String                       @unique(map: "email_UNIQUE") @db.VarChar(45)
+  is_demo                    Boolean                      @default(false)
   sessionkey                 String?                      @db.MediumText
   sessionkey_mobile          String?                      @db.MediumText
   trustlimit                 Int?

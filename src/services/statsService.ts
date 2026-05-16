@@ -108,8 +108,8 @@ const getUserCounterStats = async (
     goalCount,
   ] = await Promise.all([
     TransactionService.getCountOfUserTransactions(userId),
-    CategoryService.getCountOfUserCategories(userId, dbClient),
     EntityService.getCountOfUserEntities(userId, dbClient),
+    CategoryService.getCountOfUserCategories(userId, dbClient),
     AccountService.getCountOfUserAccounts(userId, dbClient),
     BudgetService.getCountOfUserBudgets(userId, dbClient),
     RuleService.getCountOfUserRules(userId, dbClient),
