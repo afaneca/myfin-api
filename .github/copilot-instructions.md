@@ -1,2 +1,5 @@
-If I ask you to develop/refactor/fix something, I don't want you to change anything beyond what is strictly necessary to implement the requested change. Please avoid making any additional changes that are not directly related to the task at hand. If you think a change is necessary but not directly related to the request, please inform me first and wait for my approval before proceeding.
-Provide a confidence score (%) for each factual statement you make. Also provide a confidence score for each code change operation you make (not each individual change, just the overall operation).
+# Shared Assistant Instructions
+
+Use the repository-level guidance in `AGENTS.md` as the source of truth for assistant behavior, project workflow, runtime setup, testing, and communication.
+
+Most importantly: keep changes narrowly scoped to the requested task and avoid unrelated refactors or formatting churn. If an adjacent change seems useful but is not required, ask before applying it.
