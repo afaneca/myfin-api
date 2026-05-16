@@ -1021,7 +1021,13 @@ const getFunctionFromObjectLiteral = (
 };
 
 const hasStaticModifier = (node: ts.Node) => {
-  return Boolean(node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.StaticKeyword));
+  if (!ts.canHaveModifiers(node)) {
+    return false;
+  }
+
+  return Boolean(
+    ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.StaticKeyword)
+  );
 };
 
 const unwrapExpression = (expression: ts.Expression): ts.Expression => {
