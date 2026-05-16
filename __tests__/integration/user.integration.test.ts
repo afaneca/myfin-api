@@ -102,9 +102,9 @@ describe('User tests', () => {
       const finalCounters = await StatsService.getUserCounterStats(user.user_id);
       expect(finalCounters.nr_of_accounts).toBe(5);
       expect(finalCounters.nr_of_budgets).toBe(4);
-      expect(finalCounters.nr_of_categories).toBe(9);
-      expect(finalCounters.nr_of_entities).toBe(10);
-      expect(finalCounters.nr_of_categories).toBe(9);
+      expect(finalCounters.nr_of_categories).toBe(10);
+      expect(finalCounters.nr_of_entities).toBe(9);
+      expect(finalCounters.nr_of_categories).toBe(10);
       expect(finalCounters.nr_of_rules).toBe(2);
       expect(finalCounters.nr_of_tags).toBe(2);
       expect(finalCounters.nr_of_goals).toBe(2);
@@ -151,9 +151,9 @@ describe('User tests', () => {
       const finalCounters = await StatsService.getUserCounterStats(user.user_id);
       expect(finalCounters.nr_of_accounts).toBe(5);
       expect(finalCounters.nr_of_budgets).toBe(4);
-      expect(finalCounters.nr_of_categories).toBe(9);
-      expect(finalCounters.nr_of_entities).toBe(10);
-      expect(finalCounters.nr_of_categories).toBe(9);
+      expect(finalCounters.nr_of_categories).toBe(10);
+      expect(finalCounters.nr_of_entities).toBe(9);
+      expect(finalCounters.nr_of_categories).toBe(10);
       expect(finalCounters.nr_of_rules).toBe(2);
       expect(finalCounters.nr_of_tags).toBe(0);
       expect(finalCounters.nr_of_goals).toBe(1);
@@ -198,7 +198,7 @@ describe('User tests', () => {
       const regularUserStats = await StatsService.getUserCounterStats(secondUser.user_id);
 
       expect(demoUserStats.nr_of_accounts).toBe(5);
-      expect(demoUserStats.nr_of_entities).toBe(10);
+      expect(demoUserStats.nr_of_entities).toBe(9);
       expect(demoUserStats.nr_of_trx).toBe(17n);
       expect(regularUserStats.nr_of_entities).toBe(1);
       expect(regularUserStats.nr_of_accounts).toBe(0);

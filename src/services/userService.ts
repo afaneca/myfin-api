@@ -55,6 +55,10 @@ type RecoveryUserRecord = {
   is_demo: boolean;
 };
 
+const normalizeDbBoolean = (value: boolean | number | bigint | null | undefined) => {
+  return value === true || value === 1 || value === 1n;
+};
+
 const getLoginUserRecordByUsername = async (
   username: string,
   dbClient = prisma
@@ -83,7 +87,10 @@ const getLoginUserRecordByUsername = async (
     throw APIError.notAuthorized('User Not Found');
   }
 
-  return users[0];
+  return {
+    ...users[0],
+    is_demo: normalizeDbBoolean(users[0].is_demo),
+  };
 };
 
 const getPasswordUserRecordByUserId = async (
@@ -103,7 +110,10 @@ const getPasswordUserRecordByUserId = async (
     throw APIError.notAuthorized('User Not Found');
   }
 
-  return users[0];
+  return {
+    ...users[0],
+    is_demo: normalizeDbBoolean(users[0].is_demo),
+  };
 };
 
 const getRecoveryUserRecordByUsername = async (
@@ -123,7 +133,10 @@ const getRecoveryUserRecordByUsername = async (
     throw APIError.notFound('User Not Found');
   }
 
-  return users[0];
+  return {
+    ...users[0],
+    is_demo: normalizeDbBoolean(users[0].is_demo),
+  };
 };
 
 const userService = {
