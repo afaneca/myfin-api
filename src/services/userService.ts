@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { performDatabaseRequest, prisma } from '../config/prisma.js';
 import { MYFIN } from '../consts.js';
-import APIError from '../errorHandling/apiError.js';
+import APIError, { UserErrorCodes } from '../errorHandling/apiError.js';
 import type { Translator } from '../middlewares/i18n.js';
 import * as cryptoUtils from '../utils/CryptoUtils.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
@@ -27,6 +27,105 @@ interface CategoriesEntitiesTagsOutput {
   tags?: Array<{ tag_id: bigint; name: string; description?: string }>;
 }
 
+type LoginUserRecord = {
+  user_id: bigint;
+  username: string;
+  password: string;
+  email: string;
+  sessionkey: string | null;
+  sessionkey_mobile: string | null;
+  trustlimit: number | null;
+  trustlimit_mobile: number | null;
+  last_update_timestamp: bigint;
+  currency: string;
+  is_demo: boolean;
+};
+
+type PasswordUserRecord = {
+  user_id: bigint;
+  username: string;
+  password: string;
+  is_demo: boolean;
+};
+
+type RecoveryUserRecord = {
+  user_id: bigint;
+  username: string;
+  email: string;
+  is_demo: boolean;
+};
+
+const getLoginUserRecordByUsername = async (
+  username: string,
+  dbClient = prisma
+): Promise<LoginUserRecord> => {
+  const users = await performDatabaseRequest(async (prismaTx) => {
+    return prismaTx.$queryRaw<LoginUserRecord[]>`
+      SELECT
+        user_id,
+        username,
+        password,
+        email,
+        sessionkey,
+        sessionkey_mobile,
+        trustlimit,
+        trustlimit_mobile,
+        last_update_timestamp,
+        currency,
+        is_demo
+      FROM users
+      WHERE username = ${username}
+      LIMIT 1
+    `;
+  }, dbClient);
+
+  if (!users.length) {
+    throw APIError.notAuthorized('User Not Found');
+  }
+
+  return users[0];
+};
+
+const getPasswordUserRecordByUserId = async (
+  userId: bigint,
+  dbClient = prisma
+): Promise<PasswordUserRecord> => {
+  const users = await performDatabaseRequest(async (prismaTx) => {
+    return prismaTx.$queryRaw<PasswordUserRecord[]>`
+      SELECT user_id, username, password, is_demo
+      FROM users
+      WHERE user_id = ${userId}
+      LIMIT 1
+    `;
+  }, dbClient);
+
+  if (!users.length) {
+    throw APIError.notAuthorized('User Not Found');
+  }
+
+  return users[0];
+};
+
+const getRecoveryUserRecordByUsername = async (
+  username: string,
+  dbClient = prisma
+): Promise<RecoveryUserRecord> => {
+  const users = await performDatabaseRequest(async (prismaTx) => {
+    return prismaTx.$queryRaw<RecoveryUserRecord[]>`
+      SELECT user_id, username, email, is_demo
+      FROM users
+      WHERE username = ${username}
+      LIMIT 1
+    `;
+  }, dbClient);
+
+  if (!users.length) {
+    throw APIError.notFound('User Not Found');
+  }
+
+  return users[0];
+};
+
 const userService = {
   getUserCount: async (dbClient = prisma) => {
     return performDatabaseRequest(async (prismaTx) => {
@@ -41,36 +140,24 @@ const userService = {
     }, dbClient);
   },
   attemptLogin: async (username: string, password: string, mobile: boolean, dbClient = prisma) => {
-    const whereCondition = { username };
-    const data = await User.findUniqueOrThrow({
-      where: whereCondition,
-    }).catch(() => {
-      throw APIError.notAuthorized('User Not Found');
-    });
+    const data = await getLoginUserRecordByUsername(username, dbClient);
     let userAccounts = [];
-    if (data) {
-      const isValid = cryptoUtils.verifyPassword(password, data.password);
-      if (isValid) {
-        const newSessionData = await SessionManager.generateNewSessionKeyForUser(username, mobile);
-        if (mobile) {
-          // eslint-disable-next-line no-param-reassign
-          data.sessionkey_mobile = newSessionData.sessionkey;
-          // eslint-disable-next-line no-param-reassign
-          data.trustlimit_mobile = newSessionData.trustlimit;
-        } else {
-          // eslint-disable-next-line no-param-reassign
-          data.sessionkey = newSessionData.sessionkey;
-          // eslint-disable-next-line no-param-reassign
-          data.trustlimit = newSessionData.trustlimit;
-        }
+    const isValid = cryptoUtils.verifyPassword(password, data.password);
 
-        userAccounts = await AccountService.getAccountsForUser(data.user_id, undefined, dbClient);
-        Logger.addStringifiedLog(userAccounts);
+    if (isValid) {
+      const newSessionData = await SessionManager.generateNewSessionKeyForUser(username, mobile);
+      if (mobile) {
+        data.sessionkey_mobile = newSessionData.sessionkey;
+        data.trustlimit_mobile = newSessionData.trustlimit;
       } else {
-        throw APIError.notAuthorized('Wrong Credentials');
+        data.sessionkey = newSessionData.sessionkey;
+        data.trustlimit = newSessionData.trustlimit;
       }
+
+      userAccounts = await AccountService.getAccountsForUser(data.user_id, undefined, dbClient);
+      Logger.addStringifiedLog(userAccounts);
     } else {
-      throw APIError.notAuthorized('User Not Found');
+      throw APIError.notAuthorized('Wrong Credentials');
     }
 
     return {
@@ -87,6 +174,7 @@ const userService = {
         };
       }),
       currency: data.currency,
+      is_demo: data.is_demo,
     };
   },
   getUserIdFromUsername: async (username: string): Promise<bigint> => {
@@ -117,12 +205,14 @@ const userService = {
     dbClient = prisma
   ) => {
     /* Check if the current password is valid */
-    const whereCondition = { user_id: userId };
-    const data: Prisma.usersUpdateInput = await User.findUniqueOrThrow({
-      where: whereCondition,
-    }).catch(() => {
-      throw APIError.notAuthorized('User Not Found');
-    });
+    const data = await getPasswordUserRecordByUserId(userId, dbClient);
+
+    if (data.is_demo) {
+      throw APIError.forbidden(
+        'Password changes are not allowed for demo accounts.',
+        UserErrorCodes.DemoPasswordChangeNotAllowed
+      );
+    }
 
     const isValid = cryptoUtils.verifyPassword(currentPassword, data.password);
     if (!isValid) {
@@ -219,14 +309,14 @@ const userService = {
   sendOtpForRecovery: async (username: string, translator: Translator, dbClient = undefined) =>
     performDatabaseRequest(async (prismaTx) => {
       // Get user
-      const whereCondition = { username };
-      const data = await prismaTx.users
-        .findUniqueOrThrow({
-          where: whereCondition,
-        })
-        .catch(() => {
-          throw APIError.notFound('User Not Found');
-        });
+      const data = await getRecoveryUserRecordByUsername(username, prismaTx);
+
+      if (data.is_demo) {
+        throw APIError.forbidden(
+          'Password changes are not allowed for demo accounts.',
+          UserErrorCodes.DemoPasswordChangeNotAllowed
+        );
+      }
 
       // Generate otp
       const otp = cryptoUtils.generateNumericOTP(6);
@@ -286,14 +376,14 @@ const userService = {
   ) =>
     performDatabaseRequest(async (prismaTx) => {
       // Get user
-      const whereCondition = { username };
-      const data = await prismaTx.users
-        .findUniqueOrThrow({
-          where: whereCondition,
-        })
-        .catch(() => {
-          throw APIError.notFound('User Not Found');
-        });
+      const data = await getRecoveryUserRecordByUsername(username, prismaTx);
+
+      if (data.is_demo) {
+        throw APIError.forbidden(
+          'Password changes are not allowed for demo accounts.',
+          UserErrorCodes.DemoPasswordChangeNotAllowed
+        );
+      }
 
       // Validate otp
       const code = await prismaTx.otp_codes
@@ -446,6 +536,17 @@ const userService = {
       dbClient,
       { timeout: 60_000 }
     );
+  },
+  getAllDemoUserIds: async (dbClient = prisma): Promise<bigint[]> => {
+    const users = await performDatabaseRequest(async (prismaTx) => {
+      return prismaTx.$queryRaw<Array<{ user_id: bigint }>>`
+        SELECT user_id
+        FROM users
+        WHERE is_demo = true
+      `;
+    }, dbClient);
+
+    return users.map((user) => user.user_id);
   },
 };
 export default userService;

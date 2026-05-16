@@ -44,3 +44,7 @@ export default class APIError extends Error {
 export enum CommonApiErrorCode {
   RequestPayloadTooLarge = 'REQUEST_PAYLOAD_TOO_LARGE',
 }
+
+export enum UserErrorCodes {
+  DemoPasswordChangeNotAllowed = 'DEMO_PASSWORD_CHANGE_NOT_ALLOWED',
+}

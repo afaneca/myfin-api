@@ -13,6 +13,19 @@ export const expectThrowErrorCode = async (assertion: () => Promise<any>, expect
   });
 };
 
+export const expectThrowErrorRationale = async (
+  assertion: () => Promise<any>,
+  expectedCode: number,
+  expectedRationale: string
+) => {
+  await expect(assertion()).rejects.toSatisfy((e) => {
+    expect(e).toBeInstanceOf(APIError);
+    expect(e.code).toBe(expectedCode);
+    expect(e.rationale).toBe(expectedRationale);
+    return true;
+  });
+};
+
 export const assertAccountBalanceAtMonth = async (
   accountId: bigint,
   month: number,
