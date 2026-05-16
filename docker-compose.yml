@@ -2,7 +2,6 @@ services:
   db:
     image: mysql:8.4
     restart: always
-    container_name: db
     environment:
       MYSQL_ROOT_PASSWORD: myfinrootpassword
       MYSQL_DATABASE: myfin
@@ -14,6 +13,10 @@ services:
       - db_data:/var/lib/mysql
     healthcheck:
       test: [ "CMD", "mysqladmin", "ping", "--silent" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
 
   myfin-api:
     restart: unless-stopped

@@ -2,13 +2,17 @@ import { createRequire } from 'node:module';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
+import { buildOpenApiDocument, registerSwagger } from './docs/openApi.js';
 import { apiErrorHandler, headerInjector, i18n, rateLimiter } from './middlewares/index.js';
 import router from './routes/router.js';
 import Logger from './utils/Logger.js';
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json');
+const swaggerDocument = await buildOpenApiDocument(version);
 
 const app = express();
+
+registerSwagger(app, swaggerDocument);
 
 app.use(rateLimiter(app));
 app.use(cors());

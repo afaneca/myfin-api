@@ -2,7 +2,7 @@
   "type": "module",
   "scripts": {
     "start": "npx tsx src/server.ts",
-    "start:dev": "npx tsx watch src/server.ts",
+    "start:dev": "tsx src/scripts/startDev.ts",
     "build": "tsc",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
@@ -23,7 +23,7 @@
     "test:integration": "sh -c 'FILES=${1:-__tests__/integration/*.test.ts}; dotenv -e .env.test -- docker compose -f docker-compose.tests.yml up -d && dotenv -e .env.test -- npm run db:deploy && dotenv -e .env.test -- vitest --run --config vitest.config.integration.ts $FILES && docker compose -f docker-compose.tests.yml down -v' --"
   },
   "name": "myfin-api",
-  "version": "4.3.0",
+  "version": "4.4.0",
   "description": "NodeJS API for Myfin",
   "main": "src/server.js",
   "devDependencies": {
@@ -32,9 +32,12 @@
     "@types/express": "^5.0.3",
     "@types/i18next": "^13.0.0",
     "@types/node": "^24.0.10",
+    "@types/swagger-ui-express": "^4.1.8",
     "@vitest/coverage-v8": "^4.0.16",
     "@vitest/ui": "^4.0.16",
+    "dotenv-cli": "11.0.0",
     "globals": "^16.3.0",
+    "magicast": "0.3.5",
     "nodemon": "^3.0.1",
     "prisma": "^6.15.0",
     "tsx": "^4.19.2",
@@ -66,8 +69,10 @@
     "i18next": "^25.4.2",
     "i18next-http-middleware": "^3.7.0",
     "joi": "^18.0.1",
+    "joi-to-swagger": "^6.2.0",
     "mysql2": "^3.11.5",
-    "nodemailer": "^7.0.5",
+    "nodemailer": "8.0.7",
+    "swagger-ui-express": "^5.0.1",
     "ts-node": "^10.9.2"
   },
   "engines": {
