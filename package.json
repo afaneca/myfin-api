@@ -20,7 +20,7 @@
     "test:unit:run": "vitest run -c ./vitest.config.unit.ts",
     "test:unit:ui": "vitest -c ./vitest.config.unit.ts --ui --coverage",
     "_comment_test_integration": "Run all integration tests by default. Example usage: npm run test:integration (all tests), npm run test:integration user (runs tests matching 'user'), npm run test:integration 'user.integration.test.ts' (specific test file)",
-    "test:integration": "sh -c 'FILES=${1:-__tests__/integration/*.test.ts}; dotenv -e .env.test -- docker compose -f docker-compose.tests.yml up -d && dotenv -e .env.test -- npm run db:deploy && dotenv -e .env.test -- vitest --run --config vitest.config.integration.ts $FILES && docker compose -f docker-compose.tests.yml down -v' --"
+    "test:integration": "sh scripts/test-integration.sh"
   },
   "name": "myfin-api",
   "version": "4.4.1",
