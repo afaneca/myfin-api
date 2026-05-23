@@ -30,7 +30,7 @@ const validateFundingAccounts = (
 
 // CREATE
 const fundingAccountSchema = joi.object({
-  account_id: joi.number().required(),
+  account_id: joi.number().integer().positive().required(),
   funding_type: joi.string().valid('absolute', 'relative').required(),
   funding_amount: joi.number().min(0).required(),
 });
@@ -78,7 +78,7 @@ const getAllGoalsForUser = async (req: Request, res: Response, next: NextFunctio
 
 // UPDATE
 const updateGoalParamsSchema = joi.object({
-  id: joi.number().required(),
+  id: joi.number().integer().positive().required(),
 });
 
 const updateGoalBodySchema = joi.object({
@@ -119,7 +119,7 @@ const updateGoal = async (req: Request, res: Response, next: NextFunction) => {
 
 // DELETE
 const deleteGoalSchema = joi.object({
-  id: joi.number().required(),
+  id: joi.number().integer().positive().required(),
 });
 
 const deleteGoal = async (req: Request, res: Response, next: NextFunction) => {
