@@ -11,8 +11,10 @@ const { version } = require('../package.json');
 const swaggerDocument = await buildOpenApiDocument(version);
 
 const app = express();
+if (process.env.NODE_ENV == "development") {
+  registerSwagger(app, swaggerDocument);
 
-registerSwagger(app, swaggerDocument);
+}
 
 app.use(rateLimiter(app));
 app.use(cors());
