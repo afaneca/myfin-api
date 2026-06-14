@@ -25,7 +25,7 @@ const dbName = getEnvValue('DB_NAME', 'myfin');
 const dbHost = getEnvValue('DB_HOST', 'localhost');
 const dbUser = getEnvValue('DB_USER', 'myfin');
 const dbPassword = getEnvValue('DB_PW', 'myfinpassword');
-const dbPort = getEnvValue('DB_PORT', '3306');
+const dbPort = getEnvValue('DB_PORT', '3406');
 
 if (!process.env.LOGGING?.trim()) {
   process.env.LOGGING = 'false';

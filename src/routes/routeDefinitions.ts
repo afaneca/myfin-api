@@ -6,6 +6,7 @@ import CategoryController from '../controllers/categoryController.js';
 import EntityController from '../controllers/entityController.js';
 import GoalController from '../controllers/goalController.js';
 import InvestAssetsController from '../controllers/investAssetsController.js';
+import InvestReportsController from '../controllers/investReportsController.js';
 import InvestTransactionsController from '../controllers/investTransactionsController.js';
 import RuleController from '../controllers/ruleController.js';
 import SetupController from '../controllers/setupController.js';
@@ -244,6 +245,14 @@ export const routeGroups: RouteGroup[] = [
       { method: 'delete', path: '/:id', handlerName: 'deleteTransaction' },
       { method: 'put', path: '/:id', handlerName: 'updateTransaction' },
     ],
+  },
+  {
+    tag: 'Invest Reports',
+    basePath: '/invest/reports',
+    controller: InvestReportsController as ControllerModule,
+    controllerSourceBaseUrl: new URL('../controllers/investReportsController', import.meta.url)
+      .href,
+    routes: [{ method: 'get', path: '/annual/:year', handlerName: 'getAnnualReport' }],
   },
   {
     tag: 'Tags',
