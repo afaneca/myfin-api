@@ -1,0 +1,16 @@
+{
+  "common": {
+    "myfin": "MyFin",
+    "hi": "Bonjour",
+    "bestRegards": "Cordialement"
+  },
+  "passwordRecovery": {
+    "resetYourPassword": "Réinitialiser votre mot de passe",
+    "otpRecoveryContextualization": "Nous avons reçu une demande de réinitialisation du mot de passe de votre compte <strong>MyFin</strong>.",
+    "otpPrefix": "Utilisez le mot de passe à usage unique (OTP) ci-dessous pour poursuivre la récupération de votre compte.",
+    "yourOtp": "Votre OTP",
+    "otpExpirationTimeText": "Cet OTP est valable pendant <strong>15 minutes</strong> uniquement.",
+    "otpIfRequestNotMadeText": "Si vous n'avez pas demandé de réinitialisation du mot de passe, vous pouvez ignorer cet e-mail.",
+    "otpDoNotShareText": "Pour votre sécurité, ne partagez cet OTP avec personne."
+  }
+}
