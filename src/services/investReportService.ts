@@ -1,6 +1,10 @@
 import { performDatabaseRequest, prisma } from '../config/prisma.js';
 import { MYFIN } from '../consts.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
+import {
+  type PeriodReturnMetrics,
+  createEmptyReturnMetrics,
+} from '../utils/ReturnMetricsCalculator.js';
 import InvestAssetService from './investAssetService.js';
 
 const INTERNAL_UNIT_FEES_WARNING = 'INTERNAL_UNIT_FEES';
@@ -87,6 +91,7 @@ export type AnnualInvestmentReport = {
     ending_value: number;
     fees: number;
     realized_gain_loss: number;
+    return_metrics: PeriodReturnMetrics;
     total_invested: number;
     total_withdrawn: number;
   };
@@ -99,6 +104,7 @@ type AnnualReportRoi = {
   ending_value?: number;
   roi_percentage?: number;
   roi_value?: number;
+  return_metrics?: PeriodReturnMetrics;
 };
 
 type FifoLot = {
@@ -408,6 +414,7 @@ export const buildAnnualReportFromTransactions = (
       ending_value: roundMoney(roi.ending_value ?? 0),
       fees: roundMoney(fees),
       realized_gain_loss: roundMoney(realizedGainLoss),
+      return_metrics: roi.return_metrics ?? createEmptyReturnMetrics(),
       total_invested: roundMoney(totalInvested),
       total_withdrawn: roundMoney(totalWithdrawn),
     },
