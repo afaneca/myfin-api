@@ -6,6 +6,12 @@ import APIError from '../errorHandling/apiError.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
 import Logger from '../utils/Logger.js';
 import ROICalculator, { type TransactionFlowData } from '../utils/ROICalculator.js';
+import {
+  type PeriodReturnMetrics,
+  buildPortfolioValueByMonth,
+  calculatePeriodReturnMetrics,
+  createEmptyReturnMetrics,
+} from '../utils/ReturnMetricsCalculator.js';
 import ConvertUtils from '../utils/convertUtils.js';
 import InvestTransactionsService from './investTransactionsService.js';
 
@@ -29,7 +35,13 @@ export type InvestAssetWithCalculatedAmounts = CalculatedAssetAmounts & {
   type?: string;
   units?: number | Prisma.Decimal;
   broker?: string;
+  return_metrics?: AssetReturnMetrics;
 };
+
+interface AssetReturnMetrics {
+  current_year: PeriodReturnMetrics;
+  global: PeriodReturnMetrics;
+}
 
 interface CalculatedAssetStats {
   // Global portfolio metrics
@@ -46,6 +58,11 @@ interface CalculatedAssetStats {
   monthly_snapshots: Array<MonthlySnapshot>;
   current_value_distribution: Array<AssetTypeDistribution>;
   combined_roi_by_year: Record<number, YearlyROI>;
+  return_metrics: {
+    by_year: Record<number, PeriodReturnMetrics>;
+    current_year: PeriodReturnMetrics;
+    global: PeriodReturnMetrics;
+  };
   top_performing_assets: Array<InvestAssetWithCalculatedAmounts>;
 }
 
@@ -80,6 +97,9 @@ interface YearlyROI {
   total_inflow: number;
   total_outflow: number;
   value_total_amount: number;
+  contributions: number;
+  withdrawals: number;
+  return_metrics: PeriodReturnMetrics;
 }
 
 interface InvestAssetEvoSnapshot {
@@ -119,8 +139,9 @@ class InvestAssetService {
                                               ORDER BY YEAR DESC, MONTH DESC
                                               LIMIT 1`;
 
-    if (!result || !Array.isArray(result) || (result as Array<any>).length < 1) return null;
-    return result[0];
+    const snapshots = result as Array<InvestAssetEvoSnapshot>;
+    if (!result || !Array.isArray(result) || snapshots.length < 1) return null;
+    return snapshots[0];
   }
 
   static async getTotalFeesAndTaxesForAsset(assetId: bigint, dbClient = prisma) {
@@ -236,6 +257,12 @@ class InvestAssetService {
 
     // Calculate ROI
     const roi = InvestAssetService.calculateSingleAssetROI(assetTransactions, currentValue);
+    const returnMetrics = InvestAssetService.calculateAssetReturnMetrics(
+      assetId,
+      assetTransactions,
+      allSnapshots,
+      currentValue
+    );
     if (enableLogging) Logger.addLog(`roi result: ${JSON.stringify(roi)}`);
 
     return {
@@ -255,6 +282,92 @@ class InvestAssetService {
       fees_taxes: feesAndTaxes,
       income_amount: incomeAmount,
       cost_amount: costAmount,
+      return_metrics: returnMetrics,
+    };
+  }
+
+  private static getSnapshotValueAtOrBefore(
+    snapshots: Array<MonthlySnapshot>,
+    maxMonth: number,
+    maxYear: number
+  ) {
+    let value = 0;
+
+    for (const snapshot of snapshots) {
+      if (snapshot.year < maxYear || (snapshot.year === maxYear && snapshot.month <= maxMonth)) {
+        value = Number(snapshot.current_value ?? 0);
+      }
+    }
+
+    return value;
+  }
+
+  private static calculateAssetReturnMetrics(
+    assetId: bigint,
+    assetTransactions: TransactionFlowData[],
+    allSnapshots: Array<MonthlySnapshot>,
+    currentValue: number
+  ): AssetReturnMetrics {
+    const assetSnapshots = allSnapshots.filter(
+      (snapshot) => snapshot.asset_id?.toString() === assetId.toString()
+    );
+    const currentYear = DateTimeUtils.getYearFromTimestamp();
+    const currentMonth = DateTimeUtils.getMonthNumberFromTimestamp();
+    const currentTimestamp = DateTimeUtils.getCurrentUnixTimestamp();
+    const portfolioValueByMonth = buildPortfolioValueByMonth(assetSnapshots);
+    const currentYearStartTimestamp = DateTimeUtils.getUnixTimestampFromDate(
+      new Date(currentYear, 0, 1)
+    );
+    const currentYearBeginningValue = InvestAssetService.getSnapshotValueAtOrBefore(
+      assetSnapshots,
+      12,
+      currentYear - 1
+    );
+    const currentYearTransactions = assetTransactions.filter(
+      (transaction) => Number(transaction.date_timestamp) >= currentYearStartTimestamp
+    );
+    const currentYearMetrics = calculatePeriodReturnMetrics({
+      beginningValue: currentYearBeginningValue,
+      endingValue: currentValue,
+      transactions: currentYearTransactions,
+      periodStartTimestamp: currentYearStartTimestamp,
+      periodEndTimestamp: currentTimestamp,
+      portfolioValueByMonth,
+    });
+
+    if (assetSnapshots.length === 0 && assetTransactions.length === 0 && currentValue <= 0) {
+      return {
+        current_year: currentYearMetrics,
+        global: createEmptyReturnMetrics(),
+      };
+    }
+
+    const firstSnapshot = assetSnapshots[0];
+    const periodStartFromSnapshots = firstSnapshot
+      ? DateTimeUtils.getUnixTimestampFromDate(
+          new Date(firstSnapshot.year, firstSnapshot.month - 1, 1)
+        )
+      : DateTimeUtils.getUnixTimestampFromDate(new Date(currentYear, currentMonth - 1, 1));
+    const firstTransactionTimestamp = assetTransactions.reduce(
+      (earliestTimestamp, transaction) =>
+        Math.min(earliestTimestamp, Number(transaction.date_timestamp)),
+      periodStartFromSnapshots
+    );
+    const globalStartTimestamp =
+      assetTransactions.length > 0 ? firstTransactionTimestamp : periodStartFromSnapshots;
+
+    return {
+      current_year: currentYearMetrics,
+      global: calculatePeriodReturnMetrics({
+        beginningValue: 0,
+        endingValue: currentValue,
+        transactions: assetTransactions.filter(
+          (transaction) => Number(transaction.date_timestamp) >= globalStartTimestamp
+        ),
+        periodStartTimestamp: globalStartTimestamp,
+        periodEndTimestamp: currentTimestamp,
+        portfolioValueByMonth,
+      }),
     };
   }
 
@@ -430,7 +543,7 @@ class InvestAssetService {
     const bufferPromises = [];
     if (createBuffer) {
       // Snapshot next 6 months also, to create a buffer (in case no more snapshots are added till then)
-      let nextMonth;
+      let nextMonth: { month: number; year: number };
       for (let i = 0; i < 6; i++) {
         nextMonth = DateTimeUtils.incrementMonthByX(month, year, i + 1);
         bufferPromises.push(
@@ -601,6 +714,11 @@ class InvestAssetService {
           periodEndTimestamp,
           prismaTx
         )) as TransactionFlowData[];
+      const monthlySnapshots = await InvestAssetService.getAllAssetSnapshotsForUser(
+        userId,
+        prismaTx
+      );
+      const portfolioValueByMonth = buildPortfolioValueByMonth(monthlySnapshots);
 
       let yearInLoop = initialYear;
       while (yearInLoop <= currentYear) {
@@ -647,6 +765,14 @@ class InvestAssetService {
           endingValue,
           yearTransactions
         );
+        const returnMetrics = calculatePeriodReturnMetrics({
+          beginningValue,
+          endingValue,
+          transactions: yearTransactions,
+          periodStartTimestamp: yearStartTimestamp,
+          periodEndTimestamp: yearEndTimestamp,
+          portfolioValueByMonth,
+        });
         if (enableLogging) Logger.addLog('Transactions in year:');
         if (enableLogging) Logger.addStringifiedLog(yearTransactions);
         if (enableLogging) Logger.addLog('roi result: ');
@@ -660,6 +786,9 @@ class InvestAssetService {
           total_inflow: yearlyROI.totalMoneyOut,
           total_outflow: yearlyROI.totalMoneyIn,
           value_total_amount: endingValue,
+          contributions: returnMetrics.cash_flows.contributions,
+          withdrawals: returnMetrics.cash_flows.withdrawals,
+          return_metrics: returnMetrics,
         };
 
         yearInLoop++;
@@ -744,6 +873,15 @@ class InvestAssetService {
 
       // Calculate global ROI from yearly data
       const globalROI = InvestAssetService.calculateGlobalROI(combinedRoiByYear);
+      const globalReturnMetrics = await InvestAssetService.calculateGlobalReturnMetrics(
+        userId,
+        monthlySnapshots,
+        totalCurrentValue,
+        prismaTx
+      );
+      const returnMetricsByYear = Object.fromEntries(
+        Object.entries(combinedRoiByYear).map(([year, data]) => [year, data.return_metrics])
+      );
 
       // Sort assets by absolute ROI value (descending) for top performers
       // Note: userAssets already have ROI calculated by getAllAssetsForUser
@@ -766,6 +904,11 @@ class InvestAssetService {
         monthly_snapshots: monthlySnapshots,
         current_value_distribution: currentValueDistribution,
         combined_roi_by_year: combinedRoiByYear,
+        return_metrics: {
+          by_year: returnMetricsByYear,
+          current_year: currentYearROI?.return_metrics ?? createEmptyReturnMetrics(),
+          global: globalReturnMetrics,
+        },
         top_performing_assets: topPerformingAssets,
       };
     }, dbClient);
@@ -850,6 +993,46 @@ class InvestAssetService {
       value: globalRoiValue,
       percentage: costBasis <= 0 ? '-' : globalRoiPercentage,
     };
+  }
+
+  private static async calculateGlobalReturnMetrics(
+    userId: bigint,
+    monthlySnapshots: Array<MonthlySnapshot>,
+    totalCurrentValue: number,
+    dbClient = prisma
+  ): Promise<PeriodReturnMetrics> {
+    if (monthlySnapshots.length === 0) return createEmptyReturnMetrics();
+
+    const firstSnapshot = monthlySnapshots[0];
+    const periodStartFromSnapshots = DateTimeUtils.getUnixTimestampFromDate(
+      new Date(firstSnapshot.year, firstSnapshot.month - 1, 1)
+    );
+    const periodEndTimestamp = DateTimeUtils.getCurrentUnixTimestamp();
+    const allTransactions = (await InvestTransactionsService.getAllTransactionsForUserBetweenDates(
+      userId,
+      periodStartFromSnapshots,
+      periodEndTimestamp,
+      dbClient
+    )) as TransactionFlowData[];
+    const firstTransactionTimestamp = allTransactions.reduce(
+      (earliestTimestamp, transaction) =>
+        Math.min(earliestTimestamp, Number(transaction.date_timestamp)),
+      periodStartFromSnapshots
+    );
+    const periodStartTimestamp =
+      allTransactions.length > 0 ? firstTransactionTimestamp : periodStartFromSnapshots;
+    const portfolioValueByMonth = buildPortfolioValueByMonth(monthlySnapshots);
+
+    return calculatePeriodReturnMetrics({
+      beginningValue: 0,
+      endingValue: totalCurrentValue,
+      transactions: allTransactions.filter(
+        (transaction) => Number(transaction.date_timestamp) >= periodStartTimestamp
+      ),
+      periodStartTimestamp,
+      periodEndTimestamp,
+      portfolioValueByMonth,
+    });
   }
 
   /**
