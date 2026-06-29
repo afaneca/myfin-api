@@ -68,22 +68,28 @@ describe('goalService', () => {
 
       const result = await GoalService.getGoalsForUser(1n, false, mockedPrisma);
 
-      expect(result).toMatchObject([
-        {
-          goal_id: 1,
-          amount: 1000,
-          currently_funded_amount: 1500,
-          funding_accounts: [{ account_id: 1, current_funding: 1500 }],
-          is_underfunded: false,
+      expect(result).toMatchObject({
+        goals: [
+          {
+            goal_id: 1,
+            amount: 1000,
+            currently_funded_amount: 1000,
+            funding_accounts: [{ account_id: 1, current_funding: 1000 }],
+            is_underfunded: false,
+          },
+          {
+            goal_id: 2,
+            amount: 500,
+            currently_funded_amount: 500,
+            funding_accounts: [{ account_id: 1, current_funding: 500 }],
+            is_underfunded: false,
+          },
+        ],
+        unallocated_funding: {
+          total_amount: 500,
+          accounts: [{ account_id: 1, amount: 500 }],
         },
-        {
-          goal_id: 2,
-          amount: 500,
-          currently_funded_amount: 500,
-          funding_accounts: [{ account_id: 1, current_funding: 500 }],
-          is_underfunded: false,
-        },
-      ]);
+      });
     });
 
     test('keeps allocations account-scoped across mixed funding accounts and funding types', async () => {
@@ -105,32 +111,75 @@ describe('goalService', () => {
 
       const result = await GoalService.getGoalsForUser(1n, false, mockedPrisma);
 
-      expect(result).toMatchObject([
-        {
-          goal_id: 1,
-          currently_funded_amount: 1600,
-          funding_accounts: [
-            { account_id: 1, current_funding: 1300 },
-            { account_id: 2, current_funding: 300 },
+      expect(result).toMatchObject({
+        goals: [
+          {
+            goal_id: 1,
+            currently_funded_amount: 1000,
+            funding_accounts: [
+              { account_id: 1, current_funding: 1000 },
+              { account_id: 2, current_funding: 0 },
+            ],
+            is_underfunded: false,
+          },
+          {
+            goal_id: 2,
+            currently_funded_amount: 800,
+            funding_accounts: [
+              { account_id: 1, current_funding: 700 },
+              { account_id: 2, current_funding: 100 },
+            ],
+            is_underfunded: false,
+          },
+          {
+            goal_id: 3,
+            currently_funded_amount: 600,
+            funding_accounts: [{ account_id: 2, current_funding: 600 }],
+            is_underfunded: false,
+          },
+        ],
+        unallocated_funding: {
+          total_amount: 600,
+          accounts: [
+            { account_id: 1, amount: 300 },
+            { account_id: 2, amount: 300 },
           ],
-          is_underfunded: false,
         },
-        {
-          goal_id: 2,
-          currently_funded_amount: 800,
-          funding_accounts: [
-            { account_id: 1, current_funding: 700 },
-            { account_id: 2, current_funding: 100 },
-          ],
-          is_underfunded: false,
+      });
+    });
+
+    test('reports surplus for one referenced account while omitting fully consumed accounts', async () => {
+      mockedPrisma.goals.findMany.mockResolvedValue([
+        goal(1n, 2, 100_000n, [fundingAccount(1n, 'absolute', 1000)]),
+        goal(2n, 1, 50_000n, [fundingAccount(2n, 'absolute', 500)]),
+      ] as never);
+      mockedPrisma.accounts.findMany.mockResolvedValue([
+        account(1n, 150_000n),
+        account(2n, 50_000n),
+      ] as never);
+
+      const result = await GoalService.getGoalsForUser(1n, false, mockedPrisma);
+
+      expect(result).toMatchObject({
+        goals: [
+          {
+            goal_id: 1,
+            currently_funded_amount: 1000,
+            funding_accounts: [{ account_id: 1, current_funding: 1000 }],
+            is_underfunded: false,
+          },
+          {
+            goal_id: 2,
+            currently_funded_amount: 500,
+            funding_accounts: [{ account_id: 2, current_funding: 500 }],
+            is_underfunded: false,
+          },
+        ],
+        unallocated_funding: {
+          total_amount: 500,
+          accounts: [{ account_id: 1, amount: 500 }],
         },
-        {
-          goal_id: 3,
-          currently_funded_amount: 600,
-          funding_accounts: [{ account_id: 2, current_funding: 600 }],
-          is_underfunded: false,
-        },
-      ]);
+      });
     });
 
     test('preserves accounts needed by lower priority goals when funding a shared higher priority goal', async () => {
@@ -148,26 +197,32 @@ describe('goalService', () => {
 
       const result = await GoalService.getGoalsForUser(1n, false, mockedPrisma);
 
-      expect(result).toMatchObject([
-        {
-          goal_id: 1,
-          currently_funded_amount: 1000,
-          funding_accounts: [
-            { account_id: 1, current_funding: 0 },
-            { account_id: 2, current_funding: 1000 },
-          ],
-          is_underfunded: false,
+      expect(result).toMatchObject({
+        goals: [
+          {
+            goal_id: 1,
+            currently_funded_amount: 1000,
+            funding_accounts: [
+              { account_id: 1, current_funding: 0 },
+              { account_id: 2, current_funding: 1000 },
+            ],
+            is_underfunded: false,
+          },
+          {
+            goal_id: 2,
+            currently_funded_amount: 1000,
+            funding_accounts: [{ account_id: 1, current_funding: 1000 }],
+            is_underfunded: false,
+          },
+        ],
+        unallocated_funding: {
+          total_amount: 0,
+          accounts: [],
         },
-        {
-          goal_id: 2,
-          currently_funded_amount: 1000,
-          funding_accounts: [{ account_id: 1, current_funding: 1000 }],
-          is_underfunded: false,
-        },
-      ]);
+      });
     });
 
-    test('does not roll surplus back while an eligible goal remains below target', async () => {
+    test('reports surplus even when funding rules leave an eligible goal below target', async () => {
       mockedPrisma.goals.findMany.mockResolvedValue([
         goal(1n, 2, 100_000n, [fundingAccount(1n, 'relative', 100)]),
         goal(2n, 1, 50_000n, [fundingAccount(1n, 'absolute', 100)]),
@@ -176,20 +231,26 @@ describe('goalService', () => {
 
       const result = await GoalService.getGoalsForUser(1n, false, mockedPrisma);
 
-      expect(result).toMatchObject([
-        {
-          goal_id: 1,
-          currently_funded_amount: 1000,
-          funding_accounts: [{ account_id: 1, current_funding: 1000 }],
-          is_underfunded: false,
+      expect(result).toMatchObject({
+        goals: [
+          {
+            goal_id: 1,
+            currently_funded_amount: 1000,
+            funding_accounts: [{ account_id: 1, current_funding: 1000 }],
+            is_underfunded: false,
+          },
+          {
+            goal_id: 2,
+            currently_funded_amount: 100,
+            funding_accounts: [{ account_id: 1, current_funding: 100 }],
+            is_underfunded: true,
+          },
+        ],
+        unallocated_funding: {
+          total_amount: 900,
+          accounts: [{ account_id: 1, amount: 900 }],
         },
-        {
-          goal_id: 2,
-          currently_funded_amount: 100,
-          funding_accounts: [{ account_id: 1, current_funding: 100 }],
-          is_underfunded: true,
-        },
-      ]);
+      });
     });
   });
 

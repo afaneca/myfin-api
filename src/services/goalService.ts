@@ -45,6 +45,17 @@ export type GoalWithFunding = {
   is_underfunded: boolean;
 };
 
+export type GoalFundingSummary = {
+  goals: GoalWithFunding[];
+  unallocated_funding: {
+    total_amount: number;
+    accounts: Array<{
+      account_id: number;
+      amount: number;
+    }>;
+  };
+};
+
 class GoalService {
   private static async validateFundingAccountsBelongToUser(
     fundingAccounts: FundingAccount[],
@@ -116,7 +127,7 @@ class GoalService {
     userId: bigint,
     onlyActive = false,
     dbClient = prisma
-  ): Promise<GoalWithFunding[]> {
+  ): Promise<GoalFundingSummary> {
     const whereClause: { users_user_id: bigint; is_archived?: boolean } = {
       users_user_id: userId,
     };
@@ -256,8 +267,9 @@ class GoalService {
       }
     }
 
-    // Once every eligible goal is funded, any account surplus rolls back to its top priority goal.
-    for (const [accountId, goalIndexes] of accountGoalIndexes.entries()) {
+    const unallocatedFundingAccounts: GoalFundingSummary['unallocated_funding']['accounts'] = [];
+
+    for (const accountId of accountGoalIndexes.keys()) {
       const accountBalance = accountBalances.get(accountId) || 0;
       const alreadyAllocated = accountFundingTracking.get(accountId) || 0;
       const remainingBalance = Math.max(0, accountBalance - alreadyAllocated);
@@ -266,32 +278,26 @@ class GoalService {
         continue;
       }
 
-      const areAllEligibleGoalsFunded = goalIndexes.every(
-        (goalIndex) =>
-          goalsWithFunding[goalIndex].currently_funded_amount >= goalsWithFunding[goalIndex].amount
-      );
-
-      if (!areAllEligibleGoalsFunded) {
-        continue;
-      }
-
-      const highestPriorityGoal = goalsWithFunding[goalIndexes[0]];
-      const fundingAccount = highestPriorityGoal.funding_accounts.find(
-        (account) => account.account_id === Number(accountId)
-      );
-
-      if (fundingAccount) {
-        highestPriorityGoal.currently_funded_amount += remainingBalance;
-        fundingAccount.current_funding = (fundingAccount.current_funding || 0) + remainingBalance;
-        accountFundingTracking.set(accountId, alreadyAllocated + remainingBalance);
-      }
+      unallocatedFundingAccounts.push({
+        account_id: Number(accountId),
+        amount: remainingBalance,
+      });
     }
 
     for (const goal of goalsWithFunding) {
       goal.is_underfunded = goal.currently_funded_amount < goal.amount;
     }
 
-    return goalsWithFunding;
+    return {
+      goals: goalsWithFunding,
+      unallocated_funding: {
+        total_amount: unallocatedFundingAccounts.reduce(
+          (total, account) => total + account.amount,
+          0
+        ),
+        accounts: unallocatedFundingAccounts,
+      },
+    };
   }
 
   static async doesGoalBelongToUser(userId: bigint, goalId: bigint, dbClient = prisma) {

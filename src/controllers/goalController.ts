@@ -68,8 +68,8 @@ const getAllGoalsForUser = async (req: Request, res: Response, next: NextFunctio
   try {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
     const { only_active: onlyActive } = await getGoalsQuerySchema.validateAsync(req.query);
-    const goals = await GoalService.getGoalsForUser(sessionData.userId, onlyActive);
-    res.send(goals);
+    const goalFundingSummary = await GoalService.getGoalsForUser(sessionData.userId, onlyActive);
+    res.send(goalFundingSummary);
   } catch (err) {
     Logger.addLog(err);
     next(err || APIError.internalServerError());
