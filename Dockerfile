@@ -21,7 +21,7 @@ RUN npx prisma generate && \
 # Production stage
 FROM node:20-alpine
 
-ARG VERSION="4.7.0"
+ARG VERSION="5.0.0"
 
 # Add metadata
 LABEL maintainer="José Valdiviesso <me@zmiguel.me>"
