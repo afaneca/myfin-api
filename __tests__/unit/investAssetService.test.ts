@@ -1,6 +1,6 @@
-import { Prisma } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library.js';
+import { Decimal } from '@prisma/client/runtime/client';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { Prisma } from '../../src/generated/prisma/client.js';
 import InvestAssetService from '../../src/services/investAssetService.js';
 import InvestTransactionsService from '../../src/services/investTransactionsService.js';
 import DateTimeUtils from '../../src/utils/DateTimeUtils.js';

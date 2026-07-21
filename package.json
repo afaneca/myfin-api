@@ -2,8 +2,10 @@
   "type": "module",
   "scripts": {
     "start": "npx tsx src/server.ts",
+    "prestart": "prisma generate",
     "start:dev": "tsx src/scripts/startDev.ts",
-    "build": "tsc",
+    "prestart:dev": "prisma generate",
+    "build": "prisma generate && tsc",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "format": "biome format .",
@@ -12,18 +14,18 @@
     "check:fix": "biome check --write .",
     "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset",
-    "db:migrate-from-db": "prisma db pull && prisma migrate dev",
+    "db:migrate": "prisma migrate dev && prisma generate",
+    "db:reset": "prisma migrate reset && prisma generate",
+    "db:migrate-from-db": "prisma db pull && prisma migrate dev && prisma generate",
     "db:seed": "prisma db seed",
-    "test:unit": "vitest -c ./vitest.config.unit.ts",
-    "test:unit:run": "vitest run -c ./vitest.config.unit.ts",
-    "test:unit:ui": "vitest -c ./vitest.config.unit.ts --ui --coverage",
+    "test:unit": "prisma generate && vitest -c ./vitest.config.unit.ts",
+    "test:unit:run": "prisma generate && vitest run -c ./vitest.config.unit.ts",
+    "test:unit:ui": "prisma generate && vitest -c ./vitest.config.unit.ts --ui --coverage",
     "_comment_test_integration": "Run all integration tests by default. Example usage: npm run test:integration (all tests), npm run test:integration user (runs tests matching 'user'), npm run test:integration 'user.integration.test.ts' (specific test file)",
     "test:integration": "sh scripts/test-integration.sh"
   },
   "name": "myfin-api",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "NodeJS API for Myfin",
   "main": "src/server.js",
   "devDependencies": {
@@ -39,7 +41,6 @@
     "globals": "^16.3.0",
     "magicast": "0.3.5",
     "nodemon": "^3.0.1",
-    "prisma": "^6.15.0",
     "tsx": "^4.19.2",
     "typescript": "^5.9.2",
     "vitest": "^4.0.16",
@@ -56,8 +57,9 @@
   },
   "homepage": "https://github.com/aFaneca/myfin#readme",
   "dependencies": {
-    "@prisma/client": "^6.15.0",
-    "@types/nodemailer": "^7.0.1",
+    "@prisma/adapter-mariadb": "7.9.0",
+    "@prisma/client": "7.9.0",
+    "@types/nodemailer": "8.0.1",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dayjs": "^1.10.6",
@@ -67,15 +69,16 @@
     "fuzzball": "^2.2.0",
     "helmet": "^8.0.0",
     "i18next": "^25.4.2",
-    "i18next-http-middleware": "^3.7.0",
+    "i18next-http-middleware": "3.9.7",
     "joi": "^18.0.1",
     "joi-to-swagger": "^6.2.0",
     "mysql2": "^3.11.5",
-    "nodemailer": "8.0.7",
+    "nodemailer": "9.0.3",
+    "prisma": "7.9.0",
     "swagger-ui-express": "^5.0.1",
     "ts-node": "^10.9.2"
   },
   "engines": {
-    "node": ">20.19.0"
+    "node": "^20.19.0 || ^22.12.0 || ^24.0.0"
   }
 }

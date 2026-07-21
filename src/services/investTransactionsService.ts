@@ -1,7 +1,7 @@
-import type { invest_transactions_type } from '@prisma/client';
 import { performDatabaseRequest, prisma } from '../config/prisma.js';
 import { MYFIN } from '../consts.js';
 import APIError from '../errorHandling/apiError.js';
+import type { invest_transactions_type } from '../generated/prisma/client.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
 import ConvertUtils from '../utils/convertUtils.js';
 import InvestAssetService from './investAssetService.js';
