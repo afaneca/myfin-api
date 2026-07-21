@@ -1,7 +1,7 @@
-import type { Prisma } from '@prisma/client';
 import { performDatabaseRequest, prisma } from '../config/prisma.js';
 import { MYFIN } from '../consts.js';
 import APIError, { UserErrorCodes } from '../errorHandling/apiError.js';
+import type { Prisma } from '../generated/prisma/client.js';
 import type { Translator } from '../middlewares/i18n.js';
 import * as cryptoUtils from '../utils/CryptoUtils.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';

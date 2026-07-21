@@ -1,9 +1,9 @@
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import type { invest_transactions_type } from '@prisma/client';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import app from '../../src/app.js';
 import { MYFIN } from '../../src/consts.js';
+import type { invest_transactions_type } from '../../src/generated/prisma/client.js';
 import InvestAssetService from '../../src/services/investAssetService.js';
 import InvestTransactionsService from '../../src/services/investTransactionsService.js';
 import UserService from '../../src/services/userService.js';

@@ -1,4 +1,4 @@
-import type { invest_transactions_type } from '@prisma/client';
+import type { invest_transactions_type } from '../../src/generated/prisma/client.js';
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 

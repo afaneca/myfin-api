@@ -1,6 +1,6 @@
-import { type Prisma, PrismaClient } from '@prisma/client';
 import { performDatabaseRequest, prisma } from '../config/prisma.js';
 import { MYFIN } from '../consts.js';
+import { type Prisma, PrismaClient } from '../generated/prisma/client.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
 import Logger from '../utils/Logger.js';
 import ConvertUtils from '../utils/convertUtils.js';

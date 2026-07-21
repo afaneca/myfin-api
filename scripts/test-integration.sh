@@ -25,5 +25,6 @@ until docker compose -p "$COMPOSE_PROJECT_NAME" -f docker-compose.tests.yml exec
   sleep 1
 done
 
+dotenv -e .env.test -- npm run db:generate
 dotenv -e .env.test -- npm run db:deploy
 dotenv -e .env.test -- vitest --run --config vitest.config.integration.ts "$@"
