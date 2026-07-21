@@ -47,8 +47,7 @@ COPY package*.json ./
 
 # Create startup script
 RUN echo '#!/bin/sh' > /app/start.sh && \
-    echo 'export DATABASE_URL="mysql://$DB_USER:$DB_PW@$DB_HOST:$DB_PORT/$DB_NAME"' >> /app/start.sh && \
-    echo 'npm run db:deploy && node dist/server.js' >> /app/start.sh && \
+    echo 'npm run db:deploy && exec node dist/server.js' >> /app/start.sh && \
     chmod +x /app/start.sh
 
 # Set environment variables

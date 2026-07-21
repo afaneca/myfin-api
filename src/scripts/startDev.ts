@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import 'dotenv/config';
+import { resolveDatabaseUrl } from '../config/databaseUrl.js';
 
 const projectRoot = process.cwd();
 const isWindows = process.platform === 'win32';
@@ -43,12 +44,7 @@ if (!process.env.TRUST_PROXY?.trim()) {
   process.env.TRUST_PROXY = 'false';
 }
 
-if (!process.env.DATABASE_URL?.trim() || process.env.DATABASE_URL.includes('${')) {
-  const encodedUser = encodeURIComponent(dbUser);
-  const encodedPassword = encodeURIComponent(dbPassword);
-  process.env.DATABASE_URL = `mysql://${encodedUser}:${encodedPassword}@${dbHost}:${dbPort}/${dbName}`;
-}
-
+process.env.DATABASE_URL = resolveDatabaseUrl();
 const runtimeEnv = { ...process.env };
 
 const getCommandNotFoundError = (command: string) => {
