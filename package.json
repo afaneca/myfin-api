@@ -25,7 +25,7 @@
     "test:integration": "sh scripts/test-integration.sh"
   },
   "name": "myfin-api",
-  "version": "5.0.1",
+  "version": "5.0.2",
   "description": "NodeJS API for Myfin",
   "main": "src/server.js",
   "devDependencies": {

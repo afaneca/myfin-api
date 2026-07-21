@@ -1,6 +1,7 @@
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import { PrismaClient } from '../generated/prisma/client.js';
 import Logger from '../utils/Logger.js';
+import { resolveDatabaseUrl } from './databaseUrl.js';
 
 // Fix for BigInt not being serializable
 // eslint-disable-next-line no-extend-native
@@ -11,7 +12,7 @@ BigInt.prototype.toJSON = function () {
 };
 
 const databaseUrl =
-  process.env.DATABASE_URL ??
+  resolveDatabaseUrl() ??
   (process.env.NODE_ENV === 'test' ? 'mysql://unused:unused@localhost:3306/unused' : undefined);
 
 if (!databaseUrl) {
