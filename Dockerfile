@@ -42,6 +42,7 @@ RUN apk --no-cache add curl openssl zlib libgcc musl
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder /app/src/config/databaseUrl.ts ./src/config/databaseUrl.ts
 COPY --from=builder /app/node_modules ./node_modules
 COPY package*.json ./
 
