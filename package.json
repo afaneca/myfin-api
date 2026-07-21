@@ -59,7 +59,7 @@
   "dependencies": {
     "@prisma/adapter-mariadb": "7.9.0",
     "@prisma/client": "7.9.0",
-    "@types/nodemailer": "^7.0.1",
+    "@types/nodemailer": "8.0.1",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dayjs": "^1.10.6",
@@ -69,11 +69,11 @@
     "fuzzball": "^2.2.0",
     "helmet": "^8.0.0",
     "i18next": "^25.4.2",
-    "i18next-http-middleware": "^3.7.0",
+    "i18next-http-middleware": "3.9.7",
     "joi": "^18.0.1",
     "joi-to-swagger": "^6.2.0",
     "mysql2": "^3.11.5",
-    "nodemailer": "8.0.7",
+    "nodemailer": "9.0.3",
     "prisma": "7.9.0",
     "swagger-ui-express": "^5.0.1",
     "ts-node": "^10.9.2"
