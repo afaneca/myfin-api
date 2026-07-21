@@ -1,7 +1,14 @@
+import { fileURLToPath } from 'node:url';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
+import { config as loadEnv } from 'dotenv';
 import { PrismaClient } from '../generated/prisma/client.js';
 import Logger from '../utils/Logger.js';
 import { resolveDatabaseUrl } from './databaseUrl.js';
+
+loadEnv({
+  path: fileURLToPath(new URL('../../.env', import.meta.url)),
+  quiet: true,
+});
 
 // Fix for BigInt not being serializable
 // eslint-disable-next-line no-extend-native
