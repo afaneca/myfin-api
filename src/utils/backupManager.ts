@@ -1,9 +1,9 @@
 import { createRequire } from 'node:module';
-import type { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma.js';
 import { MYFIN } from '../consts.js';
 import { RestoreUserErrorCodes } from '../controllers/userController.js';
 import APIError from '../errorHandling/apiError.js';
+import type { Prisma } from '../generated/prisma/client.js';
 import AccountService from '../services/accountService.js';
 import CategoryService from '../services/categoryService.js';
 import EntityService from '../services/entityService.js';

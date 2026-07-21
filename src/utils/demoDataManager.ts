@@ -1,6 +1,6 @@
-import { invest_transactions_type } from '@prisma/client';
 import { performDatabaseRequest } from '../config/prisma.js';
 import { COLOR_GRADIENTS, MYFIN } from '../consts.js';
+import { invest_transactions_type } from '../generated/prisma/client.js';
 import AccountService from '../services/accountService.js';
 import CategoryService from '../services/categoryService.js';
 import EntityService from '../services/entityService.js';

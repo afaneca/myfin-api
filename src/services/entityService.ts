@@ -1,5 +1,5 @@
-import type { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma.js';
+import type { Prisma } from '../generated/prisma/client.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
 
 export interface Entity {

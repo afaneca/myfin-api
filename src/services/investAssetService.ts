@@ -1,8 +1,8 @@
-import type { Prisma } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library.js';
+import { Decimal } from '@prisma/client/runtime/client';
 import { performDatabaseRequest, prisma } from '../config/prisma.js';
 import { MYFIN } from '../consts.js';
 import APIError from '../errorHandling/apiError.js';
+import type { Prisma } from '../generated/prisma/client.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
 import Logger from '../utils/Logger.js';
 import ROICalculator, { type TransactionFlowData } from '../utils/ROICalculator.js';
