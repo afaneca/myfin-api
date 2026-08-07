@@ -41,6 +41,7 @@ class BudgetService {
              type,
              description,
              color_gradient,
+             icon_key,
              budgets_budget_id,
              exclude_from_budgets,
              truncate((coalesce(planned_amount_credit, 0) / 100), 2) as planned_amount_credit,
@@ -579,6 +580,26 @@ class BudgetService {
     return result[0].amount ? ConvertUtils.convertBigIntegerToFloat(result[0].amount) : 0;
   }
 
+  static async getTransactionCountForBudget(
+    userId: bigint,
+    budget: Prisma.budgetsUpdateInput,
+    dbClient = prisma
+  ) {
+    const month = Number.parseInt(budget.month as any, 10);
+    const year = Number.parseInt(budget.year as any, 10);
+    const nextMonth = month < 12 ? month + 1 : 1;
+    const nextMonthYear = month < 12 ? year : year + 1;
+    const result: any = await dbClient.$queryRaw`
+      SELECT count(DISTINCT transactions.transaction_id) as 'count'
+      FROM transactions
+      LEFT JOIN accounts acc_from ON acc_from.account_id = transactions.accounts_account_from_id
+      LEFT JOIN accounts acc_to ON acc_to.account_id = transactions.accounts_account_to_id
+      WHERE (acc_from.users_user_id = ${userId} OR acc_to.users_user_id = ${userId})
+        AND transactions.date_timestamp >= ${new Date(year, month - 1, 1).getTime() / 1000}
+        AND transactions.date_timestamp < ${new Date(nextMonthYear, nextMonth - 1, 1).getTime() / 1000}`;
+    return Number(result[0]?.count ?? 0);
+  }
+
   static async getBudget(userId: bigint, budgetId: number | bigint, dbclient = prisma) {
     const budget = await prisma.budgets.findUnique({
       where: {
@@ -610,6 +631,8 @@ class BudgetService {
     );
     (budget as any).debit_essential_trx_total =
       await this.getTotalEssentialDebitTransactionsAmountForBudget(userId, budget, dbclient);
+    (budget as any).transaction_count =
+      await this.getTransactionCountForBudget(userId, budget, dbclient);
 
     for (const category of (budget as any).categories) {
       /*Logger.addLog(`_------_\nCategory: ${category.category_id}`);*/

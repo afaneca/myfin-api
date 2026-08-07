@@ -274,6 +274,7 @@ const userService = {
         category_id: true,
         name: true,
         type: true,
+        icon_key: true,
       },
       dbClient
     );
@@ -303,6 +304,7 @@ const userService = {
           category_id: cat.category_id as bigint,
           name: cat.name as string,
           type: cat.type as string,
+          icon_key: cat.icon_key as string,
         };
       }),
       entities: entities.map((ent) => {

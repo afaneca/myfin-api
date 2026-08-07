@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import joi from 'joi';
-import { MYFIN } from '../consts.js';
+import { CATEGORY_ICON_KEYS, DEFAULT_CATEGORY_ICON_KEY, MYFIN } from '../consts.js';
 import APIError from '../errorHandling/apiError.js';
 import CategoryService from '../services/categoryService.js';
 import Logger from '../utils/Logger.js';
@@ -22,6 +22,7 @@ const createCategorySchema = joi.object({
   name: joi.string().trim().required(),
   description: joi.string().trim().empty('').default(''),
   color_gradient: joi.string().trim().required(),
+  icon_key: joi.string().trim().valid(...CATEGORY_ICON_KEYS).default(DEFAULT_CATEGORY_ICON_KEY),
   status: joi.string().valid(MYFIN.CATEGORY_STATUS.ACTIVE, MYFIN.CATEGORY_STATUS.INACTIVE),
   exclude_from_budgets: joi.boolean().truthy(1, '1').falsy(0, '0').required(),
 });
@@ -51,6 +52,7 @@ const updateCategorySchema = joi.object({
   new_name: joi.string().trim().required(),
   new_description: joi.string().trim().empty('').default(''),
   new_color_gradient: joi.string().trim().required(),
+  new_icon_key: joi.string().trim().valid(...CATEGORY_ICON_KEYS).optional(),
   new_status: joi.string().valid(MYFIN.CATEGORY_STATUS.ACTIVE, MYFIN.CATEGORY_STATUS.INACTIVE),
   new_exclude_from_budgets: joi.boolean().truthy(1, '1').falsy(0, '0').required(),
 });
@@ -64,6 +66,7 @@ const updateCategory = async (req: Request, res: Response, next: NextFunction) =
       name: input.new_name,
       description: input.new_description,
       color_gradient: input.new_color_gradient,
+      ...(input.new_icon_key !== undefined ? { icon_key: input.new_icon_key } : {}),
       status: input.new_status,
       exclude_from_budgets: +input.new_exclude_from_budgets,
     });
