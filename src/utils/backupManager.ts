@@ -249,6 +249,7 @@ class BackupManager {
           name: category.name,
           description: category.description,
           color_gradient: category.color_gradient,
+          icon_key: category.icon_key,
           status: category.status,
           exclude_from_budgets: category.exclude_from_budgets,
         },

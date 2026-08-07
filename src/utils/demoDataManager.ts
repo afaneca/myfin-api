@@ -52,6 +52,14 @@ const getRandomColorGradient = () => {
   return colorGradients[Math.floor(Math.random() * colorGradients.length)];
 };
 
+const getDemoTransactionDate = (year: number, month: number, day: number) => {
+  const date = new Date(year, month - 1, day);
+  const today = new Date();
+  if (date <= today) return date;
+  return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+};
+
+
 const createMockCategories = async (userId: bigint, dbClient = undefined) =>
   performDatabaseRequest(async (prismaTx) => {
     const promises = [];
@@ -61,9 +69,10 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
         {
           type: 'M',
           users_user_id: userId,
-          name: 'Home Repairs 🧰',
+          name: 'Home Repairs',
           description: 'Home maintenance & repais',
           color_gradient: getRandomColorGradient(),
+          icon_key: 'home_repairs',
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
           exclude_from_budgets: 0,
         },
@@ -77,9 +86,10 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
         {
           type: 'M',
           users_user_id: userId,
-          name: 'Wages 💼',
+          name: 'Wages',
           description: 'Job salaries & related comp',
           color_gradient: getRandomColorGradient(),
+          icon_key: 'freelancing',
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
           exclude_from_budgets: 0,
         },
@@ -93,9 +103,10 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
         {
           type: 'M',
           users_user_id: userId,
-          name: 'Groceries 🛒',
+          name: 'Groceries',
           description: '',
           color_gradient: getRandomColorGradient(),
+          icon_key: 'groceries',
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
           exclude_from_budgets: 0,
         },
@@ -109,9 +120,10 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
         {
           type: 'M',
           users_user_id: userId,
-          name: 'Reimbursable 💫',
+          name: 'Reimbursable',
           description: 'Minor loans to family & friends and other reimbursable expenses',
           color_gradient: getRandomColorGradient(),
+          icon_key: 'cash',
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
           exclude_from_budgets: 0,
         },
@@ -125,9 +137,10 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
         {
           type: 'M',
           users_user_id: userId,
-          name: 'Utilities 💧⚡📺',
+          name: 'Utilities',
           description: 'Water, electricity, tv & related bills',
           color_gradient: getRandomColorGradient(),
+          icon_key: 'utilities',
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
           exclude_from_budgets: 0,
         },
@@ -141,9 +154,10 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
         {
           type: 'M',
           users_user_id: userId,
-          name: 'Loan Payments 💸',
+          name: 'Loan Payments',
           description: 'Principal payments related to loans',
           color_gradient: getRandomColorGradient(),
+          icon_key: 'debts',
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
           exclude_from_budgets: 0,
         },
@@ -157,9 +171,10 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
         {
           type: 'M',
           users_user_id: userId,
-          name: 'Loan Interest 🧾',
+          name: 'Loan Interest',
           description: 'Loans interest & other banking expenses',
           color_gradient: getRandomColorGradient(),
+          icon_key: 'banking',
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
           exclude_from_budgets: 0,
         },
@@ -173,9 +188,10 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
         {
           type: 'M',
           users_user_id: userId,
-          name: 'Entertainment & Eating Out 🍿',
+          name: 'Entertainment & Eating Out',
           description: 'Eating out, going to the movies, etc...',
           color_gradient: getRandomColorGradient(),
+          icon_key: 'entertainment',
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
           exclude_from_budgets: 0,
         },
@@ -189,9 +205,10 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
         {
           type: 'M',
           users_user_id: userId,
-          name: 'Auto Maintenance 🚗',
+          name: 'Auto Maintenance',
           description: 'Car repairs, upgrades, etc...',
           color_gradient: getRandomColorGradient(),
+          icon_key: 'auto_maintenance',
           status: MYFIN.CATEGORY_STATUS.ACTIVE,
           exclude_from_budgets: 0,
         },
@@ -208,6 +225,7 @@ const createMockCategories = async (userId: bigint, dbClient = undefined) =>
           name: 'Some other category',
           description: '',
           color_gradient: getRandomColorGradient(),
+          icon_key: 'category',
           status: MYFIN.CATEGORY_STATUS.INACTIVE,
           exclude_from_budgets: 0,
         },
@@ -473,7 +491,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 25)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 25)),
           description: 'Initial balance',
           amount: 5_000_00,
           type: MYFIN.TRX_TYPES.INCOME,
@@ -498,7 +516,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 2)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 2)),
           description: '',
           amount: 300_000_00,
           type: MYFIN.TRX_TYPES.EXPENSE,
@@ -514,7 +532,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 3)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 3)),
           description: 'Savings',
           amount: 2_000_00,
           type: MYFIN.TRX_TYPES.TRANSFER,
@@ -530,7 +548,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 3)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 3)),
           description: 'Eating out',
           amount: 89_60,
           type: MYFIN.TRX_TYPES.EXPENSE,
@@ -555,7 +573,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 5)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 5)),
           description: 'Grocery shopping',
           amount: 135_67,
           type: MYFIN.TRX_TYPES.EXPENSE,
@@ -571,7 +589,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 21)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 21)),
           description: 'Monthly wage',
           amount: 3500_00,
           type: MYFIN.TRX_TYPES.INCOME,
@@ -587,7 +605,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 21)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 21)),
           description: 'Savings increase',
           amount: 500_00,
           type: MYFIN.TRX_TYPES.TRANSFER,
@@ -603,7 +621,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 23)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 23)),
           description: 'Loan principal payment',
           amount: 267_30,
           type: MYFIN.TRX_TYPES.TRANSFER,
@@ -619,7 +637,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 23)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 23)),
           description: 'Loan interest payment',
           amount: 176_50,
           type: MYFIN.TRX_TYPES.EXPENSE,
@@ -635,7 +653,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 25)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 25)),
           description: 'Grocery Shopping',
           amount: 301_87,
           type: MYFIN.TRX_TYPES.EXPENSE,
@@ -655,7 +673,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 2)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 2)),
           description: 'Grocery shopping',
           amount: 156_32,
           type: MYFIN.TRX_TYPES.EXPENSE,
@@ -671,7 +689,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 7)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 7)),
           description: 'Card payment',
           amount: 527_14,
           type: MYFIN.TRX_TYPES.TRANSFER,
@@ -687,7 +705,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 18)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 18)),
           description: 'Grocery shopping',
           amount: 420_96,
           type: MYFIN.TRX_TYPES.EXPENSE,
@@ -703,7 +721,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 19)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 19)),
           description: 'Going to the movies',
           amount: 32_64,
           type: MYFIN.TRX_TYPES.EXPENSE,
@@ -719,7 +737,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 21)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 21)),
           description: 'Monthly wage',
           amount: 3500_00,
           type: MYFIN.TRX_TYPES.INCOME,
@@ -735,7 +753,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 23)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 23)),
           description: 'Loan principal payment',
           amount: 267_30,
           type: MYFIN.TRX_TYPES.TRANSFER,
@@ -751,7 +769,7 @@ const createMockTransactions = async (userId: bigint, dbClient = undefined) =>
     promises.push(
       prismaTx.transactions.create({
         data: {
-          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 25)),
+          date_timestamp: DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 25)),
           description: 'Grocery shopping',
           amount: 301_87,
           type: MYFIN.TRX_TYPES.EXPENSE,
@@ -904,7 +922,7 @@ const createMockAssetTransactions = async (userId: bigint, dbClient = undefined)
       InvestTransactionsService.createTransaction(
         userId,
         BigInt(ASSET_FIXED_INC1),
-        DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 4)),
+        DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 4)),
         'Initial investment',
         1500,
         1500,
@@ -919,7 +937,7 @@ const createMockAssetTransactions = async (userId: bigint, dbClient = undefined)
       InvestTransactionsService.createTransaction(
         userId,
         BigInt(ASSET_FIXED_INC2),
-        DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 4)),
+        DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 4)),
         'Initial investment',
         800,
         800,
@@ -934,7 +952,7 @@ const createMockAssetTransactions = async (userId: bigint, dbClient = undefined)
       InvestTransactionsService.createTransaction(
         userId,
         BigInt(ASSET_CRYPTO1),
-        DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 11)),
+        DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 11)),
         'Initial investment',
         12_350,
         0.5,
@@ -949,7 +967,7 @@ const createMockAssetTransactions = async (userId: bigint, dbClient = undefined)
       InvestTransactionsService.createTransaction(
         userId,
         BigInt(ASSET_FIXED_INC1),
-        DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 13)),
+        DateTimeUtils.getUnixTimestampFromDate(getDemoTransactionDate(year, month, 13)),
         'Yield',
         0,
         2.3,
