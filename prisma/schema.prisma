@@ -82,6 +82,7 @@ model categories {
   users_user_id          BigInt
   description            String?                  @db.LongText
   color_gradient         String?                  @db.VarChar(45)
+  icon_key               String                   @default("category") @db.VarChar(45)
   status                 String                   @default("Ativa") @db.VarChar(45)
   exclude_from_budgets   Int                      @default(0) @db.TinyInt
   budgets_has_categories budgets_has_categories[]

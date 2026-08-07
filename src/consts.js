@@ -249,4 +249,61 @@ const COLOR_GRADIENTS = [
   'dusk-gradient',
 ];
 
-export { HTTP_STATUS_CODE, MYFIN, COLOR_GRADIENTS };
+const DEFAULT_CATEGORY_ICON_KEY = 'category';
+
+const CATEGORY_ICON_KEYS = [
+  DEFAULT_CATEGORY_ICON_KEY,
+  'home',
+  'rent',
+  'groceries',
+  'restaurant',
+  'fast_food',
+  'coffee',
+  'travel',
+  'car',
+  'health',
+  'fitness',
+  'sports',
+  'debts',
+  'banking',
+  'cash',
+  'investments',
+  'education',
+  'parking',
+  'freelancing',
+  'taxes',
+  'auto_maintenance',
+  'repairs',
+  'home_repairs',
+  'fines',
+  'tolls',
+  'gifts',
+  'charity',
+  'pets',
+  'entertainment',
+  'music',
+  'games',
+  'hotel',
+  'public_transport',
+  'utilities',
+  'internet',
+  'subscriptions',
+  'phone',
+  'fuel',
+  'pharmacy',
+  'childcare',
+  'shopping',
+  'clothing',
+];
+
+const normalizeCategoryIconKey = (iconKey) =>
+  CATEGORY_ICON_KEYS.includes(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON_KEY;
+
+export {
+  HTTP_STATUS_CODE,
+  MYFIN,
+  COLOR_GRADIENTS,
+  CATEGORY_ICON_KEYS,
+  DEFAULT_CATEGORY_ICON_KEY,
+  normalizeCategoryIconKey,
+};

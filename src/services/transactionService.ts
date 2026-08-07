@@ -120,6 +120,7 @@ const getFilteredTransactionsByForUser = async (
                                             entities.name               as entity_name,
                                             categories_category_id,
                                             categories.name             as category_name,
+                                            categories.icon_key         as category_icon_key,
                                             accounts_account_from_id,
                                             acc_to.name                 as account_to_name,
                                             accounts_account_to_id,

@@ -1,5 +1,5 @@
 import { performDatabaseRequest, prisma } from '../config/prisma.js';
-import { MYFIN } from '../consts.js';
+import { MYFIN, normalizeCategoryIconKey } from '../consts.js';
 import { Prisma } from '../generated/prisma/client.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
 import Logger from '../utils/Logger.js';
@@ -13,6 +13,7 @@ interface Category {
   name?: string;
   description?: string;
   color_gradient?: string;
+  icon_key?: string;
   status?: string;
   type?: string;
   exclude_from_budgets?: number;
@@ -48,6 +49,7 @@ class CategoryService {
         name: category.name,
         description: category.description,
         color_gradient: category.color_gradient,
+        icon_key: normalizeCategoryIconKey(category.icon_key),
         status: category.status,
         exclude_from_budgets: category.exclude_from_budgets,
         type: category.type,
@@ -287,6 +289,7 @@ class CategoryService {
                                      type,
                                      description,
                                      color_gradient,
+                                     icon_key,
                                      budgets_budget_id,
                                      exclude_from_budgets,
                                      truncate((coalesce(planned_amount_credit, 0) / 100), 2) as planned_amount_credit,
