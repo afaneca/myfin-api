@@ -25,7 +25,7 @@
     "test:integration": "sh scripts/test-integration.sh"
   },
   "name": "myfin-api",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "description": "NodeJS API for Myfin",
   "main": "src/server.js",
   "devDependencies": {
@@ -57,8 +57,8 @@
   },
   "homepage": "https://github.com/aFaneca/myfin#readme",
   "dependencies": {
-    "@prisma/adapter-mariadb": "7.9.0",
-    "@prisma/client": "7.9.0",
+    "@prisma/adapter-mariadb": "7.9.1",
+    "@prisma/client": "7.9.1",
     "@types/nodemailer": "8.0.1",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
@@ -74,7 +74,7 @@
     "joi-to-swagger": "^6.2.0",
     "mysql2": "^3.11.5",
     "nodemailer": "9.0.3",
-    "prisma": "7.9.0",
+    "prisma": "7.9.1",
     "swagger-ui-express": "^5.0.1",
     "ts-node": "^10.9.2"
   },
