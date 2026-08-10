@@ -20,7 +20,7 @@ RUN npm run build && \
 # Production stage
 FROM node:22-alpine
 
-ARG VERSION="5.2.0"
+ARG VERSION="5.2.1"
 
 # Add metadata
 LABEL maintainer="José Valdiviesso <me@zmiguel.me>"
