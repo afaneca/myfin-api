@@ -214,6 +214,7 @@ model transactions {
 
   @@index([accounts_account_from_id, accounts_account_to_id], map: "fk_transactions_accounts1_idx")
   @@index([categories_category_id], map: "fk_transactions_categories1_idx")
+  @@index([categories_category_id, date_timestamp], map: "transactions_category_date_idx")
   @@index([entities_entity_id], map: "fk_transactions_entities2_idx")
   @@index([accounts_account_to_id], map: "transactions_accounts_account_to_id_index")
 }

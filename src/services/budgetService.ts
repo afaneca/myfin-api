@@ -27,6 +27,18 @@ type BudgetWithAmounts = {
   savings_rate_percentage?: number;
 };
 
+type BudgetAmountTotals = {
+  balance_credit: number;
+  balance_debit: number;
+};
+
+type BalanceSnapshotRow = {
+  accounts_account_id: bigint;
+  month: number;
+  year: number;
+  balance: bigint;
+};
+
 class BudgetService {
   static async getAllCategoriesForUser(
     userId: number | bigint,
@@ -307,7 +319,7 @@ class BudgetService {
         case 'O':
           isOpenValue = '1';
           break;
-        case '1':
+        case 'C':
           isOpenValue = '0';
           break;
         default:
@@ -326,19 +338,16 @@ class BudgetService {
       WHERE (users_user_id = ${userId})
         AND (observations LIKE ${query} OR month LIKE ${query} OR year LIKE ${query})
         AND is_open LIKE ${isOpenValue}
-      GROUP BY budget_id
       ORDER BY year DESC, month DESC
       LIMIT ${pageSize}
       OFFSET ${offsetValue}`;
 
     const filteredCount = await dbClient.$queryRaw`
       SELECT count(*) as 'count'
-      FROM (SELECT budget_id
-            FROM budgets
-            WHERE (users_user_id = ${userId})
-              AND (observations LIKE ${query} OR month LIKE ${query} OR year LIKE ${query})
-              AND is_open LIKE ${isOpenValue}
-            GROUP BY budget_id) budget`;
+      FROM budgets
+      WHERE (users_user_id = ${userId})
+        AND (observations LIKE ${query} OR month LIKE ${query} OR year LIKE ${query})
+        AND is_open LIKE ${isOpenValue}`;
 
     // count of total of results
     const totalCount = await dbClient.$queryRaw`
@@ -351,6 +360,139 @@ class BudgetService {
       filtered_count: Number.parseInt(filteredCount[0].count, 10),
       total_count: Number.parseInt(totalCount[0].count, 10),
     };
+  }
+
+  static async getAggregatedAmountsForBudget(
+    userId: bigint,
+    budget: BudgetWithAmounts,
+    dbClient = prisma
+  ): Promise<BudgetAmountTotals> {
+    let amounts: Array<{ balance_credit: bigint; balance_debit: bigint }>;
+
+    if (budget.is_open) {
+      amounts = await dbClient.$queryRaw`
+        SELECT
+          COALESCE(SUM(ABS(COALESCE(bhc.planned_amount_credit, 0))), 0) AS balance_credit,
+          COALESCE(SUM(ABS(COALESCE(bhc.planned_amount_debit, 0))), 0) AS balance_debit
+        FROM categories c
+        LEFT JOIN budgets_has_categories bhc
+          ON bhc.categories_category_id = c.category_id
+          AND bhc.budgets_budget_id = ${budget.budget_id}
+          AND bhc.budgets_users_user_id = ${userId}
+        WHERE c.users_user_id = ${userId}
+          AND c.status = ${MYFIN.CATEGORY_STATUS.ACTIVE}
+          AND c.exclude_from_budgets = 0`;
+    } else {
+      const nextMonth = budget.month < 12 ? budget.month + 1 : 1;
+      const nextMonthsYear = budget.month < 12 ? budget.year : budget.year + 1;
+      const fromDate = DateTimeUtils.getUnixTimestampFromDate(
+        new Date(budget.year, budget.month - 1, 1)
+      );
+      const toDate = DateTimeUtils.getUnixTimestampFromDate(
+        new Date(nextMonthsYear, nextMonth - 1, 1)
+      );
+
+      amounts = await dbClient.$queryRaw`
+        SELECT
+          COALESCE(SUM(category_credit), 0) AS balance_credit,
+          COALESCE(SUM(category_debit), 0) AS balance_debit
+        FROM (
+          SELECT
+            c.category_id,
+            ABS(COALESCE(SUM(IF(t.type = ${MYFIN.TRX_TYPES.INCOME}, t.amount, 0)), 0))
+              - COALESCE(SUM(IF(
+                  t.type = ${MYFIN.TRX_TYPES.INCOME}
+                  AND (acc_from.type = ${MYFIN.ACCOUNT_TYPES.INVESTING}
+                    OR acc_to.type = ${MYFIN.ACCOUNT_TYPES.INVESTING}),
+                  t.amount,
+                  0
+                )), 0) AS category_credit,
+            ABS(COALESCE(SUM(IF(
+                t.type = ${MYFIN.TRX_TYPES.EXPENSE}
+                OR (t.type = ${MYFIN.TRX_TYPES.TRANSFER}
+                  AND acc_to.exclude_from_budgets = TRUE),
+                t.amount,
+                0
+              )), 0))
+              - COALESCE(SUM(IF(
+                  t.type = ${MYFIN.TRX_TYPES.EXPENSE}
+                  AND (acc_from.type = ${MYFIN.ACCOUNT_TYPES.INVESTING}
+                    OR acc_to.type = ${MYFIN.ACCOUNT_TYPES.INVESTING}),
+                  t.amount,
+                  0
+                )), 0) AS category_debit
+          FROM categories c
+          LEFT JOIN transactions t
+            ON t.categories_category_id = c.category_id
+            AND t.date_timestamp BETWEEN ${fromDate} AND ${toDate}
+          LEFT JOIN accounts acc_from
+            ON acc_from.account_id = t.accounts_account_from_id
+          LEFT JOIN accounts acc_to
+            ON acc_to.account_id = t.accounts_account_to_id
+          WHERE c.users_user_id = ${userId}
+            AND c.status = ${MYFIN.CATEGORY_STATUS.ACTIVE}
+            AND c.exclude_from_budgets = 0
+          GROUP BY c.category_id
+        ) category_amounts`;
+    }
+
+    const balanceCredit = BigInt(String(amounts[0]?.balance_credit ?? 0));
+    const balanceDebit = BigInt(String(amounts[0]?.balance_debit ?? 0));
+    return {
+      balance_credit: ConvertUtils.convertBigIntegerToFloat(balanceCredit),
+      balance_debit: ConvertUtils.convertBigIntegerToFloat(balanceDebit),
+    };
+  }
+
+  static async getBalanceSnapshotsForUser(
+    userId: bigint,
+    dbClient = prisma
+  ): Promise<BalanceSnapshotRow[]> {
+    return dbClient.$queryRaw`
+      SELECT
+        bs.accounts_account_id,
+        bs.month,
+        bs.year,
+        bs.balance
+      FROM balances_snapshot bs
+      INNER JOIN accounts a ON a.account_id = bs.accounts_account_id
+      WHERE a.users_user_id = ${userId}`;
+  }
+
+  static getInitialBalancesByBudget(
+    budgets: BudgetWithAmounts[],
+    snapshots: BalanceSnapshotRow[]
+  ): Map<bigint, number> {
+    const initialBalances = new Map<bigint, number>();
+
+    for (const budget of budgets) {
+      const targetMonth = budget.month > 1 ? budget.month - 1 : 12;
+      const targetYear = budget.month > 1 ? budget.year : budget.year - 1;
+      const targetPeriod = targetYear * 12 + targetMonth;
+      const latestByAccount = new Map<bigint, BalanceSnapshotRow>();
+
+      for (const snapshot of snapshots) {
+        const snapshotPeriod = snapshot.year * 12 + snapshot.month;
+        if (snapshotPeriod > targetPeriod) continue;
+
+        const currentLatest = latestByAccount.get(snapshot.accounts_account_id);
+        if (
+          !currentLatest ||
+          snapshotPeriod > currentLatest.year * 12 + currentLatest.month
+        ) {
+          latestByAccount.set(snapshot.accounts_account_id, snapshot);
+        }
+      }
+
+      const initialBalance = Array.from(latestByAccount.values()).reduce(
+        (total, snapshot) =>
+          total + ConvertUtils.convertBigIntegerToFloat(BigInt(String(snapshot.balance))),
+        0
+      );
+      initialBalances.set(budget.budget_id, initialBalance);
+    }
+
+    return initialBalances;
   }
 
   static async getFilteredBudgetsForUserByPage(
@@ -371,24 +513,33 @@ class BudgetService {
         prismaTx
       );
 
+      const snapshots =
+        budgetsArr.results.length > 0
+          ? await BudgetService.getBalanceSnapshotsForUser(userId, prismaTx)
+          : [];
+      const initialBalances = BudgetService.getInitialBalancesByBudget(
+        budgetsArr.results,
+        snapshots
+      );
+
       const balancePromises = budgetsArr.results.map(async (budget) => {
-        const balanceValue = await this.calculateBudgetBalance(userId, budget, prismaTx);
-        budget.balance_value = balanceValue;
-        const balanceChangePercentage = await this.calculateBudgetBalanceChangePercentage(
+        const budgetSums = await BudgetService.getAggregatedAmountsForBudget(
           userId,
           budget,
-          balanceValue,
           prismaTx
         );
-        budget.balance_change_percentage = balanceChangePercentage;
-        const budgetSums = await this.getSumAmountsForBudget(userId, budget, prismaTx);
         budget.credit_amount = budgetSums.balance_credit;
         budget.debit_amount = budgetSums.balance_debit;
+        budget.balance_value = budget.credit_amount - budget.debit_amount;
+        const initialBalance = initialBalances.get(budget.budget_id) ?? 0;
+        budget.balance_change_percentage =
+          initialBalance === 0
+            ? 'NaN'
+            : (budget.balance_value / Math.abs(initialBalance)) * 100;
         budget.savings_rate_percentage =
-          Number.parseFloat(budget.credit_amount) === 0
+          budget.credit_amount === 0
             ? 0
-            : (Number.parseFloat(budget.balance_value) / Number.parseFloat(budget.credit_amount)) *
-              100;
+            : (budget.balance_value / budget.credit_amount) * 100;
       });
 
       await Promise.all(balancePromises);
