@@ -43,6 +43,7 @@ export type GoalWithFunding = {
   currently_funded_amount: number;
   funding_accounts: FundingAccount[];
   is_underfunded: boolean;
+  is_underfunded_by_priority: boolean;
 };
 
 export type GoalFundingSummary = {
@@ -182,9 +183,11 @@ class GoalService {
         current_funding: 0,
       })),
       is_underfunded: false,
+      is_underfunded_by_priority: false,
     }));
 
     const accountFundingTracking = new Map<bigint, number>();
+    const accountFundingByPriority = new Map<bigint, Map<number, number>>();
     const accountGoalIndexes = new Map<bigint, number[]>();
     const getConfiguredFundingAmount = (
       gha: (typeof goals)[number]['goal_has_account'][number]
@@ -259,10 +262,36 @@ class GoalService {
 
         const fundingAmount = getConfiguredFundingAmount(gha);
         const actualFunding = Math.min(fundingAmount, remainingBalance, remainingGoalAmount);
+
+        const allocationsByPriority =
+          accountFundingByPriority.get(gha.accounts_account_id) || new Map<number, number>();
+        const higherPriorityFunding = [...allocationsByPriority.entries()].reduce(
+          (total, [priority, allocated]) => (priority > goal.priority ? total + allocated : total),
+          0
+        );
+        const balanceWithoutHigherPriorityFunding = Math.max(
+          0,
+          accountBalance - (alreadyAllocated - higherPriorityFunding)
+        );
+        const fundingWithoutHigherPriorityGoals = Math.min(
+          fundingAmount,
+          balanceWithoutHigherPriorityFunding,
+          remainingGoalAmount
+        );
+
+        if (fundingWithoutHigherPriorityGoals > actualFunding) {
+          goalWithFunding.is_underfunded_by_priority = true;
+        }
+
         goalWithFunding.currently_funded_amount += actualFunding;
 
         // Track allocated funds
         accountFundingTracking.set(gha.accounts_account_id, alreadyAllocated + actualFunding);
+        allocationsByPriority.set(
+          goal.priority,
+          (allocationsByPriority.get(goal.priority) || 0) + actualFunding
+        );
+        accountFundingByPriority.set(gha.accounts_account_id, allocationsByPriority);
         goalWithFunding.funding_accounts[fundingAccountIndex].current_funding = actualFunding;
       }
     }
@@ -286,6 +315,7 @@ class GoalService {
 
     for (const goal of goalsWithFunding) {
       goal.is_underfunded = goal.currently_funded_amount < goal.amount;
+      goal.is_underfunded_by_priority = goal.is_underfunded && goal.is_underfunded_by_priority;
     }
 
     return {

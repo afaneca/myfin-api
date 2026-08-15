@@ -76,6 +76,7 @@ describe('goalService', () => {
             currently_funded_amount: 1000,
             funding_accounts: [{ account_id: 1, current_funding: 1000 }],
             is_underfunded: false,
+            is_underfunded_by_priority: false,
           },
           {
             goal_id: 2,
@@ -244,12 +245,62 @@ describe('goalService', () => {
             currently_funded_amount: 100,
             funding_accounts: [{ account_id: 1, current_funding: 100 }],
             is_underfunded: true,
+            is_underfunded_by_priority: false,
           },
         ],
         unallocated_funding: {
           total_amount: 900,
           accounts: [{ account_id: 1, amount: 900 }],
         },
+      });
+    });
+
+    test('does not attribute an exclusive account balance shortfall to goal priority', async () => {
+      mockedPrisma.goals.findMany.mockResolvedValue([
+        goal(1n, 2, 100_000n, [fundingAccount(1n, 'relative', 100)]),
+      ] as never);
+      mockedPrisma.accounts.findMany.mockResolvedValue([account(1n, 80_000n)] as never);
+
+      const result = await GoalService.getGoalsForUser(1n, false, mockedPrisma);
+
+      expect(result.goals[0]).toMatchObject({
+        currently_funded_amount: 800,
+        is_underfunded: true,
+        is_underfunded_by_priority: false,
+        funding_accounts: [{ account_id: 1, current_funding: 800 }],
+      });
+    });
+
+    test('attributes a shared account shortfall to a strictly higher priority goal', async () => {
+      mockedPrisma.goals.findMany.mockResolvedValue([
+        goal(1n, 2, 80_000n, [fundingAccount(1n, 'relative', 100)]),
+        goal(2n, 1, 50_000n, [fundingAccount(1n, 'relative', 100)]),
+      ] as never);
+      mockedPrisma.accounts.findMany.mockResolvedValue([account(1n, 100_000n)] as never);
+
+      const result = await GoalService.getGoalsForUser(1n, false, mockedPrisma);
+
+      expect(result.goals[1]).toMatchObject({
+        currently_funded_amount: 200,
+        is_underfunded: true,
+        is_underfunded_by_priority: true,
+        funding_accounts: [{ account_id: 1, current_funding: 200 }],
+      });
+    });
+
+    test('does not describe equal-priority allocation order as higher priority funding', async () => {
+      mockedPrisma.goals.findMany.mockResolvedValue([
+        goal(1n, 1, 80_000n, [fundingAccount(1n, 'relative', 100)]),
+        goal(2n, 1, 50_000n, [fundingAccount(1n, 'relative', 100)]),
+      ] as never);
+      mockedPrisma.accounts.findMany.mockResolvedValue([account(1n, 100_000n)] as never);
+
+      const result = await GoalService.getGoalsForUser(1n, false, mockedPrisma);
+
+      expect(result.goals[1]).toMatchObject({
+        currently_funded_amount: 200,
+        is_underfunded: true,
+        is_underfunded_by_priority: false,
       });
     });
   });
