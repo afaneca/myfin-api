@@ -15,9 +15,11 @@ interface BalanceSnapshot {
   account_snapshots: Array<any>;
 }
 
-interface AccountBalance {
-  account_id: bigint;
-  balance: number;
+interface BalanceSnapshotRow {
+  accounts_account_id: bigint;
+  month: number;
+  year: number;
+  balance: bigint;
 }
 
 export type AccountType = {
@@ -500,37 +502,6 @@ class AccountService {
     });
   }
 
-  static async getAllBalancesSnapshotsForMonthForUser(
-    userId: bigint,
-    month: number,
-    year: number,
-    accounts: Array<{
-      account_id: bigint;
-    }>,
-    dbClient = prisma
-  ): Promise<Array<AccountBalance>> {
-    const accSnapshot: Array<AccountBalance> = [];
-    for (const account of accounts) {
-      const balance = (await this.getBalanceSnapshotAtMonth(
-        account.account_id,
-        month,
-        year,
-        dbClient
-      )) ?? { balance: 0 };
-      /* Logger.addLog("---------");
-                              Logger.addStringifiedLog(balance);
-                              Logger.addLog("---------"); */
-      /* Logger.addStringifiedLog({
-                                account_id: account.account_id,
-                                balance: balance.balance
-                              }); */
-      accSnapshot.push({
-        account_id: account.account_id,
-        balance: balance.balance ?? 0,
-      });
-    }
-    return accSnapshot;
-  }
 
   static async recalculateAndSetAccountBalance(
     userId: bigint,
@@ -550,7 +521,7 @@ class AccountService {
 
   static async getUserAccountsBalanceSnapshot(
     userId,
-    dbClient = undefined
+    dbClient = prisma
   ): Promise<Array<BalanceSnapshot>> {
     return performDatabaseRequest(async (prismaTx) => {
       const snapArr: Array<BalanceSnapshot> = [];
@@ -582,22 +553,79 @@ class AccountService {
           account_id: true,
         },
       });
-      /* Logger.addStringifiedLog(accsArr); */
-      // Get balance snapshots for all accounts every month in between the first transaction and right now
+
+      const balanceSnapshots = await prismaTx.balances_snapshot.findMany({
+        where: {
+          accounts_account_id: {
+            in: userAccounts.map((account) => account.account_id),
+          },
+          OR: [
+            { year: { lt: currentYear } },
+            { year: currentYear, month: { lte: currentMonth } },
+          ],
+        },
+        select: {
+          accounts_account_id: true,
+          month: true,
+          year: true,
+          balance: true,
+        },
+      });
+
+      const snapshotsByAccount = new Map<string, BalanceSnapshotRow[]>();
+      for (const snapshot of balanceSnapshots) {
+        const accountKey = snapshot.accounts_account_id.toString();
+        const accountSnapshots = snapshotsByAccount.get(accountKey) ?? [];
+        accountSnapshots.push(snapshot);
+        snapshotsByAccount.set(accountKey, accountSnapshots);
+      }
+
+      for (const accountSnapshots of snapshotsByAccount.values()) {
+        accountSnapshots.sort((left, right) => {
+          if (left.year !== right.year) return left.year - right.year;
+          return left.month - right.month;
+        });
+      }
+
+      const snapshotIndexesByAccount = new Map<string, number>();
+      const latestBalancesByAccount = new Map<string, number>();
+
+      // Get balance snapshots for all accounts every month in between the first transaction and right now.
       while (
         DateTimeUtils.monthIsEqualOrPriorTo(firstMonth, firstYear, currentMonth, currentYear)
       ) {
-        /* Logger.addLog(`First Month: ${firstMonth} | First Year: ${firstYear} | Current Month: ${currentMonth} | Current Year: ${currentYear}`); */
+        const accountSnapshots = userAccounts.map((account) => {
+          const accountKey = account.account_id.toString();
+          const snapshots = snapshotsByAccount.get(accountKey) ?? [];
+          let snapshotIndex = snapshotIndexesByAccount.get(accountKey) ?? 0;
+
+          while (snapshotIndex < snapshots.length) {
+            const snapshot = snapshots[snapshotIndex];
+            const snapshotIsAtOrBeforeMonth =
+              snapshot.year < firstYear ||
+              (snapshot.year === firstYear && snapshot.month <= firstMonth);
+
+            if (!snapshotIsAtOrBeforeMonth) break;
+
+            latestBalancesByAccount.set(
+              accountKey,
+              ConvertUtils.convertBigIntegerToFloat(snapshot.balance)
+            );
+            snapshotIndex++;
+          }
+
+          snapshotIndexesByAccount.set(accountKey, snapshotIndex);
+
+          return {
+            account_id: account.account_id,
+            balance: latestBalancesByAccount.get(accountKey) ?? 0,
+          };
+        });
+
         snapArr.push({
           month: firstMonth,
           year: firstYear,
-          account_snapshots: await this.getAllBalancesSnapshotsForMonthForUser(
-            userId,
-            firstMonth,
-            firstYear,
-            userAccounts,
-            prismaTx
-          ),
+          account_snapshots: accountSnapshots,
         });
 
         if (firstMonth < 12) firstMonth++;
