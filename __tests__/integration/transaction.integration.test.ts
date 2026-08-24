@@ -1,4 +1,4 @@
-import { beforeEach, describe, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { MYFIN } from '../../src/consts.js';
 import AccountService from '../../src/services/accountService.js';
 import TransactionService from '../../src/services/transactionService.js';
@@ -10,6 +10,11 @@ describe('Transaction tests', () => {
   let user: { user_id: bigint; username: string };
   let account1: { account_id: bigint; name: string };
   let account2: { account_id: bigint; name: string };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(async () => {
     user = await UserService.createUser({
       username: 'demo',
@@ -113,11 +118,17 @@ describe('Transaction tests', () => {
     // Assert balance is 10 + 125.5 - 253.35 -29 = -146.85
     await assertCurrentAccountBalance(account1.account_id, -146.85);
 
+    const requestAccountId = Number(account1.account_id) as unknown as bigint;
+    const recalculateBalanceSpy = vi.spyOn(
+      AccountService,
+      'recalculateBalanceForAccountIncrementally'
+    );
+
     // Update trx3 to be income and change amount
     await TransactionService.updateTransaction(user.user_id, {
       new_amount: 254.35,
       new_account_from_id: null,
-      new_account_to_id: account1.account_id,
+      new_account_to_id: requestAccountId,
       new_entity_id: null,
       new_category_id: null,
       new_type: MYFIN.TRX_TYPES.INCOME,
@@ -129,6 +140,8 @@ describe('Transaction tests', () => {
       split_tags: null,
       transaction_id: trx3.transaction_id,
     });
+
+    expect(recalculateBalanceSpy).toHaveBeenCalledTimes(1);
 
     // Assert balance is 10 + 125.5 - 253.35 -29 + 253.35 + 254.35 = 360.85
     await assertCurrentAccountBalance(account1.account_id, 360.85);
@@ -188,6 +201,11 @@ describe('Transaction tests', () => {
     await assertCurrentAccountBalance(account1.account_id, 500_00);
     await assertCurrentAccountBalance(account2.account_id, 500_00);
 
+    const recalculateBalanceSpy = vi.spyOn(
+      AccountService,
+      'recalculateBalanceForAccountIncrementally'
+    );
+
     // Update last transaction; change destination account from account 2 to account 3
     await TransactionService.updateTransaction(user.user_id, {
       new_amount: 500_00,
@@ -205,6 +223,8 @@ describe('Transaction tests', () => {
       split_type: 'E',
       transaction_id: trx2.transaction_id,
     });
+
+    expect(recalculateBalanceSpy).toHaveBeenCalledTimes(3);
 
     /**
      * Check final balances:
