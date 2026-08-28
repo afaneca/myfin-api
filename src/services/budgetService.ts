@@ -1,6 +1,7 @@
 import { performDatabaseRequest, prisma } from '../config/prisma.js';
 import { MYFIN } from '../consts.js';
 import { type Prisma, PrismaClient } from '../generated/prisma/client.js';
+import APIError from '../errorHandling/apiError.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
 import Logger from '../utils/Logger.js';
 import ConvertUtils from '../utils/convertUtils.js';
@@ -424,7 +425,8 @@ class BudgetService {
           FROM categories c
           LEFT JOIN transactions t
             ON t.categories_category_id = c.category_id
-            AND t.date_timestamp BETWEEN ${fromDate} AND ${toDate}
+            AND t.date_timestamp >= ${fromDate}
+            AND t.date_timestamp < ${toDate}
           LEFT JOIN accounts acc_from
             ON acc_from.account_id = t.accounts_account_from_id
           LEFT JOIN accounts acc_to
@@ -1032,6 +1034,29 @@ class BudgetService {
     dbClient = undefined
   ) {
     return performDatabaseRequest(async (prismaTx) => {
+      const budget = await prismaTx.budgets.findUnique({
+        where: {
+          users_user_id: userId,
+          budget_id: budgetId,
+        },
+        select: { is_open: true },
+      });
+      if (!budget) {
+        throw APIError.notFound('The requested budget could not be found.');
+      }
+      if (!budget.is_open) {
+        throw APIError.forbidden('Closed budgets are read-only.');
+      }
+      const category = await prismaTx.categories.findUnique({
+        where: { category_id: categoryId },
+        select: { users_user_id: true, status: true },
+      });
+      if (!category || category.users_user_id !== userId) {
+        throw APIError.notFound('The requested category could not be found.');
+      }
+      if (category.status !== MYFIN.CATEGORY_STATUS.ACTIVE) {
+        throw APIError.forbidden('Inactive categories cannot be budgeted.');
+      }
       const currentAmounts = await prismaTx.budgets_has_categories.findUnique({
         where: {
           budgets_budget_id_budgets_users_user_id_categories_category_id: {
@@ -1050,10 +1075,12 @@ class BudgetService {
         userId,
         budgetId,
         categoryId,
-        ConvertUtils.convertFloatToBigInteger(plannedIncome) ??
-          Number(currentAmounts.planned_amount_credit),
-        ConvertUtils.convertFloatToBigInteger(plannedExpense) ??
-          Number(currentAmounts.planned_amount_debit),
+        plannedIncome === undefined
+          ? Number(currentAmounts?.planned_amount_credit ?? 0)
+          : ConvertUtils.convertFloatToBigInteger(plannedIncome),
+        plannedExpense === undefined
+          ? Number(currentAmounts?.planned_amount_debit ?? 0)
+          : ConvertUtils.convertFloatToBigInteger(plannedExpense),
         prismaTx
       );
     }, dbClient);
