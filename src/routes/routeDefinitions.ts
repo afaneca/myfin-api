@@ -115,6 +115,12 @@ export const routeGroups: RouteGroup[] = [
       },
       { method: 'post', path: '/step0', handlerName: 'addBudgetStep0' },
       { method: 'post', path: '/step1', handlerName: 'createBudget' },
+      { method: 'get', path: '/matrix', handlerName: 'getBudgetMatrix' },
+      {
+        method: 'put',
+        path: '/:id/description',
+        handlerName: 'updateBudgetDescription',
+      },
       { method: 'get', path: '/:id', handlerName: 'getBudget' },
       { method: 'put', path: '/', handlerName: 'updateBudget' },
       { method: 'put', path: '/status', handlerName: 'changeBudgetStatus' },

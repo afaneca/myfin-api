@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import joi from 'joi';
 import { MYFIN } from '../consts.js';
 import APIError from '../errorHandling/apiError.js';
+import BudgetMatrixService from '../services/budgetMatrixService.js';
 import BudgetService from '../services/budgetService.js';
 import Logger from '../utils/Logger.js';
 import CommonsController from './commonsController.js';
@@ -64,6 +65,28 @@ const getBudget = async (req, res, next) => {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
     const input = await getBudgetSchema.validateAsync(req.params);
     const data = await BudgetService.getBudget(sessionData.userId, input.id);
+    res.json(data);
+  } catch (err) {
+    Logger.addLog(err);
+    next(err || APIError.internalServerError());
+  }
+};
+
+const getBudgetMatrixSchema = joi.object({
+  budget_ids: joi
+    .string()
+    .pattern(/^[1-9]\d*(,[1-9]\d*){0,4}$/)
+    .required(),
+}).unknown(true);
+
+const getBudgetMatrix = async (req, res, next) => {
+  try {
+    const sessionData = await CommonsController.checkAuthSessionValidity(req);
+    const input = await getBudgetMatrixSchema.validateAsync(req.query);
+    const budgetIds = input.budget_ids
+      .split(',')
+      .map((budgetId) => BigInt(budgetId));
+    const data = await BudgetMatrixService.getBudgetMatrix(sessionData.userId, budgetIds);
     res.json(data);
   } catch (err) {
     Logger.addLog(err);
@@ -140,16 +163,25 @@ const updateBudget = async (req, res, next) => {
       JSON.parse(req.body.cat_values_arr),
       input.observations ?? ''
     );
-    res.json(`Budget was successfully updated.`);
+    res.json('Budget was successfully updated.');
   } catch (err) {
     Logger.addLog(err);
     next(err || APIError.internalServerError());
   }
 };
 
+const positiveIntegerId = joi
+  .alternatives()
+  .try(joi.string().pattern(/^[1-9]\d*$/), joi.number().integer().min(1))
+  .required();
+
+const updateBudgetCategoryPlannedValuesParamsSchema = joi.object({
+  id: positiveIntegerId,
+});
+
 const updateBudgetCategoryPlannedValuesSchema = joi
   .object({
-    category_id: joi.number().required(),
+    category_id: positiveIntegerId,
     planned_expense: joi.number().optional(),
     planned_income: joi.number().optional(),
   })
@@ -158,16 +190,44 @@ const updateBudgetCategoryPlannedValuesSchema = joi
 const updateBudgetCategoryPlannedValues = async (req, res, next) => {
   try {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
+    const params = await updateBudgetCategoryPlannedValuesParamsSchema.validateAsync(
+      req.params
+    );
     const input = await updateBudgetCategoryPlannedValuesSchema.validateAsync(req.body);
-    const budgetId = req.params.id as bigint;
+    const budgetId = BigInt(params.id);
     await BudgetService.updateBudgetCategoryPlannedValues(
       sessionData.userId,
       budgetId,
-      input.category_id,
+      BigInt(input.category_id),
       input.planned_expense,
       input.planned_income
     );
-    res.json(`Budget was successfully updated.`);
+    res.json('Budget was successfully updated.');
+  } catch (err) {
+    Logger.addLog(err);
+    next(err || APIError.internalServerError());
+  }
+};
+
+const updateBudgetDescriptionParamsSchema = joi.object({
+  id: positiveIntegerId,
+});
+
+const updateBudgetDescriptionBodySchema = joi.object({
+  observations: joi.string().allow('').required(),
+});
+
+const updateBudgetDescription = async (req, res, next) => {
+  try {
+    const sessionData = await CommonsController.checkAuthSessionValidity(req);
+    const params = await updateBudgetDescriptionParamsSchema.validateAsync(req.params);
+    const input = await updateBudgetDescriptionBodySchema.validateAsync(req.body);
+    await BudgetMatrixService.updateBudgetDescription(
+      sessionData.userId,
+      BigInt(params.id),
+      input.observations
+    );
+    res.json('Budget description was successfully updated.');
   } catch (err) {
     Logger.addLog(err);
     next(err || APIError.internalServerError());
@@ -183,7 +243,7 @@ const changeBudgetStatus = async (req, res, next) => {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
     const input = await changeBudgetStatusSchema.validateAsync(req.body);
     await BudgetService.changeBudgetStatus(sessionData.userId, input.budget_id, input.is_open);
-    res.json(`Budget was successfully updated.`);
+    res.json('Budget was successfully updated.');
   } catch (err) {
     Logger.addLog(err);
     next(err || APIError.internalServerError());
@@ -199,7 +259,7 @@ const removeBudget = async (req, res, next) => {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
     const input = await removeBudgetSchema.validateAsync(req.body);
     await BudgetService.removeBudget(sessionData.userId, input.budget_id);
-    res.json(`Budget was successfully removed.`);
+    res.json('Budget was successfully removed.');
   } catch (err) {
     Logger.addLog(err);
     next(err || APIError.internalServerError());
@@ -222,10 +282,12 @@ export default {
   getFilteredBudgetsForUserByPage,
   addBudgetStep0,
   createBudget,
+  getBudgetMatrix,
   getBudget,
   updateBudget,
   changeBudgetStatus,
   removeBudget,
   getBudgetsListForUser,
   updateBudgetCategoryPlannedValues,
+  updateBudgetDescription,
 };
