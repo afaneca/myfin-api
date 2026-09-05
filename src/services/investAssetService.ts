@@ -8,6 +8,7 @@ import Logger from '../utils/Logger.js';
 import ROICalculator, { type TransactionFlowData } from '../utils/ROICalculator.js';
 import {
   type PeriodReturnMetrics,
+  type ReturnDataIssue,
   buildPortfolioValueByMonth,
   calculatePeriodReturnMetrics,
   createEmptyReturnMetrics,
@@ -80,7 +81,19 @@ interface MonthlySnapshot {
   asset_name: string;
   asset_ticker: string;
   asset_broker: string;
+  valuation_source: ValuationSource;
+  validation_status: SnapshotValidationStatus;
+  validation_reasons: SnapshotValidationReason[];
 }
+
+type ValuationSource = 'observed' | 'carried' | 'generated' | 'legacy';
+type SnapshotValidationStatus = 'valid' | 'invalid' | 'needs_valuation' | 'suspicious';
+type SnapshotValidationReason = Exclude<ReturnDataIssue['code'], 'missing_opening_valuation'>;
+
+type RawMonthlySnapshot = Omit<MonthlySnapshot, 'validation_status' | 'validation_reasons'> & {
+  asset_created_at: bigint | number;
+  first_transaction_timestamp: bigint | number | null;
+};
 
 interface AssetTypeDistribution {
   type: string;
@@ -115,6 +128,7 @@ interface InvestAssetEvoSnapshot {
   income_amount: bigint | number;
   cost_amount: bigint | number;
   fees_taxes?: bigint | number;
+  valuation_source?: ValuationSource;
 }
 
 interface Asset {
@@ -125,7 +139,56 @@ interface Asset {
   type: string;
   broker: string;
 }
+
+const getMonthIndex = (year: number, month: number) => year * 12 + month;
+
+const getMonthIndexFromTimestamp = (timestamp: bigint | number) =>
+  getMonthIndex(
+    DateTimeUtils.getYearFromTimestamp(Number(timestamp)),
+    DateTimeUtils.getMonthNumberFromTimestamp(Number(timestamp))
+  );
 class InvestAssetService {
+  private static getSnapshotDataIssues(
+    snapshots: MonthlySnapshot[],
+    year?: number
+  ): ReturnDataIssue[] {
+    const issues = new Map<string, ReturnDataIssue>();
+
+    for (const snapshot of snapshots) {
+      if (year !== undefined && snapshot.year !== year) continue;
+      for (const code of snapshot.validation_reasons ?? []) {
+        const issue: ReturnDataIssue = {
+          asset_id: Number(snapshot.asset_id),
+          asset_name: snapshot.asset_name,
+          code,
+          month: snapshot.month,
+          year: snapshot.year,
+        };
+        issues.set(`${issue.asset_id}-${issue.year}-${issue.month}-${issue.code}`, issue);
+      }
+    }
+
+    return [...issues.values()];
+  }
+
+  private static withInvalidPortfolioReturn(
+    metrics: PeriodReturnMetrics,
+    issues: ReturnDataIssue[],
+    status: 'invalid_data' | 'insufficient_data' = 'invalid_data'
+  ): PeriodReturnMetrics {
+    if (issues.length === 0) return metrics;
+    return {
+      ...metrics,
+      portfolio_return: {
+        ...metrics.portfolio_return,
+        cumulative_percentage: null,
+        annualized_percentage: null,
+        status,
+        data_issues: issues,
+      },
+    };
+  }
+
   static async getLatestSnapshotForAsset(
     assetId: bigint,
     maxMonth = DateTimeUtils.getMonthNumberFromTimestamp(),
@@ -326,14 +389,17 @@ class InvestAssetService {
     const currentYearTransactions = assetTransactions.filter(
       (transaction) => Number(transaction.date_timestamp) >= currentYearStartTimestamp
     );
-    const currentYearMetrics = calculatePeriodReturnMetrics({
-      beginningValue: currentYearBeginningValue,
-      endingValue: currentValue,
-      transactions: currentYearTransactions,
-      periodStartTimestamp: currentYearStartTimestamp,
-      periodEndTimestamp: currentTimestamp,
-      portfolioValueByMonth,
-    });
+    const currentYearMetrics = InvestAssetService.withInvalidPortfolioReturn(
+      calculatePeriodReturnMetrics({
+        beginningValue: currentYearBeginningValue,
+        endingValue: currentValue,
+        transactions: currentYearTransactions,
+        periodStartTimestamp: currentYearStartTimestamp,
+        periodEndTimestamp: currentTimestamp,
+        portfolioValueByMonth,
+      }),
+      InvestAssetService.getSnapshotDataIssues(assetSnapshots, currentYear)
+    );
 
     if (assetSnapshots.length === 0 && assetTransactions.length === 0 && currentValue <= 0) {
       return {
@@ -358,16 +424,19 @@ class InvestAssetService {
 
     return {
       current_year: currentYearMetrics,
-      global: calculatePeriodReturnMetrics({
-        beginningValue: 0,
-        endingValue: currentValue,
-        transactions: assetTransactions.filter(
-          (transaction) => Number(transaction.date_timestamp) >= globalStartTimestamp
-        ),
-        periodStartTimestamp: globalStartTimestamp,
-        periodEndTimestamp: currentTimestamp,
-        portfolioValueByMonth,
-      }),
+      global: InvestAssetService.withInvalidPortfolioReturn(
+        calculatePeriodReturnMetrics({
+          beginningValue: 0,
+          endingValue: currentValue,
+          transactions: assetTransactions.filter(
+            (transaction) => Number(transaction.date_timestamp) >= globalStartTimestamp
+          ),
+          periodStartTimestamp: globalStartTimestamp,
+          periodEndTimestamp: currentTimestamp,
+          portfolioValueByMonth,
+        }),
+        InvestAssetService.getSnapshotDataIssues(assetSnapshots)
+      ),
     };
   }
 
@@ -477,6 +546,7 @@ class InvestAssetService {
     units: number | Prisma.Decimal,
     withdrawnAmount: number,
     newValue: number,
+    valuationSource: 'observed' | 'carried',
     dbClient = prisma
   ) {
     const latestSnapshot = await InvestAssetService.getLatestSnapshotForAsset(
@@ -487,7 +557,8 @@ class InvestAssetService {
     );
     return dbClient.$queryRaw`INSERT INTO invest_asset_evo_snapshot (month, year, units, invested_amount, current_value,
                                                                        invest_assets_asset_id, created_at, updated_at,
-                                                                       withdrawn_amount, income_amount, cost_amount)
+                                                                       withdrawn_amount, income_amount, cost_amount,
+                                                                       valuation_source)
                                 VALUES (${month}, ${year}, ${units}, ${
                                   latestSnapshot?.invested_amount ?? 0
                                 },
@@ -504,10 +575,12 @@ class InvestAssetService {
                                             : 0
                                         },
                                         ${latestSnapshot?.income_amount ?? 0},
-                                        ${latestSnapshot?.cost_amount ?? 0})
+                                        ${latestSnapshot?.cost_amount ?? 0},
+                                        ${valuationSource})
                                 ON DUPLICATE KEY UPDATE current_value = ${ConvertUtils.convertFloatToBigInteger(
                                   newValue
                                 )},
+                                                        valuation_source = IF(valuation_source = 'observed' AND ${valuationSource} = 'carried', valuation_source, ${valuationSource}),
                                                         updated_at    = ${DateTimeUtils.getCurrentUnixTimestamp()}`;
   }
 
@@ -537,6 +610,7 @@ class InvestAssetService {
       units,
       withdrawnAmount as number,
       newValue,
+      'observed',
       dbClient
     );
 
@@ -554,6 +628,7 @@ class InvestAssetService {
             units,
             withdrawnAmount as number,
             newValue,
+            'carried',
             dbClient
           )
         );
@@ -590,12 +665,39 @@ class InvestAssetService {
       );
     }, dbClient);
   }
+
+  static async deleteAssetValueSnapshot(
+    userId: bigint,
+    assetId: bigint,
+    month: number,
+    year: number,
+    dbClient = undefined
+  ) {
+    return performDatabaseRequest(async (prismaTx) => {
+      if (!(await InvestAssetService.doesAssetBelongToUser(userId, assetId, prismaTx))) {
+        throw APIError.notAuthorized();
+      }
+
+      const deleted = await prismaTx.invest_asset_evo_snapshot.deleteMany({
+        where: {
+          invest_assets_asset_id: assetId,
+          month,
+          year,
+        },
+      });
+
+      if (deleted.count === 0) {
+        throw APIError.notFound('Investment value snapshot not found.');
+      }
+    }, dbClient);
+  }
+
   static async getAllAssetSnapshotsForUser(
     userId: bigint,
     dbClient = prisma
   ): Promise<Array<MonthlySnapshot>> {
-    const rawSnapshots = (await dbClient.$queryRaw`SELECT month,
-                                year,
+    const rawSnapshots = (await dbClient.$queryRaw`SELECT invest_asset_evo_snapshot.month,
+                                invest_asset_evo_snapshot.year,
                                 invest_asset_evo_snapshot.units,
                                 (invested_amount / 100) as 'invested_amount',
                                 (current_value / 100)   as 'current_value',
@@ -603,22 +705,89 @@ class InvestAssetService {
                                 (income_amount / 100) as 'income_amount',
                                 (cost_amount / 100) as 'cost_amount',
                                 (fees_taxes / 100) as 'fees_taxes',
-                                invest_assets_asset_id  as 'asset_id',
+                                invest_asset_evo_snapshot.invest_assets_asset_id as 'asset_id',
                                 name                    as 'asset_name',
                                 ticker                  as 'asset_ticker',
-                                broker                  as 'asset_broker'
+                                broker                  as 'asset_broker',
+                                invest_asset_evo_snapshot.valuation_source,
+                                invest_assets.created_at as 'asset_created_at',
+                                first_transaction.first_transaction_timestamp
                          FROM invest_asset_evo_snapshot
                                   INNER JOIN invest_assets ON invest_assets.asset_id = invest_assets_asset_id
+                                  LEFT JOIN (
+                                    SELECT invest_assets_asset_id, MIN(date_timestamp) as first_transaction_timestamp
+                                    FROM invest_transactions
+                                    GROUP BY invest_assets_asset_id
+                                  ) first_transaction ON first_transaction.invest_assets_asset_id = invest_assets.asset_id
                          WHERE users_user_id = ${userId}
-                           AND (year < ${DateTimeUtils.getYearFromTimestamp()} OR (year = ${DateTimeUtils.getYearFromTimestamp()} AND month <= ${DateTimeUtils.getMonthNumberFromTimestamp()}))
-                         ORDER BY year ASC, month ASC;`) as Array<MonthlySnapshot>;
+                           AND (invest_asset_evo_snapshot.year < ${DateTimeUtils.getYearFromTimestamp()} OR (invest_asset_evo_snapshot.year = ${DateTimeUtils.getYearFromTimestamp()} AND invest_asset_evo_snapshot.month <= ${DateTimeUtils.getMonthNumberFromTimestamp()}))
+                         ORDER BY invest_asset_evo_snapshot.year ASC, invest_asset_evo_snapshot.month ASC;`) as Array<RawMonthlySnapshot>;
 
     if (!rawSnapshots || rawSnapshots.length === 0) return [];
+
+    const snapshotsByKey = new Map(
+      rawSnapshots.map((snapshot) => [
+        `${snapshot.asset_id.toString()}-${snapshot.year}-${snapshot.month}`,
+        snapshot,
+      ])
+    );
+    const validatedSnapshots = rawSnapshots.map((rawSnapshot): MonthlySnapshot => {
+      const {
+        asset_created_at: assetCreatedAt,
+        first_transaction_timestamp: firstTransactionTimestamp,
+        ...snapshot
+      } = rawSnapshot;
+      const reasons: SnapshotValidationReason[] = [];
+      const firstActivityTimestamp = firstTransactionTimestamp ?? assetCreatedAt;
+      const snapshotMonthIndex = getMonthIndex(snapshot.year, snapshot.month);
+
+      if (snapshotMonthIndex < getMonthIndexFromTimestamp(firstActivityTimestamp)) {
+        reasons.push('before_first_activity');
+      }
+
+      if (
+        snapshot.valuation_source !== 'observed' &&
+        Number(snapshot.current_value) === 0 &&
+        Number(snapshot.units) > 0 &&
+        Number(snapshot.invested_amount) > 0
+      ) {
+        reasons.push('missing_valuation');
+      }
+
+      if (snapshot.valuation_source === 'legacy' && snapshot.month === 1) {
+        const decemberSnapshot = snapshotsByKey.get(
+          `${snapshot.asset_id.toString()}-${snapshot.year}-12`
+        );
+        if (
+          decemberSnapshot &&
+          Number(snapshot.current_value) === Number(decemberSnapshot.current_value) &&
+          (Number(snapshot.units) !== Number(decemberSnapshot.units) ||
+            Number(snapshot.invested_amount) !== Number(decemberSnapshot.invested_amount))
+        ) {
+          reasons.push('possible_rollover_corruption');
+        }
+      }
+
+      const validationStatus: SnapshotValidationStatus = reasons.includes('before_first_activity')
+        ? 'invalid'
+        : reasons.includes('missing_valuation')
+          ? 'needs_valuation'
+          : reasons.length > 0
+            ? 'suspicious'
+            : 'valid';
+
+      return {
+        ...snapshot,
+        valuation_source: snapshot.valuation_source ?? 'legacy',
+        validation_status: validationStatus,
+        validation_reasons: reasons,
+      };
+    });
 
     const filledSnapshots: MonthlySnapshot[] = [];
     const lastKnownAssetStates = new Map<string, MonthlySnapshot>();
 
-    const firstSnapshot = rawSnapshots[0];
+    const firstSnapshot = validatedSnapshots[0];
     let loopMonth = firstSnapshot.month;
     let loopYear = firstSnapshot.year;
 
@@ -631,21 +800,38 @@ class InvestAssetService {
     while (loopYear < currentYear || (loopYear === currentYear && loopMonth <= currentMonth)) {
       // 1. Update states with any actual snapshots for this month
       while (
-        rawIndex < rawSnapshots.length &&
-        rawSnapshots[rawIndex].year === loopYear &&
-        rawSnapshots[rawIndex].month === loopMonth
+        rawIndex < validatedSnapshots.length &&
+        validatedSnapshots[rawIndex].year === loopYear &&
+        validatedSnapshots[rawIndex].month === loopMonth
       ) {
-        const snap = rawSnapshots[rawIndex];
+        const snap = validatedSnapshots[rawIndex];
         lastKnownAssetStates.set(snap.asset_id.toString(), snap);
         rawIndex++;
       }
 
       // 2. Add carried-over (or fresh) states for this month
       for (const snap of lastKnownAssetStates.values()) {
+        const isOriginalSnapshotMonth = snap.month === loopMonth && snap.year === loopYear;
+        if (snap.validation_reasons.includes('before_first_activity') && !isOriginalSnapshotMonth) {
+          continue;
+        }
+
+        const validationReasons = isOriginalSnapshotMonth
+          ? snap.validation_reasons
+          : snap.validation_reasons.filter((reason) => reason === 'missing_valuation');
+        const validationStatus: SnapshotValidationStatus = validationReasons.includes(
+          'missing_valuation'
+        )
+          ? 'needs_valuation'
+          : 'valid';
+
         filledSnapshots.push({
           ...snap,
           month: loopMonth,
           year: loopYear,
+          valuation_source: isOriginalSnapshotMonth ? snap.valuation_source : 'carried',
+          validation_status: isOriginalSnapshotMonth ? snap.validation_status : validationStatus,
+          validation_reasons: validationReasons,
         });
       }
 
@@ -765,7 +951,7 @@ class InvestAssetService {
           endingValue,
           yearTransactions
         );
-        const returnMetrics = calculatePeriodReturnMetrics({
+        let returnMetrics = calculatePeriodReturnMetrics({
           beginningValue,
           endingValue,
           transactions: yearTransactions,
@@ -773,6 +959,29 @@ class InvestAssetService {
           periodEndTimestamp: yearEndTimestamp,
           portfolioValueByMonth,
         });
+        const snapshotIssues = InvestAssetService.getSnapshotDataIssues(
+          monthlySnapshots,
+          yearInLoop
+        );
+        returnMetrics = InvestAssetService.withInvalidPortfolioReturn(
+          returnMetrics,
+          snapshotIssues
+        );
+        if (beginningValue <= 0 && yearTransactions.length > 0) {
+          const openingIssue: ReturnDataIssue = {
+            code: 'missing_opening_valuation',
+            year: yearInLoop,
+          };
+          const combinedIssues = [
+            ...(returnMetrics.portfolio_return.data_issues ?? []),
+            openingIssue,
+          ];
+          returnMetrics = InvestAssetService.withInvalidPortfolioReturn(
+            returnMetrics,
+            combinedIssues,
+            snapshotIssues.length > 0 ? 'invalid_data' : 'insufficient_data'
+          );
+        }
         if (enableLogging) Logger.addLog('Transactions in year:');
         if (enableLogging) Logger.addStringifiedLog(yearTransactions);
         if (enableLogging) Logger.addLog('roi result: ');
@@ -1023,16 +1232,19 @@ class InvestAssetService {
       allTransactions.length > 0 ? firstTransactionTimestamp : periodStartFromSnapshots;
     const portfolioValueByMonth = buildPortfolioValueByMonth(monthlySnapshots);
 
-    return calculatePeriodReturnMetrics({
-      beginningValue: 0,
-      endingValue: totalCurrentValue,
-      transactions: allTransactions.filter(
-        (transaction) => Number(transaction.date_timestamp) >= periodStartTimestamp
-      ),
-      periodStartTimestamp,
-      periodEndTimestamp,
-      portfolioValueByMonth,
-    });
+    return InvestAssetService.withInvalidPortfolioReturn(
+      calculatePeriodReturnMetrics({
+        beginningValue: 0,
+        endingValue: totalCurrentValue,
+        transactions: allTransactions.filter(
+          (transaction) => Number(transaction.date_timestamp) >= periodStartTimestamp
+        ),
+        periodStartTimestamp,
+        periodEndTimestamp,
+        portfolioValueByMonth,
+      }),
+      InvestAssetService.getSnapshotDataIssues(monthlySnapshots)
+    );
   }
 
   /**
@@ -1053,10 +1265,14 @@ class InvestAssetService {
 
     // Calculate ROI using the centralized calculator
     const { roiValue, totalMoneyOut } = ROICalculator.calculateROI(currentValue, assetTransactions);
+    const hasCapitalContribution = assetTransactions.some(
+      (transaction) => transaction.trx_type === 'B' && Number(transaction.total_price) > 0
+    );
 
     return {
       value: roiValue,
-      percentage: totalMoneyOut > 0 ? (roiValue / totalMoneyOut) * 100 : '-',
+      percentage:
+        hasCapitalContribution && totalMoneyOut > 0 ? (roiValue / totalMoneyOut) * 100 : '-',
     };
   }
 
@@ -1114,11 +1330,12 @@ class InvestAssetService {
     incomeAmount: number,
     costAmount: number,
     feesTaxes: number,
+    valuationSource: ValuationSource,
     dbClient = prisma
   ) {
     const currentTimestamp = DateTimeUtils.getCurrentUnixTimestamp();
-    return dbClient.$queryRaw`INSERT INTO invest_asset_evo_snapshot (month, year, units, invested_amount, current_value, invest_assets_asset_id, created_at, updated_at, withdrawn_amount, income_amount, cost_amount, fees_taxes)
-                                    VALUES (${month}, ${year}, ${units}, ${investedAmount}, ${currentAmount}, ${assetId}, ${currentTimestamp}, ${currentTimestamp}, ${withdrawnAmount}, ${incomeAmount}, ${costAmount}, ${feesTaxes})
+    return dbClient.$queryRaw`INSERT INTO invest_asset_evo_snapshot (month, year, units, invested_amount, current_value, invest_assets_asset_id, created_at, updated_at, withdrawn_amount, income_amount, cost_amount, fees_taxes, valuation_source)
+                                    VALUES (${month}, ${year}, ${units}, ${investedAmount}, ${currentAmount}, ${assetId}, ${currentTimestamp}, ${currentTimestamp}, ${withdrawnAmount}, ${incomeAmount}, ${costAmount}, ${feesTaxes}, ${valuationSource})
                                     ON DUPLICATE KEY UPDATE units = ${units}, invested_amount = ${investedAmount}, updated_at = ${currentTimestamp}, withdrawn_amount = ${withdrawnAmount}, income_amount = ${incomeAmount}, cost_amount = ${costAmount}, fees_taxes = ${feesTaxes};`;
   }
 
@@ -1189,6 +1406,7 @@ class InvestAssetService {
         Number(priorMonthsSnapshot.income_amount ?? 0),
         Number(priorMonthsSnapshot.cost_amount ?? 0),
         Number(priorMonthsSnapshot.fees_taxes ?? 0),
+        'generated',
         prismaTx
       );
 
@@ -1206,6 +1424,7 @@ class InvestAssetService {
           Number(priorMonthsSnapshot.income_amount ?? 0),
           Number(priorMonthsSnapshot.cost_amount ?? 0),
           Number(priorMonthsSnapshot.fees_taxes ?? 0),
+          'generated',
           prismaTx
         )
       );
@@ -1222,6 +1441,7 @@ class InvestAssetService {
           Number(priorMonthsSnapshot.income_amount ?? 0),
           Number(priorMonthsSnapshot.cost_amount ?? 0),
           Number(priorMonthsSnapshot.fees_taxes ?? 0),
+          'generated',
           prismaTx
         )
       );
@@ -1340,6 +1560,7 @@ class InvestAssetService {
             Number(initialSnapshot.income_amount ?? 0),
             Number(initialSnapshot.cost_amount ?? 0),
             Number(initialSnapshot.fees_taxes ?? 0),
+            'generated',
             prismaTx
           )
         );
@@ -1357,6 +1578,7 @@ class InvestAssetService {
               Number(initialSnapshot.income_amount ?? 0),
               Number(initialSnapshot.cost_amount ?? 0),
               Number(initialSnapshot.fees_taxes ?? 0),
+              'generated',
               prismaTx
             )
           );

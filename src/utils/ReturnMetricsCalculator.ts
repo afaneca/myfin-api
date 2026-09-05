@@ -1,6 +1,18 @@
 import ROICalculator, { type TransactionFlowData } from './ROICalculator.js';
 
-export type ReturnMetricStatus = 'ok' | 'insufficient_data' | 'no_solution';
+export type ReturnMetricStatus = 'ok' | 'insufficient_data' | 'no_solution' | 'invalid_data';
+
+export type ReturnDataIssue = {
+  asset_id?: number;
+  asset_name?: string;
+  code:
+    | 'before_first_activity'
+    | 'missing_valuation'
+    | 'possible_rollover_corruption'
+    | 'missing_opening_valuation';
+  month?: number;
+  year: number;
+};
 
 export type PeriodReturnMetrics = {
   absolute_return_value: number;
@@ -21,6 +33,7 @@ export type PeriodReturnMetrics = {
     annualized_percentage: number | null;
     method: 'linked_monthly_modified_dietz';
     status: ReturnMetricStatus;
+    data_issues?: ReturnDataIssue[];
   };
   personal_return: {
     annualized_percentage: number | null;
@@ -106,6 +119,7 @@ export const createEmptyReturnMetrics = (): PeriodReturnMetrics => ({
     annualized_percentage: null,
     method: 'linked_monthly_modified_dietz',
     status: 'insufficient_data',
+    data_issues: [],
   },
   personal_return: {
     annualized_percentage: null,

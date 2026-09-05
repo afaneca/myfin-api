@@ -118,6 +118,7 @@ model invest_asset_evo_snapshot {
   income_amount          BigInt        @default(0)
   cost_amount            BigInt        @default(0)
   fees_taxes             BigInt        @default(0)
+  valuation_source       String        @default("legacy") @db.VarChar(20)
   invest_assets          invest_assets @relation(fields: [invest_assets_asset_id], references: [asset_id], onDelete: NoAction, onUpdate: NoAction, map: "invest_asset_evo_snapshot_invest_assets_asset_id_fk")
 
   @@id([month, year, invest_assets_asset_id])

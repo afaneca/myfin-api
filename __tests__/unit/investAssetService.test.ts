@@ -18,6 +18,7 @@ vi.mock('../../src/services/investTransactionsService.js', () => ({
  */
 describe('investAssetService', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     // Reset the mock to return empty array by default
     vi.mocked(InvestTransactionsService.getAllTransactionsForUserBetweenDates).mockResolvedValue(
@@ -285,6 +286,113 @@ describe('investAssetService', () => {
         false,
         expect.anything()
       );
+    });
+  });
+
+  describe('snapshot validation', () => {
+    test('marks a pre-activity snapshot invalid without carrying it into later months', async () => {
+      mockedPrisma.$queryRaw.mockResolvedValue([
+        {
+          month: 1,
+          year: 2024,
+          units: 0,
+          invested_amount: 0,
+          current_value: 6000,
+          withdrawn_amount: 0,
+          income_amount: 0,
+          cost_amount: 0,
+          fees_taxes: 0,
+          asset_id: 1n,
+          asset_name: 'Test asset',
+          asset_ticker: 'TEST',
+          asset_broker: 'Broker',
+          valuation_source: 'legacy',
+          asset_created_at: BigInt(Math.floor(new Date(2024, 9, 1).getTime() / 1000)),
+          first_transaction_timestamp: BigInt(Math.floor(new Date(2024, 9, 15).getTime() / 1000)),
+        },
+        {
+          month: 10,
+          year: 2024,
+          units: 10,
+          invested_amount: 6000,
+          current_value: 6000,
+          withdrawn_amount: 0,
+          income_amount: 0,
+          cost_amount: 0,
+          fees_taxes: 0,
+          asset_id: 1n,
+          asset_name: 'Test asset',
+          asset_ticker: 'TEST',
+          asset_broker: 'Broker',
+          valuation_source: 'legacy',
+          asset_created_at: BigInt(Math.floor(new Date(2024, 9, 1).getTime() / 1000)),
+          first_transaction_timestamp: BigInt(Math.floor(new Date(2024, 9, 15).getTime() / 1000)),
+        },
+      ] as never);
+
+      const snapshots = await InvestAssetService.getAllAssetSnapshotsForUser(1n, mockedPrisma);
+      const assetSnapshots = snapshots.filter((snapshot) => snapshot.asset_id === 1n);
+
+      expect(assetSnapshots[0]).toMatchObject({
+        month: 1,
+        year: 2024,
+        validation_status: 'invalid',
+        validation_reasons: ['before_first_activity'],
+      });
+      expect(
+        assetSnapshots.some((snapshot) => snapshot.month === 2 && snapshot.year === 2024)
+      ).toBe(false);
+      expect(
+        assetSnapshots.some((snapshot) => snapshot.month === 10 && snapshot.year === 2024)
+      ).toBe(true);
+    });
+
+    test('marks generated zero-valued holdings as needing a valuation', async () => {
+      const activityTimestamp = BigInt(Math.floor(new Date(2025, 3, 1).getTime() / 1000));
+      mockedPrisma.$queryRaw.mockResolvedValue([
+        {
+          month: 4,
+          year: 2025,
+          units: 1,
+          invested_amount: 3175,
+          current_value: 0,
+          withdrawn_amount: 0,
+          income_amount: 0,
+          cost_amount: 0,
+          fees_taxes: 0,
+          asset_id: 2n,
+          asset_name: 'Unvalued asset',
+          asset_ticker: '',
+          asset_broker: 'Broker',
+          valuation_source: 'generated',
+          asset_created_at: activityTimestamp,
+          first_transaction_timestamp: activityTimestamp,
+        },
+      ] as never);
+
+      const snapshots = await InvestAssetService.getAllAssetSnapshotsForUser(1n, mockedPrisma);
+
+      expect(snapshots[0]).toMatchObject({
+        validation_status: 'needs_valuation',
+        validation_reasons: ['missing_valuation'],
+      });
+    });
+  });
+
+  describe('deleteAssetValueSnapshot', () => {
+    test('deletes only the requested snapshot after checking asset ownership', async () => {
+      vi.spyOn(InvestAssetService, 'doesAssetBelongToUser').mockResolvedValue(true);
+      mockedPrisma.invest_asset_evo_snapshot.deleteMany.mockResolvedValue({ count: 1 });
+
+      await InvestAssetService.deleteAssetValueSnapshot(1n, 2n, 4, 2025, mockedPrisma);
+
+      expect(mockedPrisma.invest_asset_evo_snapshot.deleteMany).toHaveBeenCalledWith({
+        where: {
+          invest_assets_asset_id: 2n,
+          month: 4,
+          year: 2025,
+        },
+      });
     });
   });
 });
