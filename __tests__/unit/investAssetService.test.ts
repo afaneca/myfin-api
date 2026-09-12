@@ -40,7 +40,109 @@ describe('investAssetService', () => {
       expect(result.current_year_roi_percentage).toBe(0);
       expect(result.monthly_snapshots).toEqual([]);
       expect(result.current_value_distribution).toEqual([]);
+      expect(result.returns_by_asset_class).toEqual([]);
       expect(result.top_performing_assets).toEqual([]);
+    });
+    test('Should aggregate returns by asset class from combined values and cash flows', async () => {
+      const userId = 1n;
+      const currentYear = DateTimeUtils.getYearFromTimestamp();
+      const currentMonth = DateTimeUtils.getMonthNumberFromTimestamp();
+      const assets = [
+        { asset_id: 1n, name: 'Stock A', type: 'stock', units: 1, broker: 'A' },
+        { asset_id: 2n, name: 'Stock B', type: 'stock', units: 1, broker: 'A' },
+        { asset_id: 3n, name: 'Crypto A', type: 'crypto', units: 1, broker: 'B' },
+      ];
+      const snapshots = assets.flatMap((asset) =>
+        Array.from({ length: currentMonth }, (_, index) => {
+          const month = index + 1;
+          const initialValue = asset.asset_id === 1n ? 100 : asset.asset_id === 2n ? 900 : 500;
+          const currentValue = asset.asset_id === 1n && month > 1 ? 200 : initialValue;
+          const hasDataIssue = asset.asset_id === 3n && month === 2;
+          return {
+            month,
+            year: currentYear,
+            units: 1,
+            invested_amount: initialValue,
+            current_value: currentValue,
+            withdrawn_amount: 0,
+            income_amount: 0,
+            cost_amount: 0,
+            fees_taxes: 0,
+            asset_id: asset.asset_id,
+            asset_name: asset.name,
+            asset_ticker: asset.name,
+            asset_broker: asset.broker,
+            valuation_source: 'observed' as const,
+            validation_status: hasDataIssue ? ('needs_valuation' as const) : ('valid' as const),
+            validation_reasons: hasDataIssue ? (['missing_valuation'] as const) : [],
+          };
+        })
+      );
+      const transactions = assets.map((asset) => ({
+        asset_id: asset.asset_id,
+        date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(currentYear, 0, 1)),
+        trx_type: 'B',
+        total_price:
+          asset.asset_id === 1n ? 10_000n : asset.asset_id === 2n ? 90_000n : 50_000n,
+        units: 1,
+        fees_taxes_amount: 0n,
+        fees_taxes_units: 0,
+      }));
+
+      mockedPrisma.invest_assets.findMany.mockResolvedValue(assets as never);
+      vi.spyOn(InvestAssetService, 'getAllAssetSnapshotsForUser').mockResolvedValue(
+        snapshots as never
+      );
+      vi.mocked(InvestTransactionsService.getAllTransactionsForUserBetweenDates).mockResolvedValue(
+        transactions
+      );
+      vi.spyOn(InvestAssetService, 'getLatestSnapshotForAsset').mockImplementation(
+        async (assetId) => {
+          const snapshot = snapshots.filter((item) => item.asset_id === assetId).at(-1);
+          return {
+            ...snapshot,
+            current_value: BigInt((snapshot?.current_value ?? 0) * 100),
+            invested_amount: BigInt((snapshot?.invested_amount ?? 0) * 100),
+            withdrawn_amount: 0n,
+            income_amount: 0n,
+            cost_amount: 0n,
+            invest_assets_asset_id: assetId,
+            created_at: 0n,
+            updated_at: 0n,
+          } as never;
+        }
+      );
+      vi.spyOn(InvestAssetService, 'getTotalFeesAndTaxesForAsset').mockResolvedValue('0');
+      vi.spyOn(InvestAssetService, 'getExternalFeesOnIncomeForAsset').mockResolvedValue(0);
+      vi.spyOn(InvestAssetService, 'getAverageBuyingPriceForAsset').mockResolvedValue(0);
+
+      const result = await InvestAssetService.getAssetStatsForUser(userId, mockedPrisma);
+      const stockClass = result.returns_by_asset_class.find((item) => item.type === 'stock');
+      const cryptoClass = result.returns_by_asset_class.find((item) => item.type === 'crypto');
+
+      expect(result.returns_by_asset_class).toHaveLength(2);
+      expect(stockClass).toMatchObject({
+        asset_count: 2,
+        invested_value: 1000,
+        current_value: 1100,
+      });
+      expect(stockClass?.allocation_percentage).toBeCloseTo(68.75, 2);
+      expect(stockClass?.return_metrics.current_year.absolute_return_value).toBe(100);
+      expect(stockClass?.return_metrics.current_year.portfolio_return.cumulative_percentage).toBeCloseTo(
+        10,
+        2
+      );
+      expect(cryptoClass).toMatchObject({
+        asset_count: 1,
+        invested_value: 500,
+        current_value: 500,
+      });
+      expect(cryptoClass?.return_metrics.current_year.portfolio_return).toMatchObject({
+        cumulative_percentage: null,
+        status: 'invalid_data',
+      });
+      expect(stockClass?.return_metrics.current_year.portfolio_return.status).toBe('ok');
+      expect(result.top_performing_assets[0].return_metrics?.by_year?.[currentYear]).toBeDefined();
     });
     test('Should calculate portfolio totals correctly for single asset', async () => {
       const userId = 1n;

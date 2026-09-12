@@ -1366,4 +1366,101 @@ describe('Invest Transaction tests', () => {
     expect(internalResults.relative_roi_percentage).toBeCloseTo(20.72, 2);
     expect(externalResults.relative_roi_percentage).toBeCloseTo(20.67, 2);
   });
+
+  test('Aggregates class returns and exposes yearly performance for each asset', async () => {
+    const stockAsset = await InvestAssetService.createAsset(user.user_id, {
+      name: 'Stock Portfolio',
+      type: MYFIN.INVEST.ASSET_TYPE.STOCKS,
+      ticker: 'STOCK',
+      units: 1,
+      broker: 'BROKER2',
+    });
+
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      simpleAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 0, 15)),
+      'Fixed income contribution',
+      1_000,
+      1,
+      0,
+      0,
+      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
+    );
+    await InvestTransactionsService.createTransaction(
+      user.user_id,
+      stockAsset.asset_id,
+      DateTimeUtils.getUnixTimestampFromDate(new Date(2025, 0, 15)),
+      'Stock contribution',
+      2_000,
+      1,
+      0,
+      0,
+      MYFIN.INVEST.TRX_TYPE.BUY as invest_transactions_type
+    );
+
+    await InvestAssetService.updateAssetValue(
+      user.user_id,
+      simpleAsset.asset_id,
+      1_100,
+      12,
+      2025,
+      false
+    );
+    await InvestAssetService.updateAssetValue(
+      user.user_id,
+      stockAsset.asset_id,
+      2_000,
+      12,
+      2025,
+      false
+    );
+    await InvestAssetService.updateAssetValue(
+      user.user_id,
+      simpleAsset.asset_id,
+      1_210,
+      1,
+      2026,
+      false
+    );
+    await InvestAssetService.updateAssetValue(
+      user.user_id,
+      stockAsset.asset_id,
+      1_800,
+      1,
+      2026,
+      false
+    );
+
+    const stats = await InvestAssetService.getAssetStatsForUser(user.user_id);
+    const fixedIncomeClass = stats.returns_by_asset_class.find(
+      (item) => item.type === MYFIN.INVEST.ASSET_TYPE.FIXED_INCOME
+    );
+    const stockClass = stats.returns_by_asset_class.find(
+      (item) => item.type === MYFIN.INVEST.ASSET_TYPE.STOCKS
+    );
+    const fixedIncomeAsset = stats.top_performing_assets.find(
+      (item) => item.asset_id === simpleAsset.asset_id
+    );
+
+    expect(stats.returns_by_asset_class).toHaveLength(2);
+    expect(fixedIncomeClass).toMatchObject({
+      asset_count: 1,
+      current_value: 1_210,
+      invested_value: 1_000,
+    });
+    expect(fixedIncomeClass?.return_metrics.current_year.portfolio_return.cumulative_percentage).toBeCloseTo(
+      10,
+      2
+    );
+    expect(stockClass?.return_metrics.current_year.portfolio_return.cumulative_percentage).toBeCloseTo(
+      -10,
+      2
+    );
+    expect(fixedIncomeAsset?.return_metrics?.by_year?.[2025]).toBeDefined();
+    expect(fixedIncomeAsset?.return_metrics?.by_year?.[2026].ending_value).toBe(1_210);
+    expect(stats.combined_roi_by_year).toBeDefined();
+    expect(stats.current_value_distribution).toBeDefined();
+    expect(stats.monthly_snapshots).toBeDefined();
+  });
 });
