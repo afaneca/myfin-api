@@ -234,6 +234,11 @@ export const routeGroups: RouteGroup[] = [
       { method: 'delete', path: '/:id', handlerName: 'deleteAsset' },
       { method: 'put', path: '/:id', handlerName: 'updateAsset' },
       { method: 'put', path: '/:id/value', handlerName: 'updateCurrentAssetValue' },
+      {
+        method: 'delete',
+        path: '/:id/value/:year/:month',
+        handlerName: 'deleteAssetValueSnapshot',
+      },
       { method: 'get', path: '/summary', handlerName: 'getAllAssetsSummaryForUser' },
       { method: 'get', path: '/stats', handlerName: 'getAssetStatsForUser' },
     ],

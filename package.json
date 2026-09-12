@@ -18,6 +18,7 @@
     "db:reset": "prisma migrate reset && prisma generate",
     "db:migrate-from-db": "prisma db pull && prisma migrate dev && prisma generate",
     "db:seed": "prisma db seed",
+    "audit:invest-snapshots": "tsx src/scripts/auditInvestmentSnapshots.ts",
     "test:unit": "prisma generate && vitest -c ./vitest.config.unit.ts",
     "test:unit:run": "prisma generate && vitest run -c ./vitest.config.unit.ts",
     "test:unit:ui": "prisma generate && vitest -c ./vitest.config.unit.ts --ui --coverage",

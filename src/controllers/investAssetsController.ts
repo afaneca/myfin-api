@@ -90,6 +90,28 @@ const updateCurrentAssetValue = async (req: Request, res: Response, next: NextFu
   }
 };
 
+const deleteAssetValueSnapshotSchema = joi.object({
+  month: joi.number().integer().min(1).max(12).required(),
+  year: joi.number().integer().min(1970).required(),
+});
+
+const deleteAssetValueSnapshot = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const sessionData = await CommonsController.checkAuthSessionValidity(req);
+    const { month, year } = await deleteAssetValueSnapshotSchema.validateAsync({
+      month: req.params.month,
+      year: req.params.year,
+    });
+    const assetId = BigInt(req.params.id as string);
+
+    await InvestAssetService.deleteAssetValueSnapshot(sessionData.userId, assetId, month, year);
+    res.json('Asset value snapshot successfully deleted!');
+  } catch (err) {
+    Logger.addLog(err);
+    next(err || APIError.internalServerError());
+  }
+};
+
 const getAssetStatsForUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
@@ -130,6 +152,7 @@ export default {
   createAsset,
   updateAsset,
   updateCurrentAssetValue,
+  deleteAssetValueSnapshot,
   getAssetStatsForUser,
   getAllAssetsSummaryForUser,
   deleteAsset,

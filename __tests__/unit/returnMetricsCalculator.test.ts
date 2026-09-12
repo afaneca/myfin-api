@@ -161,6 +161,52 @@ describe('ReturnMetricsCalculator', () => {
     );
   });
 
+  test('keeps TWR and reports timing sensitivity for a near-total early withdrawal', () => {
+    const metrics = calculatePeriodReturnMetrics({
+      beginningValue: 6639.18,
+      endingValue: 0,
+      transactions: [
+        transaction({
+          date_timestamp: timestamp(2025, 7, 1),
+          trx_type: 'S',
+          total_price: 660450n,
+          fees_taxes_amount: 200n,
+        }),
+      ],
+      periodStartTimestamp: timestamp(2025, 7, 1),
+      periodEndTimestamp: periodEnd(2025, 7, 31),
+      portfolioValueByMonth: new Map([[getPortfolioMonthKey(2025, 7), 0]]),
+    });
+
+    expect(metrics.portfolio_return.status).toBe('ok');
+    expect(metrics.portfolio_return.cumulative_percentage).not.toBeNull();
+    expect(metrics.portfolio_return.data_issues).toContainEqual({
+      code: 'cash_flow_timing_sensitivity',
+      month: 7,
+      year: 2025,
+    });
+  });
+
+  test('does not report timing sensitivity for ordinary cash flows', () => {
+    const metrics = calculatePeriodReturnMetrics({
+      beginningValue: 1000,
+      endingValue: 1120,
+      transactions: [
+        transaction({
+          date_timestamp: timestamp(2025, 1, 15),
+          trx_type: 'B',
+          total_price: 10000n,
+        }),
+      ],
+      periodStartTimestamp: timestamp(2025, 1, 1),
+      periodEndTimestamp: periodEnd(2025, 1, 31),
+      portfolioValueByMonth: new Map([[getPortfolioMonthKey(2025, 1), 1120]]),
+    });
+
+    expect(metrics.portfolio_return.status).toBe('ok');
+    expect(metrics.portfolio_return.data_issues).toEqual([]);
+  });
+
   test('calculates XIRR for irregular dated personal return', () => {
     const metrics = calculatePeriodReturnMetrics({
       beginningValue: 0,

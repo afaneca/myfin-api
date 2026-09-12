@@ -18,6 +18,7 @@ vi.mock('../../src/services/investTransactionsService.js', () => ({
  */
 describe('investAssetService', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     // Reset the mock to return empty array by default
     vi.mocked(InvestTransactionsService.getAllTransactionsForUserBetweenDates).mockResolvedValue(
@@ -39,7 +40,109 @@ describe('investAssetService', () => {
       expect(result.current_year_roi_percentage).toBe(0);
       expect(result.monthly_snapshots).toEqual([]);
       expect(result.current_value_distribution).toEqual([]);
+      expect(result.returns_by_asset_class).toEqual([]);
       expect(result.top_performing_assets).toEqual([]);
+    });
+    test('Should aggregate returns by asset class from combined values and cash flows', async () => {
+      const userId = 1n;
+      const currentYear = DateTimeUtils.getYearFromTimestamp();
+      const currentMonth = DateTimeUtils.getMonthNumberFromTimestamp();
+      const assets = [
+        { asset_id: 1n, name: 'Stock A', type: 'stock', units: 1, broker: 'A' },
+        { asset_id: 2n, name: 'Stock B', type: 'stock', units: 1, broker: 'A' },
+        { asset_id: 3n, name: 'Crypto A', type: 'crypto', units: 1, broker: 'B' },
+      ];
+      const snapshots = assets.flatMap((asset) =>
+        Array.from({ length: currentMonth }, (_, index) => {
+          const month = index + 1;
+          const initialValue = asset.asset_id === 1n ? 100 : asset.asset_id === 2n ? 900 : 500;
+          const currentValue = asset.asset_id === 1n && month > 1 ? 200 : initialValue;
+          const hasDataIssue = asset.asset_id === 3n && month === 2;
+          return {
+            month,
+            year: currentYear,
+            units: 1,
+            invested_amount: initialValue,
+            current_value: currentValue,
+            withdrawn_amount: 0,
+            income_amount: 0,
+            cost_amount: 0,
+            fees_taxes: 0,
+            asset_id: asset.asset_id,
+            asset_name: asset.name,
+            asset_ticker: asset.name,
+            asset_broker: asset.broker,
+            valuation_source: 'observed' as const,
+            validation_status: hasDataIssue ? ('needs_valuation' as const) : ('valid' as const),
+            validation_reasons: hasDataIssue ? (['missing_valuation'] as const) : [],
+          };
+        })
+      );
+      const transactions = assets.map((asset) => ({
+        asset_id: asset.asset_id,
+        date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(currentYear, 0, 1)),
+        trx_type: 'B',
+        total_price:
+          asset.asset_id === 1n ? 10_000n : asset.asset_id === 2n ? 90_000n : 50_000n,
+        units: 1,
+        fees_taxes_amount: 0n,
+        fees_taxes_units: 0,
+      }));
+
+      mockedPrisma.invest_assets.findMany.mockResolvedValue(assets as never);
+      vi.spyOn(InvestAssetService, 'getAllAssetSnapshotsForUser').mockResolvedValue(
+        snapshots as never
+      );
+      vi.mocked(InvestTransactionsService.getAllTransactionsForUserBetweenDates).mockResolvedValue(
+        transactions
+      );
+      vi.spyOn(InvestAssetService, 'getLatestSnapshotForAsset').mockImplementation(
+        async (assetId) => {
+          const snapshot = snapshots.filter((item) => item.asset_id === assetId).at(-1);
+          return {
+            ...snapshot,
+            current_value: BigInt((snapshot?.current_value ?? 0) * 100),
+            invested_amount: BigInt((snapshot?.invested_amount ?? 0) * 100),
+            withdrawn_amount: 0n,
+            income_amount: 0n,
+            cost_amount: 0n,
+            invest_assets_asset_id: assetId,
+            created_at: 0n,
+            updated_at: 0n,
+          } as never;
+        }
+      );
+      vi.spyOn(InvestAssetService, 'getTotalFeesAndTaxesForAsset').mockResolvedValue('0');
+      vi.spyOn(InvestAssetService, 'getExternalFeesOnIncomeForAsset').mockResolvedValue(0);
+      vi.spyOn(InvestAssetService, 'getAverageBuyingPriceForAsset').mockResolvedValue(0);
+
+      const result = await InvestAssetService.getAssetStatsForUser(userId, mockedPrisma);
+      const stockClass = result.returns_by_asset_class.find((item) => item.type === 'stock');
+      const cryptoClass = result.returns_by_asset_class.find((item) => item.type === 'crypto');
+
+      expect(result.returns_by_asset_class).toHaveLength(2);
+      expect(stockClass).toMatchObject({
+        asset_count: 2,
+        invested_value: 1000,
+        current_value: 1100,
+      });
+      expect(stockClass?.allocation_percentage).toBeCloseTo(68.75, 2);
+      expect(stockClass?.return_metrics.current_year.absolute_return_value).toBe(100);
+      expect(stockClass?.return_metrics.current_year.portfolio_return.cumulative_percentage).toBeCloseTo(
+        10,
+        2
+      );
+      expect(cryptoClass).toMatchObject({
+        asset_count: 1,
+        invested_value: 500,
+        current_value: 500,
+      });
+      expect(cryptoClass?.return_metrics.current_year.portfolio_return).toMatchObject({
+        cumulative_percentage: null,
+        status: 'invalid_data',
+      });
+      expect(stockClass?.return_metrics.current_year.portfolio_return.status).toBe('ok');
+      expect(result.top_performing_assets[0].return_metrics?.by_year?.[currentYear]).toBeDefined();
     });
     test('Should calculate portfolio totals correctly for single asset', async () => {
       const userId = 1n;
@@ -285,6 +388,113 @@ describe('investAssetService', () => {
         false,
         expect.anything()
       );
+    });
+  });
+
+  describe('snapshot validation', () => {
+    test('marks a pre-activity snapshot invalid without carrying it into later months', async () => {
+      mockedPrisma.$queryRaw.mockResolvedValue([
+        {
+          month: 1,
+          year: 2024,
+          units: 0,
+          invested_amount: 0,
+          current_value: 6000,
+          withdrawn_amount: 0,
+          income_amount: 0,
+          cost_amount: 0,
+          fees_taxes: 0,
+          asset_id: 1n,
+          asset_name: 'Test asset',
+          asset_ticker: 'TEST',
+          asset_broker: 'Broker',
+          valuation_source: 'legacy',
+          asset_created_at: BigInt(Math.floor(new Date(2024, 9, 1).getTime() / 1000)),
+          first_transaction_timestamp: BigInt(Math.floor(new Date(2024, 9, 15).getTime() / 1000)),
+        },
+        {
+          month: 10,
+          year: 2024,
+          units: 10,
+          invested_amount: 6000,
+          current_value: 6000,
+          withdrawn_amount: 0,
+          income_amount: 0,
+          cost_amount: 0,
+          fees_taxes: 0,
+          asset_id: 1n,
+          asset_name: 'Test asset',
+          asset_ticker: 'TEST',
+          asset_broker: 'Broker',
+          valuation_source: 'legacy',
+          asset_created_at: BigInt(Math.floor(new Date(2024, 9, 1).getTime() / 1000)),
+          first_transaction_timestamp: BigInt(Math.floor(new Date(2024, 9, 15).getTime() / 1000)),
+        },
+      ] as never);
+
+      const snapshots = await InvestAssetService.getAllAssetSnapshotsForUser(1n, mockedPrisma);
+      const assetSnapshots = snapshots.filter((snapshot) => snapshot.asset_id === 1n);
+
+      expect(assetSnapshots[0]).toMatchObject({
+        month: 1,
+        year: 2024,
+        validation_status: 'invalid',
+        validation_reasons: ['before_first_activity'],
+      });
+      expect(
+        assetSnapshots.some((snapshot) => snapshot.month === 2 && snapshot.year === 2024)
+      ).toBe(false);
+      expect(
+        assetSnapshots.some((snapshot) => snapshot.month === 10 && snapshot.year === 2024)
+      ).toBe(true);
+    });
+
+    test('marks generated zero-valued holdings as needing a valuation', async () => {
+      const activityTimestamp = BigInt(Math.floor(new Date(2025, 3, 1).getTime() / 1000));
+      mockedPrisma.$queryRaw.mockResolvedValue([
+        {
+          month: 4,
+          year: 2025,
+          units: 1,
+          invested_amount: 3175,
+          current_value: 0,
+          withdrawn_amount: 0,
+          income_amount: 0,
+          cost_amount: 0,
+          fees_taxes: 0,
+          asset_id: 2n,
+          asset_name: 'Unvalued asset',
+          asset_ticker: '',
+          asset_broker: 'Broker',
+          valuation_source: 'generated',
+          asset_created_at: activityTimestamp,
+          first_transaction_timestamp: activityTimestamp,
+        },
+      ] as never);
+
+      const snapshots = await InvestAssetService.getAllAssetSnapshotsForUser(1n, mockedPrisma);
+
+      expect(snapshots[0]).toMatchObject({
+        validation_status: 'needs_valuation',
+        validation_reasons: ['missing_valuation'],
+      });
+    });
+  });
+
+  describe('deleteAssetValueSnapshot', () => {
+    test('deletes only the requested snapshot after checking asset ownership', async () => {
+      vi.spyOn(InvestAssetService, 'doesAssetBelongToUser').mockResolvedValue(true);
+      mockedPrisma.invest_asset_evo_snapshot.deleteMany.mockResolvedValue({ count: 1 });
+
+      await InvestAssetService.deleteAssetValueSnapshot(1n, 2n, 4, 2025, mockedPrisma);
+
+      expect(mockedPrisma.invest_asset_evo_snapshot.deleteMany).toHaveBeenCalledWith({
+        where: {
+          invest_assets_asset_id: 2n,
+          month: 4,
+          year: 2025,
+        },
+      });
     });
   });
 });
