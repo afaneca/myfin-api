@@ -1,6 +1,19 @@
 import ROICalculator, { type TransactionFlowData } from './ROICalculator.js';
 
-export type ReturnMetricStatus = 'ok' | 'insufficient_data' | 'no_solution';
+export type ReturnMetricStatus = 'ok' | 'insufficient_data' | 'no_solution' | 'invalid_data';
+
+export type ReturnDataIssue = {
+  asset_id?: number;
+  asset_name?: string;
+  code:
+    | 'before_first_activity'
+    | 'cash_flow_timing_sensitivity'
+    | 'missing_valuation'
+    | 'possible_rollover_corruption'
+    | 'missing_opening_valuation';
+  month?: number;
+  year: number;
+};
 
 export type PeriodReturnMetrics = {
   absolute_return_value: number;
@@ -21,6 +34,7 @@ export type PeriodReturnMetrics = {
     annualized_percentage: number | null;
     method: 'linked_monthly_modified_dietz';
     status: ReturnMetricStatus;
+    data_issues?: ReturnDataIssue[];
   };
   personal_return: {
     annualized_percentage: number | null;
@@ -106,6 +120,7 @@ export const createEmptyReturnMetrics = (): PeriodReturnMetrics => ({
     annualized_percentage: null,
     method: 'linked_monthly_modified_dietz',
     status: 'insufficient_data',
+    data_issues: [],
   },
   personal_return: {
     annualized_percentage: null,
@@ -262,6 +277,15 @@ const calculateModifiedDietzReturn = (
   return {
     percentage: numerator / denominator,
     status: 'ok',
+    isTimingSensitive:
+      Math.abs(totalNetFlows) > EPSILON &&
+      Math.abs(denominator) <
+        Math.max(
+          Math.abs(beginningValue),
+          Math.abs(endingValue),
+          Math.abs(totalNetFlows)
+        ) *
+          0.1,
   } as const;
 };
 
@@ -288,6 +312,7 @@ const calculateLinkedMonthlyModifiedDietz = (
   let cursor = { ...firstMonth };
   let cumulativeFactor = 1;
   let hasReturnPeriod = false;
+  const dataIssues: ReturnDataIssue[] = [];
 
   while (
     cursor.year < lastMonth.year ||
@@ -342,6 +367,13 @@ const calculateLinkedMonthlyModifiedDietz = (
       if (monthReturn.status === 'ok' && monthReturn.percentage !== null) {
         cumulativeFactor *= 1 + monthReturn.percentage;
         hasReturnPeriod = true;
+        if (monthReturn.isTimingSensitive) {
+          dataIssues.push({
+            code: 'cash_flow_timing_sensitivity',
+            month: cursor.month,
+            year: cursor.year,
+          });
+        }
       }
     }
 
@@ -355,6 +387,7 @@ const calculateLinkedMonthlyModifiedDietz = (
   return {
     percentage: (cumulativeFactor - 1) * 100,
     status: 'ok' as ReturnMetricStatus,
+    dataIssues,
   };
 };
 
@@ -508,6 +541,7 @@ export const calculatePeriodReturnMetrics = ({
       ),
       method: 'linked_monthly_modified_dietz',
       status: portfolioReturn.status,
+      data_issues: portfolioReturn.dataIssues ?? [],
     },
     personal_return: {
       annualized_percentage: personalReturn.percentage,
