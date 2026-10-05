@@ -182,6 +182,7 @@ const restoreUserSchema = joi.object({
     .array()
     .items(joi.object().pattern(joi.string(), joi.any()))
     .optional(),
+  budget_category_items: joi.array().items(joi.object().pattern(joi.string(), joi.any())).optional(),
   categories: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
   entities: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),
   tags: joi.array().items(joi.object().pattern(joi.string(), joi.any())).required(),

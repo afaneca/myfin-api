@@ -12,5 +12,9 @@
     "otpExpirationTimeText": "Este OTP é válido por <strong>15 minutes</strong>.",
     "otpIfRequestNotMadeText": "Se não realizou este pedido, pode simplesmente ignorar este email.",
     "otpDoNotShareText": "Para sua segurança, não partilhe este código com ninguém."
+  },
+  "budgetBreakdown": {
+    "invalid": "Use nomes preenchidos e valores não negativos com até duas casas decimais.",
+    "conflict": "O valor planeado não corresponde à decomposição. Edite os itens ou use um valor único."
   }
 }

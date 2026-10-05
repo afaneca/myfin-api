@@ -1,3 +1,7 @@
+import BudgetAllocationService, {
+  type BreakdownInput,
+  serializeItems,
+} from './budgetAllocationService.js';
 import { performDatabaseRequest, prisma } from '../config/prisma.js';
 import { MYFIN } from '../consts.js';
 import { type Prisma, PrismaClient } from '../generated/prisma/client.js';
@@ -646,12 +650,19 @@ class BudgetService {
     catId: bigint,
     plannedValueCredit: number,
     plannedValueDebit: number,
-    dbClient = prisma
+    dbClient = undefined
   ) {
-    await dbClient.$executeRaw`
-      INSERT INTO budgets_has_categories (budgets_budget_id, budgets_users_user_id, categories_category_id, planned_amount_credit, planned_amount_debit)
-      VALUES (${budgetId}, ${userId}, ${catId}, ${plannedValueCredit}, ${plannedValueDebit})
-      ON DUPLICATE KEY UPDATE planned_amount_credit = ${plannedValueCredit}, planned_amount_debit = ${plannedValueDebit}`;
+    return performDatabaseRequest(async (tx) => {
+      await BudgetAllocationService.save(
+        userId,
+        budgetId,
+        catId,
+        plannedValueDebit / 100,
+        plannedValueCredit / 100,
+        {},
+        tx
+      );
+    }, dbClient);
   }
 
   private static async parseCatValuesIntoBudgetCategories(
@@ -660,30 +671,22 @@ class BudgetService {
     catValuesArr: Array<any>,
     dbClient = prisma
   ) {
-    // ADD CAT VALUES TO BUDGET CATEGORIES
-    const promises = [];
-    for (const catValue of catValuesArr) {
-      const plannedValueCredit = ConvertUtils.convertFloatToBigInteger(
-        Number.parseFloat(catValue.planned_value_credit)
-      );
-      const plannedValueDebit = ConvertUtils.convertFloatToBigInteger(
-        Number.parseFloat(catValue.planned_value_debit)
-      );
-      /* Logger.addLog(`cat value debit: ${catValue.planned_value_debit} || converted: ${plannedValueDebit}`);
-          Logger.addStringifiedLog(catValue); */
-
-      promises.push(
-        this.addOrUpdateCategoryValueInBudget(
-          userId,
-          budgetId,
-          catValue.category_id,
-          plannedValueCredit,
-          plannedValueDebit,
-          dbClient
-        )
+    if (!Array.isArray(catValuesArr)) throw APIError.badRequest('Invalid category allocations.');
+    for (const value of catValuesArr) {
+      if (!value || !/^[1-9]\d*$/.test(String(value.category_id)))
+        throw APIError.badRequest('Invalid category id.');
+    }
+    for (const value of catValuesArr) {
+      await BudgetAllocationService.save(
+        userId,
+        budgetId,
+        BigInt(value.category_id),
+        value.planned_value_debit,
+        value.planned_value_credit,
+        value,
+        dbClient
       );
     }
-    return Promise.all(promises);
   }
 
   static async createBudget(
@@ -754,7 +757,7 @@ class BudgetService {
   }
 
   static async getBudget(userId: bigint, budgetId: number | bigint, dbclient = prisma) {
-    const budget = await prisma.budgets.findUnique({
+    const budget = await dbclient.budgets.findUnique({
       where: {
         users_user_id: userId,
         budget_id: budgetId,
@@ -767,6 +770,7 @@ class BudgetService {
       },
     });
 
+    if (!budget) throw APIError.notFound();
     const month = (budget as any).month;
     const year = (budget as any).year;
 
@@ -787,7 +791,17 @@ class BudgetService {
     (budget as any).transaction_count =
       await this.getTransactionCountForBudget(userId, budget, dbclient);
 
+    const items = await dbclient.budget_category_items.findMany({
+      where: { budgets_budget_id: BigInt(budgetId), budgets_users_user_id: userId },
+      orderBy: [{ sort_order: 'asc' }, { item_id: 'asc' }],
+    });
     for (const category of (budget as any).categories) {
+      Object.assign(
+        category,
+        serializeItems(
+          items.filter((item) => item.categories_category_id === BigInt(category.category_id))
+        )
+      );
       /*Logger.addLog(`_------_\nCategory: ${category.category_id}`);*/
       const monthToUse = (budget as any).month;
       const yearToUse = (budget as any).year;
@@ -928,6 +942,7 @@ class BudgetService {
     dbClient = undefined
   ) {
     return performDatabaseRequest(async (prismaTx) => {
+      await BudgetAllocationService.lock(userId, budgetId, prismaTx);
       await prismaTx.budgets.update({
         where: {
           users_user_id: userId,
@@ -1029,59 +1044,20 @@ class BudgetService {
     userId: bigint,
     budgetId: bigint,
     categoryId: bigint,
-    plannedExpense?: number,
-    plannedIncome?: number,
-    dbClient = undefined
+    plannedExpense?: number | string,
+    plannedIncome?: number | string,
+    dbClient = undefined,
+    breakdown: BreakdownInput = {}
   ) {
-    return performDatabaseRequest(async (prismaTx) => {
-      const budget = await prismaTx.budgets.findUnique({
-        where: {
-          users_user_id: userId,
-          budget_id: budgetId,
-        },
-        select: { is_open: true },
-      });
-      if (!budget) {
-        throw APIError.notFound('The requested budget could not be found.');
-      }
-      if (!budget.is_open) {
-        throw APIError.forbidden('Closed budgets are read-only.');
-      }
-      const category = await prismaTx.categories.findUnique({
-        where: { category_id: categoryId },
-        select: { users_user_id: true, status: true },
-      });
-      if (!category || category.users_user_id !== userId) {
-        throw APIError.notFound('The requested category could not be found.');
-      }
-      if (category.status !== MYFIN.CATEGORY_STATUS.ACTIVE) {
-        throw APIError.forbidden('Inactive categories cannot be budgeted.');
-      }
-      const currentAmounts = await prismaTx.budgets_has_categories.findUnique({
-        where: {
-          budgets_budget_id_budgets_users_user_id_categories_category_id: {
-            budgets_budget_id: budgetId,
-            categories_category_id: categoryId,
-            budgets_users_user_id: userId,
-          },
-        },
-        select: {
-          planned_amount_credit: true,
-          planned_amount_debit: true,
-        },
-      });
-
-      await this.addOrUpdateCategoryValueInBudget(
+    return performDatabaseRequest(async (tx) => {
+      await BudgetAllocationService.save(
         userId,
         budgetId,
         categoryId,
-        plannedIncome === undefined
-          ? Number(currentAmounts?.planned_amount_credit ?? 0)
-          : ConvertUtils.convertFloatToBigInteger(plannedIncome),
-        plannedExpense === undefined
-          ? Number(currentAmounts?.planned_amount_debit ?? 0)
-          : ConvertUtils.convertFloatToBigInteger(plannedExpense),
-        prismaTx
+        plannedExpense,
+        plannedIncome,
+        breakdown,
+        tx
       );
     }, dbClient);
   }
