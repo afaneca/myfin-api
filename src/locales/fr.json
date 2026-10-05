@@ -12,5 +12,9 @@
     "otpExpirationTimeText": "Cet OTP est valable pendant <strong>15 minutes</strong> uniquement.",
     "otpIfRequestNotMadeText": "Si vous n'avez pas demandé de réinitialisation du mot de passe, vous pouvez ignorer cet e-mail.",
     "otpDoNotShareText": "Pour votre sécurité, ne partagez cet OTP avec personne."
+  },
+  "budgetBreakdown": {
+    "invalid": "Utilisez des noms non vides et des montants positifs ou nuls avec deux décimales maximum.",
+    "conflict": "Le montant prévu ne correspond pas à sa décomposition. Modifiez les éléments ou utilisez un montant unique."
   }
 }

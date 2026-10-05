@@ -12,5 +12,9 @@
     "otpExpirationTimeText": "This OTP is valid for <strong>15 minutes</strong> only.",
     "otpIfRequestNotMadeText": "If you did not request a password reset, you can safely ignore this email.",
     "otpDoNotShareText": "For your security, please do not share this OTP with anyone."
+  },
+  "budgetBreakdown": {
+    "invalid": "Use nonblank labels and nonnegative amounts with at most two decimal places.",
+    "conflict": "The planned amount conflicts with its breakdown. Edit the items or switch to a single amount."
   }
 }

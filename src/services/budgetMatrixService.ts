@@ -1,3 +1,4 @@
+import { serializeItems } from './budgetAllocationService.js';
 import { performDatabaseRequest, prisma } from '../config/prisma.js';
 import { MYFIN } from '../consts.js';
 import APIError from '../errorHandling/apiError.js';
@@ -12,7 +13,7 @@ type BudgetMatrixBudget = {
   observations: string;
   is_open: boolean;
   initial_balance: number;
-  categories: Array<{
+  categories: Array<ReturnType<typeof serializeItems> & {
     category_id: bigint;
     planned_amount_credit: number;
     planned_amount_debit: number;
@@ -287,6 +288,7 @@ class BudgetMatrixService {
           categories_category_id: true,
           planned_amount_credit: true,
           planned_amount_debit: true,
+          breakdown_items: { orderBy: [{ sort_order: 'asc' }, { item_id: 'asc' }] },
         },
       }),
       dbClient.$queryRaw<RawAmountRow[]>`
@@ -605,6 +607,7 @@ class BudgetMatrixService {
         const currentDebit =
           toBigInt(actual?.category_balance_debit) - toBigInt(investment?.category_balance_debit);
         return {
+          ...serializeItems(planned?.breakdown_items ?? []),
           category_id: category.category_id,
           planned_amount_credit: amountInEuros(planned?.planned_amount_credit),
           planned_amount_debit: amountInEuros(planned?.planned_amount_debit),

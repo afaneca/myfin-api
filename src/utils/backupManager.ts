@@ -1,3 +1,4 @@
+import { normalizeItems, validateCents } from '../services/budgetAllocationService.js';
 import { createRequire } from 'node:module';
 import { prisma } from '../config/prisma.js';
 import { MYFIN } from '../consts.js';
@@ -23,6 +24,7 @@ export interface BackupData {
   balances_snapshot?: Prisma.balances_snapshotGetPayload<object>[];
   budgets?: Prisma.budgetsGetPayload<object>[];
   budgets_has_categories?: Prisma.budgets_has_categoriesGetPayload<object>[];
+  budget_category_items?: Prisma.budget_category_itemsGetPayload<object>[];
   categories?: Prisma.categoriesGetPayload<object>[];
   entities?: Prisma.entitiesGetPayload<object>[];
   tags?: Prisma.tagsGetPayload<object>[];
@@ -147,6 +149,10 @@ class BackupManager {
       balances_snapshot: balancesSnapshot,
       budgets,
       budgets_has_categories: budgetsHasCategories,
+      budget_category_items: await dbClient.budget_category_items.findMany({
+        where: { budgets_users_user_id: userId },
+        orderBy: [{ sort_order: 'asc' }, { item_id: 'asc' }],
+      }),
       categories,
       entities,
       tags,
@@ -177,6 +183,56 @@ class BackupManager {
     const assetIdMap: Map<bigint, bigint> = new Map(); // <old id, new id>
     const budgetIdMap: Map<bigint, bigint> = new Map(); // <old id, new id>
     const goalIdMap: Map<bigint, bigint> = new Map(); // <old id, new id>
+
+    const restoredItems = data.budget_category_items ?? [];
+    const parentKey = (row: {
+      budgets_budget_id: unknown;
+      budgets_users_user_id: unknown;
+      categories_category_id: unknown;
+    }) => `${row.budgets_budget_id}:${row.budgets_users_user_id}:${row.categories_category_id}`;
+    const parents = new Map(
+      (data.budgets_has_categories ?? []).map((row) => [parentKey(row), row])
+    );
+    const totals = new Map<string, bigint>();
+    for (const item of restoredItems) {
+      if (
+        !parents.has(parentKey(item)) ||
+        !['EXPENSE', 'INCOME'].includes(item.direction) ||
+        !/^\d+$/.test(String(item.amount))
+      )
+        throw APIError.badRequest(
+          'Invalid budget breakdown in backup.',
+          'BUDGET_BREAKDOWN_INVALID'
+        );
+      const cents = BigInt(item.amount);
+      normalizeItems([
+        {
+          label: item.label,
+          amount: `${cents / 100n}.${String(cents % 100n).padStart(2, '0')}`,
+          sort_order: item.sort_order,
+        },
+      ]);
+      const key = `${parentKey(item)}:${item.direction}`;
+      totals.set(key, (totals.get(key) ?? 0n) + cents);
+    }
+    for (const [key, parent] of parents) {
+      for (const direction of ['EXPENSE', 'INCOME']) {
+        const sum = totals.get(`${key}:${direction}`);
+        if (sum !== undefined) validateCents(sum);
+        if (
+          sum !== undefined &&
+          (sum > BigInt(Number.MAX_SAFE_INTEGER) ||
+            sum !==
+              BigInt(
+                direction === 'EXPENSE' ? parent.planned_amount_debit : parent.planned_amount_credit
+              ))
+        )
+          throw APIError.badRequest(
+            'Budget breakdown totals in backup do not match their allocation.',
+            'BUDGET_BREAKDOWN_CONFLICT'
+          );
+      }
+    }
 
     // Delete all previous records
     Logger.addLog('BackupManager > Restore | Deleting all user data...');
@@ -498,7 +554,7 @@ class BackupManager {
     // endregion
 
     // region Budget Categories
-    const budgetCategoriesPromises = data.budgets_has_categories.map(async (category) => {
+    const budgetCategoriesPromises = (data.budgets_has_categories ?? []).map(async (category) => {
       const newBudgetCategory = await dbClient.budgets_has_categories.create({
         data: {
           budgets_budget_id: budgetIdMap.get(category.budgets_budget_id),
@@ -513,6 +569,22 @@ class BackupManager {
       return newBudgetCategory;
     });
     // endregion
+
+    await Promise.all(budgetCategoriesPromises);
+    for (const item of restoredItems) {
+      const parent = parents.get(parentKey(item));
+      await dbClient.budget_category_items.create({
+        data: {
+          budgets_budget_id: budgetIdMap.get(parent.budgets_budget_id),
+          budgets_users_user_id: userId,
+          categories_category_id: categoryIdMap.get(parent.categories_category_id),
+          direction: item.direction,
+          label: item.label.trim(),
+          amount: BigInt(item.amount),
+          sort_order: item.sort_order,
+        },
+      });
+    }
 
     // region Goal Accounts
     const goalAccountsPromises = data.goal_has_accounts.map(async (account) => {

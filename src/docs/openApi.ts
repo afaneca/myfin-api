@@ -296,6 +296,10 @@ const buildOperation = (
     tags: [group.tag],
   };
 
+  if (group.tag.toLowerCase().includes('budget')) {
+    operation.description = 'Optional expense_items and income_items contain ordered planned spending items (label, amount in currency units, sort_order). Detail and matrix category responses include both arrays. For full saves these fields belong to each category in the JSON-encoded cat_values_arr. Omitted arrays preserve items; nonempty arrays replace items and calculate the total; empty arrays remove items and keep the existing total unless a replacement is provided. Manual totals must match the item sum or the unchanged previous total. Closed budgets are read-only. Actual spending remains at category level.';
+  }
+
   if (schemas.body) {
     const bodySchema = convertJoiSchema(schemas.body, components);
     operation.requestBody = {
