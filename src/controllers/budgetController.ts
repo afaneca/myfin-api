@@ -94,6 +94,17 @@ const getBudgetMatrix = async (req, res, next) => {
   }
 };
 
+const currencyAmountSchema = joi.alternatives().try(
+  joi.number().strict().min(0),
+  joi.string().pattern(/^\d+(?:\.\d{1,2})?$/)
+);
+
+const breakdownItemSchema = joi.object({
+  label: joi.string().trim().min(1).max(255).required(),
+  amount: currencyAmountSchema.required(),
+  sort_order: joi.number().strict().integer().min(0).max(2147483647).optional(),
+});
+
 // CREATE
 /**
  * Preliminary step for the add budget flow
@@ -116,7 +127,12 @@ const createBudgetSchema = joi
     month: joi.number().min(1).max(12).required(),
     year: joi.number().min(1970).required(),
     observations: joi.string().empty(''),
-    cat_values_arr: joi.any().required(),
+    cat_values_arr: joi
+      .string()
+      .description(
+        'JSON array of category_id, optional planned_value_debit/planned_value_credit and optional expense_items/income_items. Items contain label, decimal currency amount and optional sort_order.'
+      )
+      .required(),
   })
   .unknown(true);
 
@@ -147,7 +163,12 @@ const updateBudgetSchema = joi
     month: joi.number().min(1).max(12).required(),
     year: joi.number().min(1970).required(),
     observations: joi.string().empty(''),
-    cat_values_arr: joi.any().required(),
+    cat_values_arr: joi
+      .string()
+      .description(
+        'JSON array of category_id, optional planned_value_debit/planned_value_credit and optional expense_items/income_items. Items contain label, decimal currency amount and optional sort_order.'
+      )
+      .required(),
   })
   .unknown(true);
 
@@ -182,10 +203,15 @@ const updateBudgetCategoryPlannedValuesParamsSchema = joi.object({
 const updateBudgetCategoryPlannedValuesSchema = joi
   .object({
     category_id: positiveIntegerId,
-    planned_expense: joi.number().optional(),
-    planned_income: joi.number().optional(),
+    planned_expense: currencyAmountSchema.optional(),
+    planned_income: currencyAmountSchema.optional(),
+    expense_items: joi.array().items(breakdownItemSchema).optional(),
+    income_items: joi.array().items(breakdownItemSchema).optional(),
   })
-  .or('planned_expense', 'planned_income');
+  .or('planned_expense', 'planned_income', 'expense_items', 'income_items')
+  .error(() =>
+    APIError.badRequest('Invalid planned amount or budget breakdown.', 'BUDGET_BREAKDOWN_INVALID')
+  );
 
 const updateBudgetCategoryPlannedValues = async (req, res, next) => {
   try {
@@ -200,7 +226,9 @@ const updateBudgetCategoryPlannedValues = async (req, res, next) => {
       budgetId,
       BigInt(input.category_id),
       input.planned_expense,
-      input.planned_income
+      input.planned_income,
+      undefined,
+      input
     );
     res.json('Budget was successfully updated.');
   } catch (err) {

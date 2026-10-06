@@ -58,7 +58,27 @@ model budgets {
   @@index([users_user_id], map: "fk_budgets_users1_idx")
 }
 
+enum budget_item_direction {
+  EXPENSE
+  INCOME
+}
+
+model budget_category_items {
+  item_id BigInt @id @default(autoincrement())
+  budgets_budget_id BigInt
+  budgets_users_user_id BigInt
+  categories_category_id BigInt
+  direction budget_item_direction
+  label String @db.VarChar(255)
+  amount BigInt
+  sort_order Int
+  allocation budgets_has_categories @relation(fields: [budgets_budget_id, budgets_users_user_id, categories_category_id], references: [budgets_budget_id, budgets_users_user_id, categories_category_id], onDelete: Cascade, map: "budget_items_allocation_fk")
+
+  @@index([budgets_budget_id, budgets_users_user_id, categories_category_id, direction, sort_order], map: "budget_items_parent_direction_order_idx")
+}
+
 model budgets_has_categories {
+  breakdown_items        budget_category_items[]
   budgets_budget_id      BigInt
   budgets_users_user_id  BigInt
   categories_category_id BigInt
