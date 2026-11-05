@@ -155,7 +155,7 @@ const getAmountForEntityInYear = async (
   includeTransfers = true,
   dbClient = prisma
 ): Promise<CalculatedEntityAmounts> => {
-  const maxDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, 11, 31));
+  const maxDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, 11, 31, 23, 59, 59));
   const minDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, 0, 1));
 
   /* Logger.addLog(`cat id: ${categoryId} | month: ${month} | year: ${year} | minDate: ${minDate} | maxDate: ${maxDate}`); */
