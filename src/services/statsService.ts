@@ -451,6 +451,7 @@ const getYearByYearIncomeExpenseDistribution = async (
     for (const category of categories) {
       calculatedCategoryAmountPromises.push(
         CategoryService.getAmountForCategoryInYear(
+          userId,
           category.category_id as bigint,
           year,
           true,
@@ -488,7 +489,13 @@ const getYearByYearIncomeExpenseDistribution = async (
     const calculatedEntityAmountPromises = [];
     for (const entity of entities) {
       calculatedEntityAmountPromises.push(
-        EntityService.getAmountForEntityInYear(entity.entity_id as bigint, year, true, prismaTx)
+        EntityService.getAmountForEntityInYear(
+          userId,
+          entity.entity_id as bigint,
+          year,
+          true,
+          prismaTx
+        )
       );
     }
 
