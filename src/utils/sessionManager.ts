@@ -79,7 +79,11 @@ const checkIfSessionKeyIsValid = async (
     if (checkIfTrustLimitHasExpired(mobile ? userData.trustlimit_mobile : userData.trustlimit)) {
       throw APIError.notAuthorized('Session is not valid.');
     }
-    if (renewTrustLimit) await extendUserSession(username, mobile);
+    if (renewTrustLimit) {
+      void extendUserSession(username, mobile).catch(() => {
+        Logger.addLog('Could not renew session expiry.', true);
+      });
+    }
     return true;
   }
   Logger.addLog('USER AND/OR SESSION NOT FOUND');
