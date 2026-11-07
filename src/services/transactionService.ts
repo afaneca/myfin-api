@@ -104,10 +104,20 @@ const getFilteredTransactionsByForUser = async (
   userId: bigint,
   page: number,
   pageSize: number,
-  searchQuery: string
+  searchQuery: string,
+  month?: number,
+  year?: number
 ) => {
   const query = `%${searchQuery}%`;
   const offsetValue = page * pageSize;
+  const monthStart =
+    month !== undefined && year !== undefined
+      ? DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 1))
+      : null;
+  const monthEnd =
+    month !== undefined && year !== undefined
+      ? DateTimeUtils.getUnixTimestampFromDate(new Date(year, month, 1))
+      : null;
 
   // main query for list of results (limited by pageSize and offsetValue)
   const mainQuery = prisma.$queryRaw`SELECT transaction_id,
@@ -138,6 +148,8 @@ const getFilteredTransactionsByForUser = async (
                                             LEFT JOIN transaction_has_tags ON transaction_has_tags.transactions_transaction_id = transactions.transaction_id
                                             LEFT JOIN tags ON tags.tag_id = transaction_has_tags.tags_tag_id
                                      WHERE (acc_to.users_user_id = ${userId} OR acc_from.users_user_id = ${userId})
+                                       AND (${monthStart} IS NULL OR (transactions.date_timestamp >= ${monthStart}
+                                            AND transactions.date_timestamp < ${monthEnd}))
                                        AND (transactions.description LIKE
                                             ${query} OR
                                             acc_from.name LIKE ${query}
@@ -165,6 +177,8 @@ const getFilteredTransactionsByForUser = async (
                                                    LEFT JOIN transaction_has_tags ON transaction_has_tags.transactions_transaction_id = transactions.transaction_id
                                                    LEFT JOIN tags ON tags.tag_id = transaction_has_tags.tags_tag_id          
                                             WHERE (acc_to.users_user_id = ${userId} OR acc_from.users_user_id = ${userId})
+                                              AND (${monthStart} IS NULL OR (transactions.date_timestamp >= ${monthStart}
+                                                   AND transactions.date_timestamp < ${monthEnd}))
                                               AND (transactions.description LIKE
                                                    ${query} OR
                                                    acc_from.name LIKE ${query}

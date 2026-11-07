@@ -37,6 +37,18 @@ const getFilteredTrxByPageSchema = joi
   .object({
     page_size: joi.number().default(MYFIN.DEFAULT_TRANSACTIONS_FETCH_LIMIT).min(1).max(300),
     query: joi.string().empty('').default(''),
+    month: joi
+      .number()
+      .integer()
+      .min(1)
+      .max(12)
+      .description('Budget month (1-12); provide together with year.'),
+    year: joi
+      .number()
+      .integer()
+      .min(1000)
+      .max(9999)
+      .description('Budget year; provide together with month.'),
   })
   .unknown(true);
 
@@ -44,11 +56,16 @@ const getFilteredTrxByPage = async (req, res, next) => {
   try {
     const sessionData = await CommonsController.checkAuthSessionValidity(req);
     const trx = await getFilteredTrxByPageSchema.validateAsync(req.query);
+    if ((trx.month === undefined) !== (trx.year === undefined)) {
+      throw APIError.badRequest('month and year must be provided together');
+    }
     const trxList = await TransactionService.getFilteredTransactionsByForUser(
       sessionData.userId,
       req.params.page,
       trx.page_size,
-      trx.query
+      trx.query,
+      trx.month,
+      trx.year
     );
     res.send(trxList);
   } catch (err) {
