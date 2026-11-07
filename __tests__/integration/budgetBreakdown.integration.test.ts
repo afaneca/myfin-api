@@ -279,6 +279,8 @@ describe('budget breakdowns', () => {
     const server = app.listen(0);
     try {
       const session = await UserService.attemptLogin('breakdown-user', '123', false);
+      const user = await prisma.users.findUniqueOrThrow({ where: { user_id: userId } });
+      expect(user.trustlimit).toBeGreaterThan(Math.floor(Date.now() / 1000));
       const address = server.address();
       if (!address || typeof address === 'string') throw new Error('Missing test server port');
       const headers = {

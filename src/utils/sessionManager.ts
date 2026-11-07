@@ -37,10 +37,10 @@ const updateUserTrustlimitValue = async (
  * @param username
  * @param mobile
  */
-const extendUserSession = (username: string, mobile = false) => {
+const extendUserSession = async (username: string, mobile = false) => {
   const renewTimeInSeconds = mobile ? 30 * 24 * 60 * 60 /* 30 days */ : 30 * 60; /* 30 minutes */
   const newTrustLimit = DateTimeUtils.getCurrentUnixTimestamp() + renewTimeInSeconds;
-  updateUserTrustlimitValue(username, newTrustLimit, mobile);
+  await updateUserTrustlimitValue(username, newTrustLimit, mobile);
   return newTrustLimit;
 };
 
@@ -63,7 +63,7 @@ const checkIfTrustLimitHasExpired = (trustlimit: number) => {
 const generateNewSessionKeyForUser = async (username: string, mobile = false) => {
   const newKey = generateUuid();
   await updateUserSessionKeyValue(username, newKey, mobile);
-  const newTrustlimit = extendUserSession(username, mobile);
+  const newTrustlimit = await extendUserSession(username, mobile);
   return { sessionkey: newKey, trustlimit: newTrustlimit };
 };
 
@@ -79,7 +79,7 @@ const checkIfSessionKeyIsValid = async (
     if (checkIfTrustLimitHasExpired(mobile ? userData.trustlimit_mobile : userData.trustlimit)) {
       throw APIError.notAuthorized('Session is not valid.');
     }
-    if (renewTrustLimit) extendUserSession(username, mobile);
+    if (renewTrustLimit) await extendUserSession(username, mobile);
     return true;
   }
   Logger.addLog('USER AND/OR SESSION NOT FOUND');
