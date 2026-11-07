@@ -530,6 +530,27 @@ describe('Budget list tests', () => {
       .toMatchObject({ current_amount_debit: 100 });
   });
 
+  test('counts an essential expense dated later on the last day of the month', async () => {
+    await prisma.transactions.create({
+      data: {
+        date_timestamp: BigInt(new Date(2026, 10, 30, 9).getTime() / 1000),
+        amount: 86_40n,
+        type: MYFIN.TRX_TYPES.EXPENSE,
+        description: 'Last day of the month',
+        is_essential: true,
+        accounts_account_from_id: regularAccountId,
+        categories_category_id: expenseCategoryId,
+      },
+    });
+
+    const total = await BudgetService.getTotalEssentialDebitTransactionsAmountForBudget(userId, {
+      month: 11,
+      year: 2026,
+    });
+
+    expect(total).toBe(86.4);
+  });
+
   test('rejects more than five budgets and budgets owned by another user', async () => {
     await expect(
       BudgetMatrixService.getBudgetMatrix(userId, [

@@ -4,6 +4,7 @@ import { Prisma } from '../generated/prisma/client.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
 import Logger from '../utils/Logger.js';
 import ConvertUtils from '../utils/convertUtils.js';
+import { yearlyTransactionOwnershipFilter } from '../utils/yearlyTransactionOwnershipFilter.js';
 import TransactionService from './transactionService.js';
 
 const BudgetHasCategories = prisma.budgets_has_categories;
@@ -156,7 +157,8 @@ class CategoryService {
     fromDate: number,
     toDate: number,
     includeTransfers = true,
-    dbClient = prisma
+    dbClient = prisma,
+    userId?: bigint
   ): Promise<{
     category_balance_credit: number;
     category_balance_debit: number;
@@ -178,6 +180,7 @@ class CategoryService {
           FROM transactions
           WHERE date_timestamp BETWEEN ${fromDate} AND ${toDate}
             AND categories_category_id = ${categoryId}
+            ${yearlyTransactionOwnershipFilter(userId)}
         `;
       } else {
         // Exclude the IN (...) condition when the list is empty
@@ -186,7 +189,8 @@ class CategoryService {
                sum(if(type = 'E', amount, 0)) as 'category_balance_debit'
         FROM transactions
         WHERE date_timestamp BETWEEN ${fromDate} AND ${toDate}
-          AND categories_category_id = ${categoryId}`;
+          AND categories_category_id = ${categoryId}
+          ${yearlyTransactionOwnershipFilter(userId)}`;
       }
 
       return sqlQuery;
@@ -221,12 +225,13 @@ class CategoryService {
   }
 
   static async getAmountForCategoryInYear(
+    userId: bigint,
     categoryId: bigint,
     year: number,
     includeTransfers = true,
     dbClient = prisma
   ): Promise<CalculatedCategoryAmounts> {
-    const maxDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, 11, 31));
+    const maxDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, 11, 31, 23, 59, 59));
     const minDate = DateTimeUtils.getUnixTimestampFromDate(new Date(year, 0, 1));
     /* Logger.addLog(`cat id: ${categoryId} | month: ${month} | year: ${year} | minDate: ${minDate} | maxDate: ${maxDate}`); */
     const amounts = await this.getAmountForCategoryInPeriod(
@@ -234,7 +239,8 @@ class CategoryService {
       minDate,
       maxDate,
       includeTransfers,
-      dbClient
+      dbClient,
+      userId
     );
 
     return amounts[0];

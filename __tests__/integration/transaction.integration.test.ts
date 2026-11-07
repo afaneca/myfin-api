@@ -49,6 +49,78 @@ describe('Transaction tests', () => {
     );
   });
 
+  test.each([
+    [12, 2025],
+    [2, 2024],
+  ])(
+    'monthly transaction pages include every type and exclude adjacent months (%i/%i)',
+    async (month, year) => {
+      const start = DateTimeUtils.getUnixTimestampFromDate(new Date(year, month - 1, 1));
+      const end = DateTimeUtils.getUnixTimestampFromDate(new Date(year, month, 1));
+      const entries = [
+        [start - 1, MYFIN.TRX_TYPES.INCOME],
+        [start, MYFIN.TRX_TYPES.INCOME],
+        [start + 1, MYFIN.TRX_TYPES.EXPENSE],
+        [end - 1, MYFIN.TRX_TYPES.TRANSFER],
+        [end, MYFIN.TRX_TYPES.INCOME],
+      ] as const;
+      for (const [date, type] of entries) {
+        await TransactionService.createTransaction(user.user_id, {
+          account_from_id: type === MYFIN.TRX_TYPES.INCOME ? null : account1.account_id,
+          account_to_id: type === MYFIN.TRX_TYPES.EXPENSE ? null : account2.account_id,
+          amount: 10,
+          category_id: null,
+          date_timestamp: date,
+          description: 'Monthly test',
+          entity_id: null,
+          is_essential: false,
+          tags: [],
+          type,
+        });
+      }
+
+      const first = await TransactionService.getFilteredTransactionsByForUser(
+        user.user_id,
+        0,
+        2,
+        '',
+        month,
+        year
+      );
+      const second = await TransactionService.getFilteredTransactionsByForUser(
+        user.user_id,
+        1,
+        2,
+        '',
+        month,
+        year
+      );
+      expect(Number(first.filtered_count)).toBe(3);
+      expect(Number(second.filtered_count)).toBe(3);
+      const results = [...first.results, ...second.results];
+      expect(results.map((trx) => Number(trx.date_timestamp))).toEqual([end - 1, start + 1, start]);
+      expect(results.map((trx) => trx.type)).toEqual(['T', 'E', 'I']);
+
+      const searched = await TransactionService.getFilteredTransactionsByForUser(
+        user.user_id,
+        0,
+        10,
+        'missing',
+        month,
+        year
+      );
+      expect(Number(searched.filtered_count)).toBe(0);
+      expect(searched.results).toEqual([]);
+      const unfiltered = await TransactionService.getFilteredTransactionsByForUser(
+        user.user_id,
+        0,
+        10,
+        ''
+      );
+      expect(Number(unfiltered.filtered_count)).toBe(5);
+    }
+  );
+
   test('When transactions are added, updated or removed, account balance is recalculated accordingly', async () => {
     // Create income transaction
     const trx1 = await TransactionService.createTransaction(user.user_id, {
