@@ -1,6 +1,7 @@
 import { prisma } from '../config/prisma.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import DateTimeUtils from '../utils/DateTimeUtils.js';
+import { yearlyTransactionOwnershipFilter } from '../utils/yearlyTransactionOwnershipFilter.js';
 
 export interface Entity {
   entity_id?: bigint;
@@ -79,7 +80,8 @@ const getAmountForEntityInPeriod = async (
   fromDate: number,
   toDate: number,
   includeTransfers = true,
-  dbClient = prisma
+  dbClient = prisma,
+  userId?: bigint
 ): Promise<{ entity_balance_credit: number; entity_balance_debit: number }> => {
   /*  Logger.addLog(
            `Entity: ${entityId} | fromDate: ${fromDate} | toDate: ${toDate} | includeTransfers: ${includeTransfers}`); */
@@ -110,14 +112,16 @@ const getAmountForEntityInPeriod = async (
                                                 0)) as 'entity_balance_debit'
                                   FROM transactions
                                   WHERE date_timestamp between ${fromDate} AND ${toDate}
-                                    AND entities_entity_id = ${entityId} `;
+                                    AND entities_entity_id = ${entityId}
+                                    ${yearlyTransactionOwnershipFilter(userId)}`;
   }
 
   return dbClient.$queryRaw`SELECT sum(if(type = 'I', amount, 0)) as 'entity_balance_credit',
                                    sum(if(type = 'E', amount, 0)) as 'entity_balance_debit'
                             FROM transactions
                             WHERE date_timestamp between ${fromDate} AND ${toDate}
-                              AND entities_entity_id = ${entityId} `;
+                              AND entities_entity_id = ${entityId}
+                              ${yearlyTransactionOwnershipFilter(userId)}`;
 };
 
 export interface CalculatedEntityAmounts {
@@ -150,6 +154,7 @@ const getAmountForEntityInMonth = async (
 };
 
 const getAmountForEntityInYear = async (
+  userId: bigint,
   entityId: bigint,
   year: number,
   includeTransfers = true,
@@ -164,7 +169,8 @@ const getAmountForEntityInYear = async (
     minDate,
     maxDate,
     includeTransfers,
-    dbClient
+    dbClient,
+    userId
   );
   return amounts[0];
 };
