@@ -730,7 +730,7 @@ class BudgetService {
       FROM transactions
       INNER JOIN accounts ON transactions.accounts_account_from_id = accounts.account_id
       WHERE users_user_id = ${userId}
-        AND date_timestamp BETWEEN ${new Date(year, month - 1, 1).getTime() / 1000} AND ${new Date(year, month, 0).getTime() / 1000}
+        AND date_timestamp BETWEEN ${new Date(year, month - 1, 1).getTime() / 1000} AND ${new Date(year, month, 0, 23, 59, 59).getTime() / 1000}
         AND transactions.is_essential IS TRUE
         AND (transactions.type = ${MYFIN.TRX_TYPES.EXPENSE} OR transactions.type = ${MYFIN.TRX_TYPES.TRANSFER})`;
     return result[0].amount ? ConvertUtils.convertBigIntegerToFloat(result[0].amount) : 0;
