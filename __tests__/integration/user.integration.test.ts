@@ -122,6 +122,42 @@ describe('User tests', () => {
       expect(balances.find((a) => a.name === 'SAFU Credit').balance).toBeCloseTo(-911.79);
     });
 
+    test('Backup and restore should keep the tags of transactions', async () => {
+      // @ts-ignore
+      await BackupManager.restoreBackup(user.user_id, userBackupMock);
+      const [tag] = await prisma.tags.findMany({ where: { users_user_id: user.user_id } });
+      const trxs = await prisma.transactions.findMany({
+        where: {
+          accounts_transactions_accounts_account_from_idToaccounts: { users_user_id: user.user_id },
+        },
+        take: 3,
+      });
+      await prisma.transaction_has_tags.createMany({
+        data: trxs.map((trx) => ({
+          transactions_transaction_id: trx.transaction_id,
+          tags_tag_id: tag.tag_id,
+        })),
+      });
+
+      // Same JSON round trip as the backup download and upload
+      const backup = JSON.parse(JSON.stringify(await BackupManager.createBackup(user.user_id)));
+      const other = await UserService.createUser({
+        username: 'other',
+        password: '123',
+        email: 'other@afaneca.com',
+      });
+      await BackupManager.restoreBackup(other.user_id, backup);
+
+      const restoredLinks = await prisma.transaction_has_tags.findMany({
+        where: { tags: { users_user_id: other.user_id } },
+        include: { tags: true, transactions: true },
+      });
+      expect(restoredLinks.map((link) => link.transactions.description).sort()).toEqual(
+        trxs.map((trx) => trx.description).sort()
+      );
+      expect(restoredLinks.every((link) => link.tags.name === tag.name)).toBe(true);
+    });
+
     test('If backup file is from different major version, an error should be thrown', async () => {
       // @ts-ignore
       await expectThrowErrorCode(

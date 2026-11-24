@@ -36,6 +36,7 @@ export interface BackupData {
   goals?: Prisma.goalsGetPayload<object>[];
   goal_has_accounts?: Prisma.goal_has_accountGetPayload<object>[];
   transactions?: Prisma.transactionsGetPayload<object>[];
+  transaction_has_tags?: Prisma.transaction_has_tagsGetPayload<object>[];
 }
 
 class BackupManager {
@@ -56,6 +57,7 @@ class BackupManager {
       goals,
       goalHasAccounts,
       transactions,
+      transactionHasTags,
     ] = await Promise.all([
       // Accounts
       dbClient.accounts.findMany({
@@ -141,6 +143,11 @@ class BackupManager {
           ],
         },
       }),
+
+      // Transaction tags
+      dbClient.transaction_has_tags.findMany({
+        where: { tags: { users_user_id: userId } },
+      }),
     ]);
 
     return {
@@ -164,6 +171,7 @@ class BackupManager {
       goals,
       goal_has_accounts: goalHasAccounts,
       transactions,
+      transaction_has_tags: transactionHasTags,
     };
   }
 
@@ -183,6 +191,7 @@ class BackupManager {
     const assetIdMap: Map<bigint, bigint> = new Map(); // <old id, new id>
     const budgetIdMap: Map<bigint, bigint> = new Map(); // <old id, new id>
     const goalIdMap: Map<bigint, bigint> = new Map(); // <old id, new id>
+    const trxIdMap: Map<bigint, bigint> = new Map(); // <old id, new id>
 
     const restoredItems = data.budget_category_items ?? [];
     const parentKey = (row: {
@@ -498,6 +507,7 @@ class BackupManager {
           is_essential: trx.is_essential,
         },
       });
+      trxIdMap.set(trx.transaction_id, newTrx.transaction_id);
       return newTrx;
     });
     // endregion
@@ -531,6 +541,19 @@ class BackupManager {
     Logger.addLog('BackupManager > Restore | Importing transactions...');
     await Promise.all([...rulePromises, ...trxPromises, ...assetTrxPromises]);
     Logger.addLog('BackupManager > Restore | Transactions successfully imported!');
+
+    // region Transaction Tags
+    // Backups made before tags were exported have no transaction_has_tags
+    const transactionTags = (data.transaction_has_tags ?? [])
+      .map((link) => ({
+        transactions_transaction_id: trxIdMap.get(link.transactions_transaction_id),
+        tags_tag_id: tagIdMap.get(link.tags_tag_id),
+      }))
+      .filter((link) => link.transactions_transaction_id && link.tags_tag_id);
+    if (transactionTags.length > 0) {
+      await dbClient.transaction_has_tags.createMany({ data: transactionTags });
+    }
+    // endregion
 
     // region Asset Evolution Snapshots
     const assetEvoSnapshots = data.invest_asset_evo_snapshot.map(async (snapshot) => {
