@@ -13,6 +13,7 @@ describe('Transaction tests', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   beforeEach(async () => {
@@ -223,6 +224,29 @@ describe('Transaction tests', () => {
 
     // Assert balance is 10 + 125.5 - 253.35 -29 + 253.35 + 254.35 +29 = 389.85
     await assertCurrentAccountBalance(account1.account_id, 389.85);
+  });
+
+  test('A transaction in the current year keeps the balance carried over from earlier years', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 10, 15, 12));
+
+    // One yearly deposit, always in June
+    for (const year of [2024, 2025, 2026]) {
+      await TransactionService.createTransaction(user.user_id, {
+        account_from_id: null,
+        account_to_id: account1.account_id,
+        amount: 1000,
+        category_id: null,
+        date_timestamp: DateTimeUtils.getUnixTimestampFromDate(new Date(year, 5, 10, 12)),
+        description: `deposit ${year}`,
+        entity_id: null,
+        is_essential: false,
+        tags: [],
+        type: MYFIN.TRX_TYPES.INCOME,
+      });
+    }
+
+    await assertCurrentAccountBalance(account1.account_id, 3000);
   });
 
   test('When transfer transactions accounts are changed, all affected account balances are recalculated accordingly', async () => {
