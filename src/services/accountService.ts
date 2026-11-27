@@ -193,6 +193,7 @@ class AccountService {
     return prismaClient.$queryRaw`DELETE
                                   FROM balances_snapshot
                                   WHERE accounts_account_id = ${accountId}
+                                          AND year = ${year1}
                                           AND month >= ${month1}
                                           AND month <= ${month2} `;
   }
